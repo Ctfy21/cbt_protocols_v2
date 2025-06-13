@@ -67,28 +67,24 @@ export interface Experiment {
 }
 
 export interface Phase {
+  id?: number
   title: string
   description: string
   duration_days: number
-  input_numbers: Record<string, PhaseInputNumber>
-  light_intensity: Record<string, LightIntensity>
-  watering_zones: Record<string, WateringZone>
-}
-
-export interface PhaseInputNumber {
-  entity_id: string
-  value: number
-}
-
-export interface LightIntensity {
-  entity_id: string
-  intensity: number
+  start_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  work_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  temperature_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  temperature_night_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  humidity_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  humidity_night_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  co2_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  co2_night_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  light_intensity_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  watering_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
 }
 
 export interface ScheduleItem {
   phase_index: number
-  start_date: string
-  end_date: string
   start_timestamp: number
   end_timestamp: number
 }
@@ -109,4 +105,4 @@ export interface ExperimentFormData {
   chamber_id: string
   phases: Phase[]
   start_date: string
-} 
+}

@@ -32,24 +32,24 @@ type Experiment struct {
 
 // Phase represents a phase in an experiment
 type Phase struct {
-	Title          string                       `bson:"title" json:"title"`
-	Description    string                       `bson:"description" json:"description"`
-	DurationDays   int                          `bson:"duration_days" json:"duration_days"`
-	InputNumbers   map[string]*PhaseInputNumber `bson:"input_numbers" json:"input_numbers"`
-	LightIntensity map[string]*LightIntensity   `bson:"light_intensity" json:"light_intensity"`
-	WateringZones  map[string]*WateringZone     `bson:"watering_zones" json:"watering_zones"`
+	Title                    string                    `bson:"title" json:"title"`
+	Description              string                    `bson:"description" json:"description"`
+	DurationDays             int                       `bson:"duration_days" json:"duration_days"`
+	StartDay                 int                       `bson:"start_day,omitempty" json:"start_day,omitempty"`
+	WorkDaySchedule          map[string]ScheduleConfig `bson:"work_day_schedule,omitempty" json:"work_day_schedule,omitempty"`
+	TemperatureDaySchedule   map[string]ScheduleConfig `bson:"temperature_day_schedule,omitempty" json:"temperature_day_schedule,omitempty"`
+	TemperatureNightSchedule map[string]ScheduleConfig `bson:"temperature_night_schedule,omitempty" json:"temperature_night_schedule,omitempty"`
+	HumidityDaySchedule      map[string]ScheduleConfig `bson:"humidity_day_schedule,omitempty" json:"humidity_day_schedule,omitempty"`
+	HumidityNightSchedule    map[string]ScheduleConfig `bson:"humidity_night_schedule,omitempty" json:"humidity_night_schedule,omitempty"`
+	CO2DaySchedule           map[string]ScheduleConfig `bson:"co2_day_schedule,omitempty" json:"co2_day_schedule,omitempty"`
+	CO2NightSchedule         map[string]ScheduleConfig `bson:"co2_night_schedule,omitempty" json:"co2_night_schedule,omitempty"`
+	LightIntensitySchedule   map[string]ScheduleConfig `bson:"light_intensity_schedule,omitempty" json:"light_intensity_schedule,omitempty"`
 }
 
-// PhaseInputNumber represents an input number value for a phase
-type PhaseInputNumber struct {
-	EntityID string  `bson:"entity_id" json:"entity_id"`
-	Value    float64 `bson:"value" json:"value"`
-}
-
-// LightIntensity represents light intensity settings
-type LightIntensity struct {
-	EntityID  string  `bson:"entity_id" json:"entity_id"`
-	Intensity float64 `bson:"intensity" json:"intensity"`
+// ScheduleConfig represents a schedule configuration for various parameters
+type ScheduleConfig struct {
+	EntityID string          `bson:"entity_id" json:"entity_id"`
+	Schedule map[int]float64 `bson:"schedule" json:"schedule"`
 }
 
 // ScheduleItem represents a schedule item for an experiment

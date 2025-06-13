@@ -5,14 +5,14 @@
         <input
           v-model="localPhase.title"
           type="text"
-          class="text-sm font-medium text-gray-900 bg-transparent border-0 p-0 focus:ring-0 w-full"
+          class="text-xl font-medium text-gray-900 bg-transparent border-0 p-0 focus:ring-0 w-full"
           placeholder="Phase title"
           @input="updatePhase"
         />
         <textarea
           v-model="localPhase.description"
           rows="2"
-          class="mt-1 text-sm text-gray-500 bg-transparent border-0 p-0 focus:ring-0 w-full resize-none"
+          class="mt-1 text-lg text-gray-500 bg-transparent border-0 p-0 focus:ring-0 w-full resize-none"
           placeholder="Phase description..."
           @input="updatePhase"
         ></textarea>
@@ -21,153 +21,159 @@
         @click="$emit('remove')"
         class="ml-2 text-gray-400 hover:text-red-600"
       >
-        <TrashIcon class="w-4 h-4" />
+        <TrashIcon class="w-6 h-6" />
       </button>
     </div>
 
     <!-- Duration -->
     <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">
+      <label class="block text-lg font-medium text-gray-700 mt-4">
         Duration (days)
       </label>
       <input
         v-model.number="localPhase.duration_days"
         type="number"
         min="1"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="w-full px-3 py-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         @input="updatePhase"
+      />
+      <label class="block text-lg font-medium text-gray-700 mt-4">Start Day Time (HH:MM)</label>
+      <input
+        v-model="startDayTime"
+        type="time"
+        class="w-full px-3 py-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        @input="updateStartDayTime"
       />
     </div>
 
-    <!-- Environmental Parameters -->
-    <div class="space-y-4">
-      <div>
-        <h5 class="text-sm font-medium text-gray-700 mb-2">Environmental Parameters</h5>
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Temperature -->
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Day Temperature (°C)</label>
-            <input
-              v-model.number="tempDay"
-              type="number"
-              step="0.1"
-              min="0"
-              max="50"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Night Temperature (°C)</label>
-            <input
-              v-model.number="tempNight"
-              type="number"
-              step="0.1"
-              min="0"
-              max="50"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
+    <!-- Charts -->
+    <div class="space-y-4 mb-4">
 
-          <!-- Humidity -->
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Day Humidity (%)</label>
-            <input
-              v-model.number="humidityDay"
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Night Humidity (%)</label>
-            <input
-              v-model.number="humidityNight"
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
 
-          <!-- CO2 -->
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Day CO2 (ppm)</label>
-            <input
-              v-model.number="co2Day"
-              type="number"
-              step="10"
-              min="0"
-              max="2000"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Night CO2 (ppm)</label>
-            <input
-              v-model.number="co2Night"
-              type="number"
-              step="10"
-              min="0"
-              max="2000"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
+      <!-- Day Duration Chart -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
+          <ClockIcon class="w-6 h-6 text-purple-500" />
+          <span>Day Duration Schedule</span>
         </div>
+        <Chart
+          v-model="dayDurationSchedule" 
+          :duration="localPhase.duration_days"
+          :min="0"
+          :max="24"
+          :step="1"
+          :unit="' hours'"
+          @update:model-value="updateDayDurationSchedule"
+          title="Day Duration Schedule"
+        />
       </div>
 
-      <!-- Light Settings -->
-      <div>
-        <h5 class="text-sm font-medium text-gray-700 mb-2">Light Settings</h5>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Day Start (HH:MM)</label>
-            <input
-              v-model="dayStart"
-              type="time"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-600 mb-1">Day Duration (hours)</label>
-            <input
-              v-model.number="dayDuration"
-              type="number"
-              step="0.5"
-              min="0"
-              max="24"
-              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-              @input="updateEnvironmentParams"
-            />
-          </div>
+
+      <!-- Day Charts -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
+          <SunIcon class="w-6 h-6 text-yellow-500" />
+          <span>Day Schedule</span>
+        </div>
+        
+        <!-- Temperature Chart -->
+        <Chart
+          v-model="temperatureDaySchedule" 
+          :duration="localPhase.duration_days"
+          :min="10"
+          :max="30"
+          :step="1"
+          :unit="'°C'"
+          @update:model-value="updateTemperatureDaySchedule"
+          title="Temperature Schedule"
+        />
+
+        <!-- Humidity Chart -->
+        <Chart
+          v-model="humidityDaySchedule" 
+          :duration="localPhase.duration_days"
+          :min="0"
+          :max="100"
+          :step="5"
+          :unit="'%'"
+          @update:model-value="updateHumidityDaySchedule"
+          title="Humidity Schedule"
+        />
+
+        <!-- CO2 Chart -->
+        <Chart
+          v-model="co2DaySchedule" 
+          :duration="localPhase.duration_days"
+          :min="0"
+          :max="2000"
+          :step="100"
+          :unit="'ppm'"
+          @update:model-value="updateCO2DaySchedule"
+          title="CO2 Schedule"
+        />
+      </div>
+
+      <!-- Night Charts -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
+          <MoonIcon class="w-6 h-6 text-blue-500" />
+          <span>Night Schedule</span>
         </div>
 
-        <!-- Lamp Intensities -->
-        <div v-if="chamber.lamps && chamber.lamps.length > 0" class="mt-3">
-          <label class="block text-xs text-gray-600 mb-1">Lamp Intensities (%)</label>
-          <div class="grid grid-cols-2 gap-2">
-            <div v-for="lamp in chamber.lamps" :key="lamp.entity_id" class="flex items-center gap-2">
-              <span class="text-xs text-gray-600">{{ lamp.friendly_name }}:</span>
-              <input
-                v-model.number="lampIntensities[lamp.entity_id]"
-                type="number"
-                step="1"
-                :min="lamp.intensity_min"
-                :max="lamp.intensity_max"
-                class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                @input="updateLampIntensities"
-              />
-            </div>
-          </div>
+        <!-- Temperature Chart -->
+        <Chart
+          v-model="temperatureNightSchedule" 
+          :duration="localPhase.duration_days"
+          :min="10"
+          :max="30"
+          :step="1"
+          :unit="'°C'"
+          @update:model-value="updateTemperatureNightSchedule"
+          title="Temperature Schedule"
+        />
+
+        <!-- Humidity Chart -->
+        <Chart
+          v-model="humidityNightSchedule" 
+          :duration="localPhase.duration_days"
+          :min="0"
+          :max="100"
+          :step="5"
+          :unit="'%'"
+          @update:model-value="updateHumidityNightSchedule"
+          title="Humidity Schedule"
+        />
+
+        <!-- CO2 Chart -->
+        <Chart
+          v-model="co2NightSchedule" 
+          :duration="localPhase.duration_days"
+          :min="0"
+          :max="2000"
+          :step="100"
+          :unit="'ppm'"
+          @update:model-value="updateCO2NightSchedule"
+          title="CO2 Schedule"
+        />
+      </div>
+
+      <!-- Lamp Intensity Charts -->
+      <div v-if="chamber.lamps && chamber.lamps.length > 0" class="space-y-4">
+        <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
+          <LightBulbIcon class="w-6 h-6 text-yellow-400" />
+          <span>Lamp Intensity Schedules</span>
+        </div>
+        <div v-for="lamp in chamber.lamps" :key="lamp.entity_id">
+          <Chart
+            v-model="lampIntensitySchedules[lamp.entity_id]" 
+            :duration="localPhase.duration_days"
+            :min="lamp.intensity_min"
+            :max="lamp.intensity_max"
+            :step="5"
+            :unit="'%'"
+            @update:model-value="(schedule) => updateLampIntensitySchedule(lamp.entity_id, schedule)"
+            :title="`${lamp.name} Intensity Schedule`"
+          />
         </div>
       </div>
     </div>
@@ -176,7 +182,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
-import { TrashIcon } from '@heroicons/vue/24/outline'
+import { TrashIcon, SunIcon, MoonIcon, LightBulbIcon, ClockIcon } from '@heroicons/vue/24/outline'
+import Chart from './Chart.vue'
 import type { Phase, Chamber } from '@/types'
 
 interface Props {
@@ -195,62 +202,121 @@ const emit = defineEmits<{
 // Local phase data
 const localPhase = reactive({ ...props.phase })
 
+
+
+// Temperature schedule for the chart
+const temperatureDaySchedule = ref<Record<number, number>>({})
+const humidityDaySchedule = ref<Record<number, number>>({})
+const co2DaySchedule = ref<Record<number, number>>({})
+const temperatureNightSchedule = ref<Record<number, number>>({})
+const humidityNightSchedule = ref<Record<number, number>>({})
+const co2NightSchedule = ref<Record<number, number>>({})
+
+// Lamp intensity schedules
+const lampIntensitySchedules = reactive<Record<string, Record<number, number>>>({})
+
 // Environmental parameters
-const tempDay = ref(24)
-const tempNight = ref(20)
-const humidityDay = ref(70)
-const humidityNight = ref(60)
-const co2Day = ref(500)
-const co2Night = ref(400)
-const dayStart = ref('09:00')
-const dayDuration = ref(12)
-const lampIntensities = reactive<Record<string, number>>({})
+const startDayTime = ref<string>('09:00')
+
+// Day duration schedule
+const dayDurationSchedule = ref<Record<number, number>>({})
 
 // Initialize values from phase data
 onMounted(() => {
   initializeValues()
+  
 })
 
 watch(() => props.phase, () => {
   Object.assign(localPhase, props.phase)
-  initializeValues()
 }, { deep: true })
 
 function initializeValues() {
-  // Extract values from input_numbers
-  const inputNumbers = props.phase.input_numbers || {}
-  
-  // Temperature
-  const tempDayEntity = findInputNumberByType('temp_day')
-  const tempNightEntity = findInputNumberByType('temp_night')
-  if (tempDayEntity) tempDay.value = inputNumbers[tempDayEntity]?.value || 24
-  if (tempNightEntity) tempNight.value = inputNumbers[tempNightEntity]?.value || 20
-  
-  // Humidity
+  // Initialize start_day if not set
+  const dayStartEntity = findInputNumberByType('day_start')
+  if (dayStartEntity) {
+    if (!localPhase.start_day) {
+      localPhase.start_day = {}
+    }
+    if (!localPhase.start_day[dayStartEntity]) {
+      localPhase.start_day[dayStartEntity] = { entity_id: dayStartEntity, value: 9 }
+    }
+    // Set start day time from start_day
+    const startHour = localPhase.start_day[dayStartEntity].value
+    startDayTime.value = `${startHour.toString().padStart(2, '0')}:00`
+  }
+
+  // Create default schedules for the entire duration
+  const defaultTemperatureDaySchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 25])
+  )
+  const defaultHumidityDaySchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 60])
+  )
+  const defaultCO2DaySchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 800])
+  )
+  const defaultTemperatureNightSchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 20])
+  )
+  const defaultHumidityNightSchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 70])
+  )
+  const defaultCO2NightSchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 400])
+  )
+  const defaultDayDurationSchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 12])
+  )
+  const defaultLampIntensitySchedule = Object.fromEntries(
+    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 80])
+  )
+
+
+  // Initialize schedules from phase data if exists, otherwise use defaults
+  const dayDurationEntity = findInputNumberByType('day_duration')
+  if (dayDurationEntity) {
+    dayDurationSchedule.value = props.phase.work_day_schedule?.[dayDurationEntity]?.schedule || defaultDayDurationSchedule
+  }
+
+  // Initialize temperature schedules
+  const tempDayEntity = findInputNumberByType('temperature_day')
+  const tempNightEntity = findInputNumberByType('temperature_night')
+  if (tempDayEntity) {
+    temperatureDaySchedule.value = props.phase.temperature_day_schedule?.[tempDayEntity]?.schedule || defaultTemperatureDaySchedule
+  }
+  if (tempNightEntity) {
+    temperatureNightSchedule.value = props.phase.temperature_night_schedule?.[tempNightEntity]?.schedule || defaultTemperatureNightSchedule
+  }
+
+  // Initialize humidity schedules
   const humidityDayEntity = findInputNumberByType('humidity_day')
   const humidityNightEntity = findInputNumberByType('humidity_night')
-  if (humidityDayEntity) humidityDay.value = inputNumbers[humidityDayEntity]?.value || 70
-  if (humidityNightEntity) humidityNight.value = inputNumbers[humidityNightEntity]?.value || 60
-  
-  // CO2
+  if (humidityDayEntity) {
+    humidityDaySchedule.value = props.phase.humidity_day_schedule?.[humidityDayEntity]?.schedule || defaultHumidityDaySchedule
+  }
+  if (humidityNightEntity) {
+    humidityNightSchedule.value = props.phase.humidity_night_schedule?.[humidityNightEntity]?.schedule || defaultHumidityNightSchedule
+  }
+
+  // Initialize CO2 schedules
   const co2DayEntity = findInputNumberByType('co2_day')
   const co2NightEntity = findInputNumberByType('co2_night')
-  if (co2DayEntity) co2Day.value = inputNumbers[co2DayEntity]?.value || 500
-  if (co2NightEntity) co2Night.value = inputNumbers[co2NightEntity]?.value || 400
-  
-  // Light schedule
-  const dayStartEntity = findInputNumberByType('day_start')
-  const dayDurationEntity = findInputNumberByType('day_duration')
-  if (dayStartEntity) {
-    const startValue = inputNumbers[dayStartEntity]?.value || 9
-    dayStart.value = `${Math.floor(startValue).toString().padStart(2, '0')}:${Math.round((startValue % 1) * 60).toString().padStart(2, '0')}`
+  if (co2DayEntity) {
+    co2DaySchedule.value = props.phase.co2_day_schedule?.[co2DayEntity]?.schedule || defaultCO2DaySchedule
   }
-  if (dayDurationEntity) dayDuration.value = inputNumbers[dayDurationEntity]?.value || 12
-  
-  // Lamp intensities
-  Object.entries(props.phase.light_intensity || {}).forEach(([entity_id, li]) => {
-    lampIntensities[entity_id] = li.intensity
-  })
+  if (co2NightEntity) {
+    co2NightSchedule.value = props.phase.co2_night_schedule?.[co2NightEntity]?.schedule || defaultCO2NightSchedule
+  }
+
+  // Initialize lamp intensity schedules
+  if(props.chamber.lamps && props.chamber.lamps.length > 0) {
+    props.chamber.lamps.forEach((lamp) => {
+      lampIntensitySchedules[lamp.entity_id] = defaultLampIntensitySchedule
+    })
+  }
+
+  updatePhase()
 }
 
 function findInputNumberByType(type: string): string | null {
@@ -262,42 +328,114 @@ function updatePhase() {
   emit('update', { ...localPhase })
 }
 
-function updateEnvironmentParams() {
-  const inputNumbers: Record<string, any> = {}
-  
-  // Temperature
-  const tempDayEntity = findInputNumberByType('temp_day')
-  const tempNightEntity = findInputNumberByType('temp_night')
-  if (tempDayEntity) inputNumbers[tempDayEntity] = { entity_id: tempDayEntity, value: tempDay.value }
-  if (tempNightEntity) inputNumbers[tempNightEntity] = { entity_id: tempNightEntity, value: tempNight.value }
-  
-  // Humidity
-  const humidityDayEntity = findInputNumberByType('humidity_day')
-  const humidityNightEntity = findInputNumberByType('humidity_night')
-  if (humidityDayEntity) inputNumbers[humidityDayEntity] = { entity_id: humidityDayEntity, value: humidityDay.value }
-  if (humidityNightEntity) inputNumbers[humidityNightEntity] = { entity_id: humidityNightEntity, value: humidityNight.value }
-  
-  // CO2
-  const co2DayEntity = findInputNumberByType('co2_day')
-  const co2NightEntity = findInputNumberByType('co2_night')
-  if (co2DayEntity) inputNumbers[co2DayEntity] = { entity_id: co2DayEntity, value: co2Day.value }
-  if (co2NightEntity) inputNumbers[co2NightEntity] = { entity_id: co2NightEntity, value: co2Night.value }
-  
-  // Light schedule
-  const dayStartEntity = findInputNumberByType('day_start')
-  const dayDurationEntity = findInputNumberByType('day_duration')
-  if (dayStartEntity && dayStart.value) {
-    const [hours, minutes] = dayStart.value.split(':').map(Number)
-    inputNumbers[dayStartEntity] = { entity_id: dayStartEntity, value: hours + minutes / 60 }
+function updateTemperatureDaySchedule(schedule: Record<number, number>) {
+  temperatureDaySchedule.value = schedule
+  const tempDayEntity = findInputNumberByType('temperature_day')
+  if (tempDayEntity) {
+    if (!localPhase.temperature_day_schedule) {
+      localPhase.temperature_day_schedule = {}
+    }
+    localPhase.temperature_day_schedule[tempDayEntity] = { entity_id: tempDayEntity, schedule }
   }
-  if (dayDurationEntity) inputNumbers[dayDurationEntity] = { entity_id: dayDurationEntity, value: dayDuration.value }
-  
-  localPhase.input_numbers = inputNumbers
   updatePhase()
 }
 
-function updateLampIntensities() {
-  localPhase.light_intensity = Object.fromEntries(Object.entries(lampIntensities).map(([entity_id, intensity]) => [entity_id, { entity_id, intensity }]))
+function updateHumidityDaySchedule(schedule: Record<number, number>) {
+  humidityDaySchedule.value = schedule
+  const humidityDayEntity = findInputNumberByType('humidity_day')
+  if (humidityDayEntity) {
+    if (!localPhase.humidity_day_schedule) {
+      localPhase.humidity_day_schedule = {}
+    }
+    localPhase.humidity_day_schedule[humidityDayEntity] = { entity_id: humidityDayEntity, schedule }
+  }
   updatePhase()
 }
-</script> 
+
+function updateCO2DaySchedule(schedule: Record<number, number>) {
+  co2DaySchedule.value = schedule
+  const co2DayEntity = findInputNumberByType('co2_day')
+  if (co2DayEntity) {
+    if (!localPhase.co2_day_schedule) {
+      localPhase.co2_day_schedule = {}
+    }
+    localPhase.co2_day_schedule[co2DayEntity] = { entity_id: co2DayEntity, schedule }
+  }
+  updatePhase()
+}
+
+function updateTemperatureNightSchedule(schedule: Record<number, number>) {
+  temperatureNightSchedule.value = schedule
+  const tempNightEntity = findInputNumberByType('temperature_night')
+  if (tempNightEntity) {
+    if (!localPhase.temperature_night_schedule) {
+      localPhase.temperature_night_schedule = {}
+    }
+    localPhase.temperature_night_schedule[tempNightEntity] = { entity_id: tempNightEntity, schedule }
+  }
+  updatePhase()
+}
+
+function updateHumidityNightSchedule(schedule: Record<number, number>) {
+  humidityNightSchedule.value = schedule
+  const humidityNightEntity = findInputNumberByType('humidity_night')
+  if (humidityNightEntity) {
+    if (!localPhase.humidity_night_schedule) {
+      localPhase.humidity_night_schedule = {}
+    }
+    localPhase.humidity_night_schedule[humidityNightEntity] = { entity_id: humidityNightEntity, schedule }
+  }
+  updatePhase()
+}
+
+function updateCO2NightSchedule(schedule: Record<number, number>) {
+  co2NightSchedule.value = schedule
+  const co2NightEntity = findInputNumberByType('co2_night')
+  if (co2NightEntity) {
+    if (!localPhase.co2_night_schedule) {
+      localPhase.co2_night_schedule = {}
+    }
+    localPhase.co2_night_schedule[co2NightEntity] = { entity_id: co2NightEntity, schedule }
+  }
+  updatePhase()
+}
+
+function updateLampIntensitySchedule(entity_id: string, schedule: Record<number, number>) {
+  lampIntensitySchedules[entity_id] = schedule
+  if (!localPhase.light_intensity_schedule) {
+    localPhase.light_intensity_schedule = {}
+  }
+  if (!localPhase.light_intensity_schedule[entity_id]) {
+    localPhase.light_intensity_schedule[entity_id] = { entity_id, schedule: {} }
+  }
+  localPhase.light_intensity_schedule[entity_id].schedule = schedule
+  updatePhase()
+}
+
+function updateDayDurationSchedule(schedule: Record<number, number>) {
+  dayDurationSchedule.value = schedule
+  const dayStartEntity = findInputNumberByType('day_start')
+  if (dayStartEntity) {
+    if (!localPhase.work_day_schedule) {
+      localPhase.work_day_schedule = {}
+    }
+    localPhase.work_day_schedule[dayStartEntity] = { entity_id: dayStartEntity, schedule }
+  }
+  updatePhase()
+}
+
+function updateStartDayTime() {
+  const timeValue = startDayTime.value
+  if (timeValue) {
+    const [hours, _] = timeValue.split(':').map(Number)
+    const dayStartEntity = findInputNumberByType('day_start')
+    if (dayStartEntity) {
+      if (!localPhase.start_day) {
+        localPhase.start_day = {}
+      }
+      localPhase.start_day[dayStartEntity] = { entity_id: dayStartEntity, value: hours }
+      updatePhase()
+    }
+  }
+}
+</script>

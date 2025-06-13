@@ -143,12 +143,11 @@
               </div>
 
               <!-- Light Settings -->
-              <div v-if="phase.light_intensity && Object.keys(phase.light_intensity).length > 0" class="mt-4 pt-4 border-t border-gray-100">
+              <div v-if="phase.light_intensity_schedule && Object.keys(phase.light_intensity_schedule).length > 0" class="mt-4 pt-4 border-t border-gray-100">
                 <h4 class="text-sm font-medium text-gray-700 mb-2">Light Settings</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                  <div v-for="light in Object.values(phase.light_intensity)" :key="light.entity_id">
+                  <div v-for="light in Object.values(phase.light_intensity_schedule)" :key="light.entity_id">
                     <span class="text-gray-500">{{ getLampName(light.entity_id) }}:</span>
-                    <span class="ml-1 font-medium">{{ light.intensity }}%</span>
                   </div>
                 </div>
               </div>
@@ -268,13 +267,15 @@ function calculateEndDate(): string | null {
 }
 
 function getPhaseValue(phase: Phase, type: string): number | null {
-  const inputNumbers = phase.input_numbers || {}
-  const inputNumber = chamberStore.selectedChamber?.input_numbers.find(input => input.type === type)
-  
-  if (!inputNumber) return null
-  
-  const value = inputNumbers[inputNumber.entity_id]?.value
-  return value !== undefined ? value : null
+  const day = phase.start_day || 0
+  if (type === 'temp_day') return phase.temperature_day_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'temp_night') return phase.temperature_night_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'humidity_day') return phase.humidity_day_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'humidity_night') return phase.humidity_night_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'co2_day') return phase.co2_day_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'co2_night') return phase.co2_night_schedule?.[day]?.schedule?.[day] || null
+  if (type === 'work_day') return phase.work_day_schedule?.[day]?.schedule?.[day] || null
+  return null
 }
 
 function getLampName(entityId: string): string {

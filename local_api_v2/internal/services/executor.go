@@ -143,7 +143,7 @@ func (s *ExecutorService) getActiveExperiments(ctx context.Context) ([]models.Ex
 // processExperiment processes a single experiment
 func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Experiment) error {
 	// Determine current phase based on schedule
-	currentPhase, phaseIndex := s.getCurrentPhase(exp)
+	currentPhase, phaseIndex, currentDay := s.getCurrentPhaseWithDay(exp)
 	if currentPhase == nil {
 		log.Printf("No active phase found for experiment %s", exp.Title)
 		return nil
@@ -160,45 +160,58 @@ func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Exp
 	}
 
 	// Apply phase settings to Home Assistant
-	return s.applyPhaseSettings(currentPhase)
+	return s.applyPhaseSettings(currentPhase, currentDay)
 }
 
 // getCurrentPhase determines which phase should be active based on the schedule
-func (s *ExecutorService) getCurrentPhase(exp *models.Experiment) (*models.Phase, int) {
+func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*models.Phase, int, int) {
 	now := time.Now()
 
 	for _, scheduleItem := range exp.Schedule {
 		// Parse schedule timestamps
 		startTime := time.Unix(scheduleItem.StartTimestamp, 0)
 		endTime := time.Unix(scheduleItem.EndTimestamp, 0)
+		currentDay := 0
 
 		if now.After(startTime) && now.Before(endTime) {
 			// Find the corresponding phase
 			if scheduleItem.PhaseIndex < len(exp.Phases) {
-				return &exp.Phases[scheduleItem.PhaseIndex], scheduleItem.PhaseIndex
+				intervalDays := getDaysAndTimestamps(scheduleItem.StartTimestamp, scheduleItem.EndTimestamp)
+				for i := 0; i < len(intervalDays)-1; i++ {
+					if intervalDays[i].Timestamp < now.Unix() && intervalDays[i+1].Timestamp > now.Unix() {
+						currentDay = intervalDays[i+1].Day
+					}
+				}
+				return &exp.Phases[scheduleItem.PhaseIndex], scheduleItem.PhaseIndex, currentDay
 			}
 		}
 	}
 
-	return nil, -1
+	return nil, -1, -1
 }
 
 // applyPhaseSettings applies the phase settings to Home Assistant
-func (s *ExecutorService) applyPhaseSettings(phase *models.Phase) error {
+func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int) error {
 	var errors []error
 
+	log.Printf("Applying phase settings for phase %s, day %d", phase.Title, currentDay)
+
+	if err := s.haClient.SetInputNumber(, phase.StartDay); err != nil {
+		log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+	}
+
 	// Apply climate controls based on day/night
-	if err := s.applyClimateControls(phase); err != nil {
+	if err := s.applyClimateControls(phase, currentDay); err != nil {
 		errors = append(errors, fmt.Errorf("climate controls: %w", err))
 	}
 
 	// Apply light controls
-	if err := s.applyLightControls(phase); err != nil {
+	if err := s.applyLightControls(phase, currentDay); err != nil {
 		errors = append(errors, fmt.Errorf("light controls: %w", err))
 	}
 
 	// Apply watering controls
-	if err := s.applyWateringControls(phase); err != nil {
+	if err := s.applyWateringControls(phase, currentDay); err != nil {
 		errors = append(errors, fmt.Errorf("watering controls: %w", err))
 	}
 
@@ -214,17 +227,50 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase) error {
 }
 
 // applyClimateControls applies temperature, humidity, and CO2 settings
-func (s *ExecutorService) applyClimateControls(phase *models.Phase) error {
+func (s *ExecutorService) applyClimateControls(phase *models.Phase, currentDay int) error {
 
 	// Find matching entities from chamber's InputNumbers
-	for _, inputNumber := range s.chamber.InputNumbers {
+	for _, scheduleConfig := range phase.WorkDaySchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
 
-		if phase.InputNumbers[inputNumber.EntityID] != nil {
-			if err := s.haClient.SetInputNumber(inputNumber.EntityID, phase.InputNumbers[inputNumber.EntityID].Value); err != nil {
-				log.Printf("Failed to set %s: %v", inputNumber.EntityID, err)
-			} else {
-				log.Printf("Set %s to %.1f", inputNumber.EntityID, phase.InputNumbers[inputNumber.EntityID].Value)
-			}
+	// Find matching entities from chamber's InputNumbers
+	for _, scheduleConfig := range phase.TemperatureDaySchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
+
+	// Find matching entities from chamber's InputNumbers
+	for _, scheduleConfig := range phase.TemperatureNightSchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
+
+	for _, scheduleConfig := range phase.HumidityDaySchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
+
+	for _, scheduleConfig := range phase.HumidityNightSchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
+
+	for _, scheduleConfig := range phase.CO2DaySchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		}
+	}
+
+	for _, scheduleConfig := range phase.CO2NightSchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
 		}
 	}
 
@@ -232,13 +278,12 @@ func (s *ExecutorService) applyClimateControls(phase *models.Phase) error {
 }
 
 // applyLightControls applies light intensity settings for each lamp
-func (s *ExecutorService) applyLightControls(phase *models.Phase) error {
+func (s *ExecutorService) applyLightControls(phase *models.Phase, currentDay int) error {
 
-	for _, lamp := range s.chamber.Lamps {
-		if phase.LightIntensity[lamp.EntityID] != nil {
-			if err := s.haClient.SetInputNumber(lamp.EntityID, phase.LightIntensity[lamp.EntityID].Intensity); err != nil {
-				log.Printf("Failed to set %s: %v", lamp.EntityID, err)
-			}
+	// Find matching entities from chamber's InputNumbers
+	for _, scheduleConfig := range phase.LightIntensitySchedule {
+		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
 		}
 	}
 
@@ -246,7 +291,7 @@ func (s *ExecutorService) applyLightControls(phase *models.Phase) error {
 }
 
 // applyWateringControls handles watering zone controls
-func (s *ExecutorService) applyWateringControls(phase *models.Phase) error {
+func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay int) error {
 
 	return nil
 }
@@ -266,4 +311,26 @@ func (s *ExecutorService) updateExperimentActivePhase(ctx context.Context, exp *
 		update,
 	)
 	return err
+}
+
+// getDaysAndTimestamps generates an array of days and timestamps between start and end timestamps
+func getDaysAndTimestamps(startTimestamp, endTimestamp int64) []models.DayAndTimestamp {
+	var result []models.DayAndTimestamp
+
+	// Calculate number of days
+	startDay := startTimestamp / 86400
+	endDay := endTimestamp / 86400
+
+	// Generate array of days and timestamps
+	for day := startDay; day <= endDay; day++ {
+		timestamp := day * 86400 // Convert day back to timestamp
+		if timestamp >= startTimestamp && timestamp <= endTimestamp {
+			result = append(result, models.DayAndTimestamp{
+				Day:       int(day - startDay),
+				Timestamp: timestamp,
+			})
+		}
+	}
+
+	return result
 }

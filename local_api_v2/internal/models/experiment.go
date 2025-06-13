@@ -26,15 +26,26 @@ type Experiment struct {
 	SyncedAt         time.Time          `bson:"synced_at" json:"synced_at"`
 }
 
-// Phase represents a phase in an experiment
 type Phase struct {
-	ID             string                       `bson:"id" json:"id"`
-	Title          string                       `bson:"title" json:"title"`
-	Description    string                       `bson:"description" json:"description"`
-	Duration       int                          `bson:"duration" json:"duration"` // duration in days
-	InputNumbers   map[string]*PhaseInputNumber `bson:"input_numbers" json:"input_numbers"`
-	LightIntensity map[string]*LightIntensity   `bson:"light_intensity" json:"light_intensity"`
-	LastExecuted   *time.Time                   `bson:"last_executed,omitempty" json:"last_executed,omitempty"`
+	Title                    string                    `bson:"title" json:"title"`
+	Description              string                    `bson:"description" json:"description"`
+	LastExecuted             *time.Time                `bson:"last_executed,omitempty" json:"last_executed,omitempty"`
+	DurationDays             int                       `bson:"duration_days" json:"duration_days"`
+	StartDay                 int                       `bson:"start_day,omitempty" json:"start_day,omitempty"`
+	WorkDaySchedule          map[string]ScheduleConfig `bson:"work_day_schedule,omitempty" json:"work_day_schedule,omitempty"`
+	TemperatureDaySchedule   map[string]ScheduleConfig `bson:"temperature_day_schedule,omitempty" json:"temperature_day_schedule,omitempty"`
+	TemperatureNightSchedule map[string]ScheduleConfig `bson:"temperature_night_schedule,omitempty" json:"temperature_night_schedule,omitempty"`
+	HumidityDaySchedule      map[string]ScheduleConfig `bson:"humidity_day_schedule,omitempty" json:"humidity_day_schedule,omitempty"`
+	HumidityNightSchedule    map[string]ScheduleConfig `bson:"humidity_night_schedule,omitempty" json:"humidity_night_schedule,omitempty"`
+	CO2DaySchedule           map[string]ScheduleConfig `bson:"co2_day_schedule,omitempty" json:"co2_day_schedule,omitempty"`
+	CO2NightSchedule         map[string]ScheduleConfig `bson:"co2_night_schedule,omitempty" json:"co2_night_schedule,omitempty"`
+	LightIntensitySchedule   map[string]ScheduleConfig `bson:"light_intensity_schedule,omitempty" json:"light_intensity_schedule,omitempty"`
+}
+
+// ScheduleConfig represents a schedule configuration for various parameters
+type ScheduleConfig struct {
+	EntityID string          `bson:"entity_id" json:"entity_id"`
+	Schedule map[int]float64 `bson:"schedule" json:"schedule"`
 }
 
 // PhaseInputNumber represents input number configuration for a phase
@@ -69,6 +80,12 @@ type ScheduleItem struct {
 	EndTimestamp   int64  `bson:"end_timestamp" json:"end_timestamp"`
 }
 
+// DayAndTimestamp represents a day number and its corresponding timestamp
+type DayAndTimestamp struct {
+	Day       int   `json:"day"`
+	Timestamp int64 `json:"timestamp"`
+}
+
 // ExperimentStatus constants
 const (
 	StatusDraft     = "draft"
@@ -99,47 +116,4 @@ func (e *Experiment) GetCurrentPhase() (*Phase, int, error) {
 	}
 
 	return nil, -1, nil
-}
-
-// IsScheduledTime checks if current time matches the phase schedule
-func (e *Experiment) IsScheduledTime(phaseType string) bool {
-	phase, _, err := e.GetCurrentPhase()
-	if err != nil || phase == nil {
-		return false
-	}
-
-	now := time.Now()
-	currentHour := float64(now.Hour()) + float64(now.Minute())/60
-
-	// Check day/night schedule
-	if startTime, ok := phase.InputNumbers["start_time"]; ok && startTime.Enabled {
-		if duration, ok := phase.InputNumbers["duration_hours"]; ok && duration.Enabled {
-			dayStart := startTime.Value
-			dayDuration := duration.Value
-			dayEnd := dayStart + dayDuration
-
-			if dayEnd <= 24 {
-				// Normal day schedule (doesn't cross midnight)
-				isDayTime := currentHour >= dayStart && currentHour < dayEnd
-				if phaseType == "day" {
-					return isDayTime
-				}
-				return !isDayTime // night time
-			} else {
-				// Day schedule crosses midnight
-				isDayTime := currentHour >= dayStart || currentHour < (dayEnd-24)
-				if phaseType == "day" {
-					return isDayTime
-				}
-				return !isDayTime
-			}
-		}
-	}
-
-	// Default: assume day time from 6:00 to 18:00
-	isDayTime := currentHour >= 6 && currentHour < 18
-	if phaseType == "day" {
-		return isDayTime
-	}
-	return !isDayTime
 }

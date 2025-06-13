@@ -1,18 +1,18 @@
 <template>
   <div class="fixed inset-0 bg-white/60 overflow-y-auto z-50">
     <div class="min-h-screen px-4 py-8 flex items-center justify-center">
-      <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-auto border border-gray-200">
+      <div class="bg-white rounded-lg shadow-xl w-[80%] mx-auto border border-gray-200">
         <!-- Header -->
         <div class="px-8 py-6 border-b border-gray-200">
           <div class="flex items-center justify-between">
-            <h3 class="text-2xl font-medium text-gray-900">
+            <h3 class="text-3xl font-medium text-gray-900">
               {{ experiment ? 'Edit Experiment' : 'New Experiment' }}
             </h3>
             <button
               @click="$emit('close')"
               class="text-gray-400 hover:text-gray-600"
             >
-              <XMarkIcon class="w-6 h-6" />
+              <XMarkIcon class="w-8 h-8" />
             </button>
           </div>
         </div>
@@ -22,50 +22,50 @@
           <!-- Basic Info -->
           <div class="space-y-8">
             <div>
-              <h4 class="text-xl font-medium text-gray-900 mb-6">Basic Information</h4>
+              <h4 class="text-2xl font-medium text-gray-900 mb-6">Basic Information</h4>
               <div class="grid grid-cols-1 gap-6">
                 <div>
-                  <label class="block text-base font-medium text-gray-700 mb-2">
+                  <label class="block text-xl font-medium text-gray-700 mb-2">
                     Title
                   </label>
                   <input
                     v-model="form.title"
                     type="text"
                     required
-                    class="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g., Tomato Growth Study"
                   />
                 </div>
                 <div>
-                  <label class="block text-base font-medium text-gray-700 mb-2">
+                  <label class="block text-xl font-medium text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
                     v-model="form.description"
                     rows="4"
-                    class="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Describe the experiment..."
                   ></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-6">
                   <div>
-                    <label class="block text-base font-medium text-gray-700 mb-2">
+                    <label class="block text-xl font-medium text-gray-700 mb-2">
                       Start Date
                     </label>
                     <input
                       v-model="form.start_date"
                       type="date"
                       required
-                      class="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label class="block text-base font-medium text-gray-700 mb-2">
+                    <label class="block text-xl font-medium text-gray-700 mb-2">
                       Status
                     </label>
                     <select
                       v-model="form.status"
-                      class="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="draft">Draft</option>
                       <option value="active">Active</option>
@@ -80,22 +80,22 @@
             <!-- Phases -->
             <div>
               <div class="flex items-center justify-between mb-6">
-                <h4 class="text-xl font-medium text-gray-900">Experiment Phases</h4>
+                <h4 class="text-2xl font-medium text-gray-900">Experiment Phases</h4>
                 <button
                   type="button"
                   @click="addPhase"
-                  class="text-base text-blue-600 hover:text-blue-700 font-medium"
+                  class="text-xl text-blue-600 hover:text-blue-700 font-medium"
                 >
                   + Add Phase
                 </button>
               </div>
 
               <div v-if="form.phases.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
-                <p class="text-lg text-gray-500">No phases added yet</p>
+                <p class="text-xl text-gray-500">No phases added yet</p>
                 <button
                   type="button"
                   @click="addPhase"
-                  class="mt-4 text-base text-blue-600 hover:text-blue-700 font-medium"
+                  class="mt-4 text-xl text-blue-600 hover:text-blue-700 font-medium"
                 >
                   Add your first phase
                 </button>
@@ -121,17 +121,17 @@
             <button
               type="button"
               @click="$emit('close')"
-              class="px-6 py-3 text-lg text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              class="px-6 py-3 text-xl text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               :disabled="loading || form.phases.length === 0"
-              class="px-6 py-3 text-lg bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-6 py-3 text-xl bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="loading" class="flex items-center">
-                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
                 Saving...
               </span>
               <span v-else>{{ experiment ? 'Update' : 'Create' }} Experiment</span>
@@ -191,9 +191,6 @@ function addPhase() {
     title: `Phase ${form.phases.length + 1}`,
     description: '',
     duration_days: 7,
-    input_numbers: {},
-    light_intensity: {},
-    watering_zones: {}
   })
   
   // Update schedule when adding a new phase
@@ -223,8 +220,6 @@ function updateSchedule() {
     
     schedule.push({
       phase_index: index,
-      start_date: startDate.toISOString(),
-      end_date: endDate.toISOString(),
       start_timestamp: Math.floor(startDate.getTime()/1000),
       end_timestamp: Math.floor(endDate.getTime()/1000)
     })
@@ -235,20 +230,20 @@ function updateSchedule() {
   form.schedule = schedule
 }
 
-function addWateringZone(phase: Phase) {
-  const key = `zone_${Object.keys(phase.watering_zones).length + 1}`
-  phase.watering_zones[key] = {
-    name: '',
-    start_time_entity_id: '',
-    period_entity_id: '',
-    pause_between_entity_id: '',
-    duration_entity_id: ''
-  }
-}
+// function addWateringZone(phase: Phase) {
+//   const key = `zone_${Object.keys(phase.watering_zones).length + 1}`
+//   phase.watering_zones[key] = {
+//     name: '',
+//     start_time_entity_id: '',
+//     period_entity_id: '',
+//     pause_between_entity_id: '',
+//     duration_entity_id: ''
+//   }
+// }
 
-function removeWateringZone(phase: Phase, key: string) {
-  delete phase.watering_zones[key]
-}
+// function removeWateringZone(phase: Phase, key: string) {
+//   delete phase.watering_zones[key]
+// }
 
 async function handleSubmit() {
   loading.value = true
