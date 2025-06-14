@@ -62,7 +62,7 @@
                 <div class="px-4 py-3">
                   <p class="text-sm">Вы вошли как</p>
                   <p class="text-sm font-medium text-gray-900 truncate">
-                    {{ authStore.userEmail }}
+                    {{ authStore.Username }}
                   </p>
                 </div>
                 
@@ -87,16 +87,18 @@
                       Эксперименты
                     </div>
                   </router-link>
-                  <router-link
-                    to="/api-tokens"
-                    @click="showUserMenu = false"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <div class="flex items-center">
-                      <KeyIcon class="w-4 h-4 mr-3" />
-                      API токены
-                    </div>
-                  </router-link>
+                  <div v-if="authStore.isAdmin" class="py-1">
+                    <router-link
+                      to="/api-tokens"
+                      @click="showUserMenu = false"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <div class="flex items-center">
+                        <KeyIcon class="w-4 h-4 mr-3" />
+                        API токены
+                      </div>
+                    </router-link>
+                  </div>
                 </div>
 
                 <!-- Admin Menu Items -->

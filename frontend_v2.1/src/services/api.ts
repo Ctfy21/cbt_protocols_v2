@@ -162,8 +162,7 @@ class ApiService {
   }
 
   async createUser(data: {
-    name: string
-    email: string
+    username: string
     password: string
     role: 'user' | 'admin'
   }): Promise<ApiResponse<User>> {
@@ -172,8 +171,7 @@ class ApiService {
   }
 
   async updateUser(id: string, data: {
-    name?: string
-    email?: string
+    username?: string
     role?: 'user' | 'admin'
     is_active?: boolean
   }): Promise<ApiResponse<User>> {

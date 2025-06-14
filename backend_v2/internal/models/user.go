@@ -17,7 +17,7 @@ const (
 // User represents a user in the system
 type User struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Email     string             `bson:"email" json:"email"`
+	Username  string             `bson:"username" json:"username"`
 	Password  string             `bson:"password" json:"-"` // Never expose password in JSON
 	Name      string             `bson:"name" json:"name"`
 	Role      UserRole           `bson:"role" json:"role"`
@@ -41,15 +41,14 @@ type Session struct {
 
 // LoginRequest represents login credentials
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required,min=6"`
 }
 
 // RegisterRequest represents registration data
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required,min=6"`
-	Name     string `json:"name" binding:"required"`
 }
 
 // AuthResponse represents authentication response

@@ -183,13 +183,12 @@
                     <div class="flex-shrink-0">
                       <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                         <span class="text-white font-medium text-sm">
-                          {{ userWithAccess.user.name.charAt(0).toUpperCase() }}
+                          {{ userWithAccess.user.username.charAt(0).toUpperCase() }}
                         </span>
                       </div>
                     </div>
                     <div class="ml-4">
-                      <div class="text-sm font-medium text-gray-900">{{ userWithAccess.user.name }}</div>
-                      <div class="text-sm text-gray-500">{{ userWithAccess.user.email }}</div>
+                      <div class="text-sm font-medium text-gray-900">{{ userWithAccess.user.username }}</div>
                     </div>
                   </div>
                 </td>
@@ -281,24 +280,13 @@
 
           <form @submit.prevent="createUser" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
               <input
-                v-model="newUserForm.name"
+                v-model="newUserForm.username"
                 type="text"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Полное имя"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email адрес</label>
-              <input
-                v-model="newUserForm.email"
-                type="email"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="user@example.com"
               />
             </div>
 
@@ -364,18 +352,8 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Имя</label>
               <input
-                v-model="editUserForm.name"
+                v-model="editUserForm.username"
                 type="text"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email адрес</label>
-              <input
-                v-model="editUserForm.email"
-                type="email"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -419,7 +397,7 @@
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900">
-              Управление доступом к климатической камере - {{ managingAccessUser.user.name }}
+              Управление доступом к климатической камере - {{ managingAccessUser.user.username }}
             </h2>
             <button
               @click="closeChamberAccessModal"
@@ -536,8 +514,7 @@ const statusFilter = ref('')
 const showCreateUserForm = ref(false)
 const creatingUser = ref(false)
 const newUserForm = reactive({
-  name: '',
-  email: '',
+  username: '',
   password: '',
   role: 'user' as 'user' | 'admin'
 })
@@ -546,8 +523,7 @@ const newUserForm = reactive({
 const editingUser = ref<User | null>(null)
 const updatingUser = ref(false)
 const editUserForm = reactive({
-  name: '',
-  email: '',
+  username: '',
   role: 'user' as 'user' | 'admin'
 })
 
@@ -564,8 +540,7 @@ const filteredUsers = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(userWithAccess => 
-      userWithAccess.user.name.toLowerCase().includes(query) ||
-      userWithAccess.user.email.toLowerCase().includes(query)
+      userWithAccess.user.username.toLowerCase().includes(query)
     )
   }
 
@@ -622,8 +597,7 @@ function formatDate(date: string | undefined): string {
 // User Creation
 function closeCreateUserForm() {
   showCreateUserForm.value = false
-  newUserForm.name = ''
-  newUserForm.email = ''
+  newUserForm.username = ''
   newUserForm.password = ''
   newUserForm.role = 'user'
 }
@@ -632,14 +606,13 @@ async function createUser() {
   creatingUser.value = true
   try {
     const response = await api.api.post('/users', {
-      name: newUserForm.name,
-      email: newUserForm.email,
+      username: newUserForm.username,
       password: newUserForm.password,
       role: newUserForm.role
     })
     
     if (response.data.success) {
-      toastStore.success('Пользователь создан', `Пользователь ${newUserForm.name} успешно создан`)
+      toastStore.success('Пользователь создан', `Пользователь ${newUserForm.username} успешно создан`)
       closeCreateUserForm()
       await refreshData()
     }
@@ -653,15 +626,13 @@ async function createUser() {
 // User Editing
 function editUser(user: User) {
   editingUser.value = user
-  editUserForm.name = user.name
-  editUserForm.email = user.email
+  editUserForm.username = user.username
   editUserForm.role = user.role
 }
 
 function closeEditUserForm() {
   editingUser.value = null
-  editUserForm.name = ''
-  editUserForm.email = ''
+  editUserForm.username = ''
   editUserForm.role = 'user'
 }
 
@@ -671,13 +642,12 @@ async function updateUser() {
   updatingUser.value = true
   try {
     const response = await api.api.put(`/users/${editingUser.value.id}`, {
-      name: editUserForm.name,
-      email: editUserForm.email,
+      username: editUserForm.username,
       role: editUserForm.role
     })
     
     if (response.data.success) {
-      toastStore.success('Пользователь обновлен', `Пользователь ${editUserForm.name} успешно обновлен`)
+      toastStore.success('Пользователь обновлен', `Пользователь ${editUserForm.username} успешно обновлен`)
       closeEditUserForm()
       await refreshData()
     }
@@ -699,7 +669,7 @@ async function toggleUserStatus(user: User, isActive: boolean) {
     if (response.data.success) {
       toastStore.success(
         `Пользователь ${isActive ? 'активирован' : 'деактивирован'}`, 
-        `Пользователь ${user.name} успешно ${action}н`
+        `Пользователь ${user.username} успешно ${action}н`
       )
       await refreshData()
     }
@@ -734,11 +704,11 @@ async function saveChamberAccess() {
       selectedChamberIds.value
     )
     
-    toastStore.success('Access Updated', `Chamber access updated for ${managingAccessUser.value.user.name}`)
+    toastStore.success('Доступ обновлен', `Доступ к климатической камере обновлен для ${managingAccessUser.value.user.username}`)
     closeChamberAccessModal()
     await refreshData()
   } catch (err) {
-    toastStore.error('Error', 'Failed to update chamber access')
+    toastStore.error('Ошибка', 'Не удалось обновить доступ к климатической камере')
   } finally {
     savingAccess.value = false
   }

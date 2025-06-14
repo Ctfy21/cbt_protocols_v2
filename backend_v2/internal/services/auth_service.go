@@ -105,10 +105,10 @@ func (s *AuthService) Login(req *models.LoginRequest, userAgent, ip string) (*mo
 
 	// Find user by email
 	var user models.User
-	err := s.db.UsersCollection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
+	err := s.db.UsersCollection.FindOne(ctx, bson.M{"username": req.Username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("invalid email or password")
+			return nil, fmt.Errorf("invalid username or password")
 		}
 		return nil, fmt.Errorf("failed to find user: %v", err)
 	}
@@ -371,11 +371,11 @@ func (s *AuthService) generateAuthResponse(user *models.User, ctx context.Contex
 	// Generate JWT token
 	expiresIn := int64(s.config.JWTExpiration.Seconds())
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID.Hex(),
-		"email":   user.Email,
-		"role":    user.Role,
-		"exp":     time.Now().Add(s.config.JWTExpiration).Unix(),
-		"iat":     time.Now().Unix(),
+		"user_id":  user.ID.Hex(),
+		"username": user.Username,
+		"role":     user.Role,
+		"exp":      time.Now().Add(s.config.JWTExpiration).Unix(),
+		"iat":      time.Now().Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
@@ -480,9 +480,9 @@ func (s *AuthService) CreateUser(req *models.RegisterRequest, role models.UserRo
 
 	// Check if user already exists
 	var existingUser models.User
-	err := s.db.UsersCollection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&existingUser)
+	err := s.db.UsersCollection.FindOne(ctx, bson.M{"username": req.Username}).Decode(&existingUser)
 	if err == nil {
-		return nil, fmt.Errorf("user with email %s already exists", req.Email)
+		return nil, fmt.Errorf("user with username %s already exists", req.Username)
 	}
 	if err != mongo.ErrNoDocuments {
 		return nil, fmt.Errorf("failed to check existing user: %v", err)
@@ -498,9 +498,8 @@ func (s *AuthService) CreateUser(req *models.RegisterRequest, role models.UserRo
 	now := time.Now()
 	user := models.User{
 		ID:        primitive.NewObjectID(),
-		Email:     req.Email,
+		Username:  req.Username,
 		Password:  string(hashedPassword),
-		Name:      req.Name,
 		Role:      role,
 		IsActive:  true,
 		CreatedAt: now,

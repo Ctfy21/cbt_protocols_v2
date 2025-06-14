@@ -22,7 +22,7 @@
                 <dt class="text-sm font-medium text-gray-500">Полное имя</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   <div v-if="!editingName" class="flex items-center justify-between">
-                    <span>{{ authStore.user?.name }}</span>
+                    <span>{{ authStore.user?.username }}</span>
                     <button
                       @click="startEditingName"
                       class="text-blue-600 hover:text-blue-700"
@@ -56,9 +56,9 @@
               </div>
               
               <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Email адрес</dt>
+                <dt class="text-sm font-medium text-gray-500">Имя пользователя</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {{ authStore.user?.email }}
+                  {{ authStore.user?.username }}
                 </dd>
               </div>
               
@@ -220,7 +220,7 @@
   }
   
   function startEditingName() {
-    newName.value = authStore.user?.name || ''
+    newName.value = authStore.user?.username || ''
     editingName.value = true
   }
   

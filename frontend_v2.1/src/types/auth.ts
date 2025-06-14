@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'user'
 
 export interface User {
   id: string
-  email: string
+  username: string
   name: string
   role: UserRole
   is_active: boolean
@@ -12,12 +12,12 @@ export interface User {
 }
 
 export interface LoginCredentials {
-  email: string
+  username: string
   password: string
 }
 
 export interface RegisterData {
-  email: string
+  username: string
   password: string
   name: string
 }

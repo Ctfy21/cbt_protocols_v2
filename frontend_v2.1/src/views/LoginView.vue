@@ -14,16 +14,16 @@
       <form class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
-            <label for="email" class="sr-only">Email адрес</label>
+            <label for="username" class="sr-only">Логин</label>
             <input
-              id="email"
-              v-model="form.email"
-              name="email"
-              type="email"
-              autocomplete="email"
+              id="username"
+              v-model="form.username"
+              name="username"
+              type="text"
+              autocomplete="username"
               required
               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="Email адрес"
+              placeholder="Логин"
             />
           </div>
           <div>
@@ -82,7 +82,7 @@ const authStore = useAuthStore()
 const toastStore = useToastStore()
 
 const form = reactive({
-  email: '',
+  username: '',
   password: ''
 })
 
@@ -102,17 +102,17 @@ async function handleSubmit() {
   
   try {
     await authStore.login({
-      email: form.email,
+      username: form.username,
       password: form.password
     })
     
-    toastStore.success('Добро пожаловать!', `Вход выполнен как ${authStore.userName}`)
+    toastStore.success('Добро пожаловать!', `Вход выполнен как ${authStore.Username}`)
     
     // Redirect to intended page or home
     const redirectTo = route.query.redirect as string || '/'
     router.push(redirectTo)
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Неверный email или пароль'
+    error.value = err.response?.data?.error || 'Неверный логин или пароль'
   } finally {
     loading.value = false
   }

@@ -86,7 +86,7 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 
 	var req struct {
 		Name     string          `json:"name"`
-		Email    string          `json:"email"`
+		Username string          `json:"username"`
 		Role     models.UserRole `json:"role"`
 		IsActive *bool           `json:"is_active"`
 	}
@@ -120,8 +120,8 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 	if req.Name != "" {
 		update["name"] = req.Name
 	}
-	if req.Email != "" {
-		update["email"] = req.Email
+	if req.Username != "" {
+		update["username"] = req.Username
 	}
 	if req.Role != "" {
 		update["role"] = req.Role
@@ -251,7 +251,7 @@ func (h *UserManagementHandler) SearchUsers(c *gin.Context) {
 		// Text search filter
 		if query != "" {
 			include = include && (contains(user.Name, query) ||
-				contains(user.Email, query))
+				contains(user.Username, query))
 		}
 
 		// Role filter
