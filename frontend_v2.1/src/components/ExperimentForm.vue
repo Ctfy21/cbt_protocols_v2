@@ -6,7 +6,7 @@
         <div class="px-8 py-6 border-b border-gray-200">
           <div class="flex items-center justify-between">
             <h3 class="text-3xl font-medium text-gray-900">
-              {{ experiment ? 'Edit Experiment' : 'New Experiment' }}
+              {{ experiment ? 'Редактировать эксперимент' : 'Новый эксперимент' }}
             </h3>
             <button
               @click="$emit('close')"
@@ -22,35 +22,35 @@
           <!-- Basic Info -->
           <div class="space-y-8">
             <div>
-              <h4 class="text-2xl font-medium text-gray-900 mb-6">Basic Information</h4>
+              <h4 class="text-2xl font-medium text-gray-900 mb-6">Основная информация</h4>
               <div class="grid grid-cols-1 gap-6">
                 <div>
                   <label class="block text-xl font-medium text-gray-700 mb-2">
-                    Title
+                    Название
                   </label>
                   <input
                     v-model="form.title"
                     type="text"
                     required
                     class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Tomato Growth Study"
+                    placeholder="например, Исследование роста томатов"
                   />
                 </div>
                 <div>
                   <label class="block text-xl font-medium text-gray-700 mb-2">
-                    Description
+                    Описание
                   </label>
                   <textarea
                     v-model="form.description"
                     rows="4"
                     class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Describe the experiment..."
+                    placeholder="Опишите эксперимент..."
                   ></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-6">
                   <div>
                     <label class="block text-xl font-medium text-gray-700 mb-2">
-                      Start Date
+                      Дата начала
                     </label>
                     <input
                       v-model="form.start_date"
@@ -61,16 +61,16 @@
                   </div>
                   <div>
                     <label class="block text-xl font-medium text-gray-700 mb-2">
-                      Status
+                      Статус
                     </label>
                     <select
                       v-model="form.status"
                       class="w-full px-4 py-3 text-xl border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="draft">Draft</option>
-                      <option value="active">Active</option>
-                      <option value="paused">Paused</option>
-                      <option value="completed">Completed</option>
+                      <option value="draft">Черновик</option>
+                      <option value="active">Активен</option>
+                      <option value="paused">Пауза</option>
+                      <option value="completed">Завершён</option>
                     </select>
                   </div>
                 </div>
@@ -80,24 +80,24 @@
             <!-- Phases -->
             <div>
               <div class="flex items-center justify-between mb-6">
-                <h4 class="text-2xl font-medium text-gray-900">Experiment Phases</h4>
+                <h4 class="text-2xl font-medium text-gray-900">Фазы эксперимента</h4>
                 <button
                   type="button"
                   @click="addPhase"
                   class="text-xl text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  + Add Phase
+                  + Добавить фазу
                 </button>
               </div>
 
               <div v-if="form.phases.length === 0" class="text-center py-12 bg-gray-50 rounded-lg">
-                <p class="text-xl text-gray-500">No phases added yet</p>
+                <p class="text-xl text-gray-500">Фазы ещё не добавлены</p>
                 <button
                   type="button"
                   @click="addPhase"
                   class="mt-4 text-xl text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Add your first phase
+                  Добавить первую фазу
                 </button>
               </div>
 
@@ -123,7 +123,7 @@
               @click="$emit('close')"
               class="px-6 py-3 text-xl text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              Отмена
             </button>
             <button
               type="submit"
@@ -132,9 +132,9 @@
             >
               <span v-if="loading" class="flex items-center">
                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
-                Saving...
+                Сохранение...
               </span>
-              <span v-else>{{ experiment ? 'Update' : 'Create' }} Experiment</span>
+              <span v-else>{{ experiment ? 'Обновить' : 'Создать' }} эксперимент</span>
             </button>
           </div>
         </form>

@@ -8,18 +8,18 @@
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">Loading experiment...</p>
+        <p class="mt-2 text-gray-600">Загрузка эксперимента...</p>
       </div>
 
       <!-- Experiment Not Found -->
       <div v-else-if="!experiment" class="text-center py-12">
         <ExclamationCircleIcon class="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">Experiment not found</h3>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Эксперимент не найден</h3>
         <router-link
           to="/experiments"
           class="text-blue-600 hover:text-blue-700"
         >
-          Back to experiments
+          Назад к экспериментам
         </router-link>
       </div>
 
@@ -30,7 +30,7 @@
           <ol class="flex items-center space-x-2 text-sm">
             <li>
               <router-link to="/experiments" class="text-gray-500 hover:text-gray-700">
-                Experiments
+                Эксперименты
               </router-link>
             </li>
             <li>
@@ -62,15 +62,15 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <span class="text-gray-500">Start Date:</span>
+              <span class="text-gray-500">Дата начала:</span>
               <span class="ml-2 font-medium">{{ formatDate(experiment.start_date) }}</span>
             </div>
             <div>
-              <span class="text-gray-500">End Date:</span>
+              <span class="text-gray-500">Дата окончания:</span>
               <span class="ml-2 font-medium">{{ formatDate(calculateEndDate()) }}</span>
             </div>
             <div>
-              <span class="text-gray-500">Total Duration:</span>
+              <span class="text-gray-500">Общая продолжительность:</span>
               <span class="ml-2 font-medium">{{ totalDuration }} days</span>
             </div>
           </div>
@@ -78,7 +78,7 @@
           <!-- Progress Bar -->
           <div v-if="experiment.status === 'active' && progress >= 0" class="mt-4">
             <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-              <span>Progress</span>
+              <span>Прогресс</span>
               <span>{{ Math.round(progress) }}%</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-3">
@@ -92,10 +92,10 @@
 
         <!-- Phases -->
         <div class="space-y-6">
-          <h2 class="text-lg font-semibold text-gray-900">Experiment Phases</h2>
+          <h2 class="text-lg font-semibold text-gray-900">Этапы эксперимента</h2>
           
           <div v-if="experiment.phases.length === 0" class="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200">
-            <p class="text-gray-500">No phases defined</p>
+            <p class="text-gray-500">Этапы не определены</p>
           </div>
 
           <div v-else class="space-y-4">
@@ -117,7 +117,7 @@
 
               <!-- Light Settings -->
               <div v-if="phase.light_intensity_schedule && Object.keys(phase.light_intensity_schedule).length > 0" class="mt-4 pt-4 border-t border-gray-100">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Light Settings</h4>
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Настройки освещения</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                   <div v-for="light in Object.values(phase.light_intensity_schedule)" :key="light.entity_id">
                     <span class="text-gray-500">{{ getLampName(light.entity_id) }}:</span>
@@ -127,19 +127,19 @@
 
               <!-- Watering Zones -->
               <div v-if="phase.watering_zones && Object.keys(phase.watering_zones).length > 0" class="mt-4 pt-4 border-t border-gray-100">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Watering Zones</h4>
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Зоны полива</h4>
                 <div class="space-y-2">
                   <div v-for="(zone, zoneKey) in phase.watering_zones" :key="zoneKey" class="text-sm">
                     <span class="font-medium">{{ zone.name }}:</span>
                     <div class="ml-4 text-gray-600">
                       <span v-if="getFirstScheduleValue(zone.start_time_schedule)">
-                        Start: {{ getFirstScheduleValue(zone.start_time_schedule) }}:00,
+                        Начало: {{ getFirstScheduleValue(zone.start_time_schedule) }}:00,
                       </span>
                       <span v-if="getFirstScheduleValue(zone.period_schedule)">
-                        Period: {{ getFirstScheduleValue(zone.period_schedule) }}h,
+                        Период: {{ getFirstScheduleValue(zone.period_schedule) }}h,
                       </span>
                       <span v-if="getFirstScheduleValue(zone.duration_schedule)">
-                        Duration: {{ getFirstScheduleValue(zone.duration_schedule) }}s
+                        Продолжительность: {{ getFirstScheduleValue(zone.duration_schedule) }}s
                       </span>
                     </div>
                   </div>
@@ -193,7 +193,7 @@ onMounted(async () => {
   try {
     await experimentStore.fetchExperiment(id)
   } catch (error) {
-    toastStore.error('Error', 'Failed to load experiment')
+    toastStore.error('Error', 'Не удалось загрузить эксперимент')
   } finally {
     loading.value = false
   }
@@ -279,11 +279,11 @@ async function handleSave(data: any) {
   try {
     if (experiment.value) {
       await experimentStore.updateExperiment(experiment.value.id, data)
-      toastStore.success('Experiment Updated', 'Changes saved successfully')
+      toastStore.success('Эксперимент обновлен', 'Изменения сохранены успешно')
       showEditForm.value = false
     }
   } catch (error: any) {
-    toastStore.error('Save Failed', error.message || 'Failed to save experiment')
+    toastStore.error('Ошибка', error.message || 'Не удалось сохранить эксперимент')
   }
 }
 </script>

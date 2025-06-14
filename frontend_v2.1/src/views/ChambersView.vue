@@ -6,7 +6,7 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <HomeIcon class="w-8 h-8 text-blue-600" />
-            <h1 class="text-2xl font-bold text-gray-900">Chamber Management</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Управление климатическими камерами</h1>
           </div>
           <!-- Admin Button -->
           <div v-if="authStore.isAdmin" class="flex space-x-3">
@@ -15,7 +15,7 @@
               class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <UsersIcon class="w-4 h-4 mr-2" />
-              Manage User Access
+              Управление доступом пользователей
             </button>
           </div>
         </div>
@@ -27,34 +27,27 @@
       <!-- Loading State -->
       <div v-if="chamberStore.loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">Loading chambers...</p>
+        <p class="mt-2 text-gray-600">Загрузка климатических камер...</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="chamberStore.error" class="text-center py-12">
         <ExclamationCircleIcon class="w-16 h-16 text-red-400 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">Error loading chambers</h3>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки климатических камер</h3>
         <p class="text-gray-500">{{ chamberStore.error }}</p>
         <button
           @click="chamberStore.fetchChambers()"
           class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Retry
+          Повторить
         </button>
       </div>
 
       <!-- Empty State -->
       <div v-else-if="chamberStore.chambers.length === 0" class="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
         <HomeIcon class="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No chambers registered</h3>
-        <p class="text-gray-500 mb-6">Get started by registering your first chamber</p>
-        <button
-          @click="showRegisterForm = true"
-          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <PlusIcon class="w-5 h-5 mr-2" />
-          Register Chamber
-        </button>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Климатические камеры не зарегистрированы</h3>
+        <p class="text-gray-500 mb-6">Попросите администратора зарегистрировать климатическую камеру для вас</p>
       </div>
 
       <!-- Chambers Grid -->
@@ -68,7 +61,7 @@
           <div class="flex items-start justify-between mb-4">
             <div>
               <h3 class="text-lg font-semibold text-gray-900">{{ chamber.name }}</h3>
-              <p class="text-sm text-gray-500">{{ chamber.location || 'No location' }}</p>
+              <p class="text-sm text-gray-500">{{ chamber.location || 'Не указано' }}</p>
             </div>
             <div :class="[
               'px-2 py-1 text-xs font-medium rounded-full',
@@ -87,7 +80,7 @@
             </div>
             <div class="flex items-center">
               <ClockIcon class="w-4 h-4 mr-2" />
-              <span>Last seen: {{ formatDate(chamber.last_heartbeat) }}</span>
+              <span>Последнее обновление: {{ formatDate(chamber.last_heartbeat) }}</span>
             </div>
           </div>
 
@@ -96,7 +89,7 @@
               @click.stop="selectAndNavigate(chamber)"
               class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
             >
-              Select Chamber
+              Выбрать камеру
             </button>
           </div>
         </div>
@@ -163,7 +156,7 @@ function formatDate(dateStr: string): string {
 
 function selectChamber(chamber: Chamber) {
   chamberStore.selectChamber(chamber)
-  toastStore.success('Chamber Selected', `Selected ${chamber.name}`)
+  toastStore.success('Климатическая камера выбрана', `Выбрана ${chamber.name}`)
 }
 
 function selectAndNavigate(chamber: Chamber) {
@@ -173,7 +166,7 @@ function selectAndNavigate(chamber: Chamber) {
 
 function onRegisterSuccess(chamber: Chamber) {
   showRegisterForm.value = false
-  toastStore.success('Chamber Registered', `Successfully registered ${chamber.name}`)
+  toastStore.success('Климатическая камера зарегистрирована', `Зарегистрирована ${chamber.name}`)
   selectAndNavigate(chamber)
 }
 

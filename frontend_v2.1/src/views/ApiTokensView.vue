@@ -7,15 +7,15 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="mb-6 flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">API Tokens</h1>
-          <p class="text-gray-600 mt-1">Manage your API access tokens</p>
+          <h1 class="text-2xl font-bold text-gray-900">API токены</h1>
+          <p class="text-gray-600 mt-1">Управление доступом к API</p>
         </div>
         <button
           @click="showCreateForm = true"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
-          New Token
+          Новый токен
         </button>
       </div>
 
@@ -25,13 +25,13 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Сервис</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Истекает</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Создан</th>
                 <th scope="col" class="relative px-6 py-3">
-                  <span class="sr-only">Actions</span>
+                  <span class="sr-only">Действия</span>
                 </th>
               </tr>
             </thead>
@@ -57,13 +57,13 @@
                       @click="watchToken(token)"
                       class="text-blue-600 hover:text-blue-900"
                     >
-                      Watch
+                      Посмотреть
                     </button>
                     <button
                       @click="deleteToken(token)"
                       class="text-red-600 hover:text-red-900"
                     >
-                      Delete
+                      Удалить
                     </button>
                   </div>
                 </td>
@@ -78,32 +78,32 @@
     <div v-if="showCreateForm" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900">Create New API Token</h3>
+          <h3 class="text-lg font-medium text-gray-900">Создать новый API токен</h3>
         </div>
         
         <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
           <div>
-            <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+            <label for="name" class="block text-sm font-medium text-gray-700">Имя</label>
             <input
               id="name"
               v-model="form.name"
               type="text"
               required
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="My API Token"
+              placeholder="Мой API токен"
             />
           </div>
 
           <div>
-            <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+            <label for="type" class="block text-sm font-medium text-gray-700">Тип</label>
             <select
               id="type"
               v-model="form.type"
               required
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="personal">Personal</option>
-              <option value="service">Service</option>
+              <option value="personal">Личный</option>
+              <option value="service">Сервисный</option>
             </select>
           </div>
 
@@ -119,7 +119,7 @@
           </div>
 
           <div>
-            <label for="permissions" class="block text-sm font-medium text-gray-700">Permissions</label>
+            <label for="permissions" class="block text-sm font-medium text-gray-700">Разрешения</label>
             <div class="mt-2 space-y-2">
               <div v-for="permission in availablePermissions" :key="permission" class="flex items-center">
                 <input
@@ -137,7 +137,7 @@
           </div>
 
           <div>
-            <label for="expiresAt" class="block text-sm font-medium text-gray-700">Expires At (Optional)</label>
+            <label for="expiresAt" class="block text-sm font-medium text-gray-700">Истекает</label>
             <input
               id="expiresAt"
               v-model="form.expires_at"
@@ -152,14 +152,14 @@
               @click="showCreateForm = false"
               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Cancel
+              Отмена
             </button>
             <button
               type="submit"
               :disabled="loading"
               class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {{ loading ? 'Creating...' : 'Create Token' }}
+              {{ loading ? 'Создание...' : 'Создать токен' }}
             </button>
           </div>
         </form>
@@ -169,9 +169,9 @@
     <!-- Delete Confirmation Modal -->
     <ConfirmDialog
       v-if="deletingToken"
-      title="Delete API Token"
-      :message="`Are you sure you want to delete '${deletingToken.name}'? This action cannot be undone.`"
-      confirm-text="Delete"
+      title="Удалить API токен"
+      :message="`Вы уверены, что хотите удалить '${deletingToken.name}'? Это действие не может быть отменено.`"
+      confirm-text="Удалить"
       confirm-class="bg-red-600 hover:bg-red-700"
       @confirm="confirmDelete"
       @cancel="deletingToken = null"
@@ -181,9 +181,9 @@
     <div v-if="watchingToken" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 class="text-lg font-medium text-gray-900">Watching Token: {{ watchingToken.name }}</h3>
+          <h3 class="text-lg font-medium text-gray-900">Посмотреть токен: {{ watchingToken.name }}</h3>
           <button @click="stopWatching" class="text-gray-400 hover:text-gray-500">
-            <span class="sr-only">Close</span>
+            <span class="sr-only">Закрыть</span>
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -192,7 +192,7 @@
         <div class="p-6">
           <div class="space-y-4">
             <div>
-              <h4 class="text-sm font-medium text-gray-700">Permissions</h4>
+              <h4 class="text-sm font-medium text-gray-700">Разрешения</h4>
               <div class="mt-2">
                 <div v-for="permission in watchingToken.permissions" :key="permission" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-2">
                   {{ permission }}
@@ -201,19 +201,19 @@
             </div>
             <div>
               <div class="flex items-center justify-between">
-                <h4 class="text-sm font-medium text-gray-700">Token Value</h4>
+                <h4 class="text-sm font-medium text-gray-700">Значение токена</h4>
                 <div class="flex items-center space-x-2">
                   <button
                     @click="copyToken(watchingToken.token)"
                     class="text-sm text-blue-600 hover:text-blue-900"
                   >
-                    Copy
+                    Скопировать
                   </button>
                   <button
                     @click="showToken = !showToken"
                     class="text-sm text-gray-600 hover:text-gray-900"
                   >
-                    {{ showToken ? 'Hide' : 'Show' }}
+                    {{ showToken ? 'Скрыть' : 'Показать' }}
                   </button>
                 </div>
               </div>
@@ -269,7 +269,7 @@ function formatDate(date: string): string {
   try {
     return format(new Date(date), 'MMM d, yyyy HH:mm')
   } catch {
-    return 'Invalid date'
+    return 'Неверная дата'
   }
 }
 
@@ -280,7 +280,7 @@ async function fetchTokens() {
       tokens.value = response.data
     }
   } catch (error: any) {
-    toastStore.error('Error', error.message || 'Failed to fetch tokens')
+    toastStore.error('Ошибка', error.message || 'Не удалось получить токены')
   }
 }
 
@@ -297,7 +297,7 @@ async function handleSubmit() {
     
     if (response.success && response.data) {
       tokens.value.push(response.data)
-      toastStore.success('Token Created', 'New API token created successfully')
+      toastStore.success('Токен создан', 'Новый API токен создан успешно')
       showCreateForm.value = false
       
       // Reset form
@@ -308,7 +308,7 @@ async function handleSubmit() {
       form.expires_at = ''
     }
   } catch (error: any) {
-    toastStore.error('Error', error.message || 'Failed to create token')
+    toastStore.error('Ошибка', error.message || 'Не удалось создать токен')
   } finally {
     loading.value = false
   }
@@ -325,11 +325,11 @@ async function confirmDelete() {
     const response = await api.deleteApiToken(deletingToken.value.id)
     if (response.success) {
       tokens.value = tokens.value.filter(t => t.id !== deletingToken.value!.id)
-      toastStore.success('Token Deleted', 'API token deleted successfully')
+      toastStore.success('Токен удален', 'API токен удален успешно')
       deletingToken.value = null
     }
   } catch (error: any) {
-    toastStore.error('Error', error.message || 'Failed to delete token')
+    toastStore.error('Ошибка', error.message || 'Не удалось удалить токен')
   }
 }
 
@@ -346,9 +346,9 @@ async function stopWatching() {
 async function copyToken(token: string) {
   try {
     await navigator.clipboard.writeText(token)
-    toastStore.success('Copied', 'Token copied to clipboard')
+    toastStore.success('Скопировано', 'Токен скопирован в буфер обмена')
   } catch (error) {
-    toastStore.error('Error', 'Failed to copy token')
+    toastStore.error('Ошибка', 'Не удалось скопировать токен')
   }
 }
 

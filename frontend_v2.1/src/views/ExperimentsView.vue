@@ -19,7 +19,7 @@
           >
             <div class="flex items-center gap-2">
               <QueueListIcon class="w-4 h-4" />
-              List View
+              Отобразить список
             </div>
           </button>
           <button
@@ -33,7 +33,7 @@
           >
             <div class="flex items-center gap-2">
               <CalendarIcon class="w-4 h-4" />
-              Calendar View
+              Отобразить календарь
             </div>
           </button>
         </div>
@@ -43,7 +43,7 @@
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
           <PlusIcon class="w-5 h-5 mr-2" />
-          New Experiment
+          Новый эксперимент
         </button>
       </div>
 
@@ -55,7 +55,7 @@
               <BeakerIcon class="w-8 h-8 text-blue-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Total Experiments</p>
+              <p class="text-sm font-medium text-gray-500">Всего экспериментов</p>
               <p class="text-3xl font-bold text-gray-900">{{ experimentStore.stats.total }}</p>
             </div>
           </div>
@@ -67,7 +67,7 @@
               <PlayIcon class="w-8 h-8 text-green-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Active</p>
+              <p class="text-sm font-medium text-gray-500">Активные</p>
               <p class="text-3xl font-bold text-gray-900">{{ experimentStore.stats.active }}</p>
             </div>
           </div>
@@ -79,7 +79,7 @@
               <DocumentIcon class="w-8 h-8 text-yellow-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Draft</p>
+              <p class="text-sm font-medium text-gray-500">Черновики</p>
               <p class="text-3xl font-bold text-gray-900">{{ experimentStore.stats.draft }}</p>
             </div>
           </div>
@@ -91,7 +91,7 @@
               <ClockIcon class="w-8 h-8 text-purple-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Total Days</p>
+              <p class="text-sm font-medium text-gray-500">Всего дней</p>
               <p class="text-3xl font-bold text-gray-900">{{ experimentStore.stats.totalDays }}</p>
             </div>
           </div>
@@ -108,7 +108,7 @@
               <input
                 v-model="searchQuery"
                 type="text"
-                placeholder="Search experiments..."
+                placeholder="Поиск экспериментов..."
                 class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -120,11 +120,11 @@
               v-model="statusFilter"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
+              <option value="">Все статусы</option>
+              <option value="draft">Черновики</option>
+              <option value="active">Активные</option>
+              <option value="paused">Приостановленные</option>
+              <option value="completed">Завершенные</option>
             </select>
           </div>
 
@@ -142,14 +142,14 @@
               class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ArrowUpTrayIcon class="w-5 h-5 inline mr-2" />
-              Import
+              Импорт
             </button>
             <button
               @click="handleExportAll"
               class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ArrowDownTrayIcon class="w-5 h-5 inline mr-2" />
-              Export All
+              Экспорт всех
             </button>
           </div>
         </div>
@@ -160,19 +160,19 @@
         <!-- Loading State -->
         <div v-if="experimentStore.loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p class="mt-2 text-gray-600">Loading experiments...</p>
+          <p class="mt-2 text-gray-600">Загрузка экспериментов...</p>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="filteredExperiments.length === 0" class="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
           <BeakerIcon class="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 class="text-lg font-medium text-gray-900 mb-2">
-            {{ experimentStore.experiments.length === 0 ? 'No experiments yet' : 'No experiments match your filters' }}
+            {{ experimentStore.experiments.length === 0 ? 'Нет экспериментов' : 'Нет экспериментов, соответствующих вашим фильтрам' }}
           </h3>
           <p class="text-gray-500 mb-6">
             {{ experimentStore.experiments.length === 0 
-              ? `Start creating experiments for ${chamberStore.selectedChamber?.name}` 
-              : 'Try adjusting your search or filter criteria'
+              ? `Создайте свой первый эксперимент для ${chamberStore.selectedChamber?.name}` 
+              : 'Попробуйте отрегулировать ваш поиск или критерии фильтра'
             }}
           </p>
           <button
@@ -181,7 +181,7 @@
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <PlusIcon class="w-5 h-5 mr-2" />
-            Create Your First Experiment
+            Создать эксперимент
           </button>
         </div>
 
@@ -222,9 +222,9 @@
     <!-- Delete Confirmation Modal -->
     <ConfirmDialog
       v-if="deletingExperiment"
-      title="Delete Experiment"
-      :message="`Are you sure you want to delete '${deletingExperiment.title}'? This action cannot be undone.`"
-      confirm-text="Delete"
+      title="Удалить эксперимент"
+      :message="`Вы уверены, что хотите удалить '${deletingExperiment.title}'? Это действие не может быть отменено.`"
+      confirm-text="Удалить"
       confirm-class="bg-red-600 hover:bg-red-700"
       @confirm="confirmDelete"
       @cancel="deletingExperiment = null"
@@ -327,7 +327,7 @@ function handleExport(experiment: Experiment) {
   a.click()
   URL.revokeObjectURL(url)
   
-  toastStore.success('Export Successful', `Exported ${experiment.title}`)
+  toastStore.success('Эксперимент экспортирован', `Экспортирован ${experiment.title}`)
 }
 
 function handleExportAll() {
@@ -346,7 +346,7 @@ function handleExportAll() {
   a.click()
   URL.revokeObjectURL(url)
   
-  toastStore.success('Export Successful', 'Exported all experiments')
+  toastStore.success('Эксперименты экспортированы', 'Экспортированы все эксперименты')
 }
 
 async function handleImport(event: Event) {
@@ -372,14 +372,14 @@ async function handleImport(event: Event) {
       await experimentStore.createExperiment(exp)
     }
     
-    toastStore.success('Import Successful', `Imported ${experiments.length} experiment(s)`)
+    toastStore.success('Эксперименты импортированы', `Импортировано ${experiments.length} эксперимент(ов)`)
     
     // Clear file input
     if (fileInput.value) {
       fileInput.value.value = ''
     }
   } catch (error: any) {
-    toastStore.error('Import Failed', error.message || 'Invalid file format')
+    toastStore.error('Ошибка', error.message || 'Неверный формат файла')
   }
 }
 
@@ -392,19 +392,19 @@ async function confirmDelete() {
   
   try {
     await experimentStore.deleteExperiment(deletingExperiment.value.id)
-    toastStore.success('Experiment Deleted', `Deleted ${deletingExperiment.value.title}`)
+    toastStore.success('Эксперимент удален', `Удален ${deletingExperiment.value.title}`)
     deletingExperiment.value = null
   } catch (error: any) {
-    toastStore.error('Delete Failed', error.message || 'Failed to delete experiment')
+    toastStore.error('Ошибка', error.message || 'Не удалось удалить эксперимент')
   }
 }
 
 async function handleStatusChange(experiment: Experiment, status: ExperimentStatus) {
   try {
     await experimentStore.updateExperiment(experiment.id, { ...experiment, status })
-    toastStore.success('Status Updated', `${experiment.title} is now ${status}`)
+    toastStore.success('Статус обновлен', `${experiment.title} теперь ${status}`)
   } catch (error: any) {
-    toastStore.error('Update Failed', error.message || 'Failed to update status')
+    toastStore.error('Ошибка', error.message || 'Не удалось обновить статус')
   }
 }
 

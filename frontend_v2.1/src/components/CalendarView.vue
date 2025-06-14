@@ -22,7 +22,7 @@
         @click="goToToday"
         class="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
       >
-        Today
+        Сегодня
       </button>
     </div>
 
@@ -82,19 +82,19 @@
     <div class="mt-4 flex items-center gap-4 text-xs">
       <div class="flex items-center gap-1">
         <div class="w-3 h-3 bg-green-200 rounded"></div>
-        <span>Active</span>
+        <span>Активен</span>
       </div>
       <div class="flex items-center gap-1">
         <div class="w-3 h-3 bg-yellow-200 rounded"></div>
-        <span>Paused</span>
+        <span>Приостановлен</span>
       </div>
       <div class="flex items-center gap-1">
         <div class="w-3 h-3 bg-gray-200 rounded"></div>
-        <span>Draft</span>
+        <span>Черновик</span>
       </div>
       <div class="flex items-center gap-1">
         <div class="w-3 h-3 bg-blue-200 rounded"></div>
-        <span>Completed</span>
+        <span>Завершен</span>
       </div>
     </div>
   </div>
@@ -166,14 +166,14 @@ const calendarDays = computed((): CalendarDay[] => {
           id: `${experiment.id}-start`,
           experiment,
           type: 'start',
-          label: 'Start'
+          label: 'Начало'
         })
       } else if (endDate && isSameDay(date, endDate)) {
         events.push({
           id: `${experiment.id}-end`,
           experiment,
           type: 'end',
-          label: 'End'
+          label: 'Конец'
         })
       } else if (
         experiment.status === 'active' &&
@@ -187,7 +187,7 @@ const calendarDays = computed((): CalendarDay[] => {
             id: `${experiment.id}-ongoing`,
             experiment,
             type: 'ongoing',
-            label: 'Ongoing'
+            label: 'Продолжается'
           })
         }
       }

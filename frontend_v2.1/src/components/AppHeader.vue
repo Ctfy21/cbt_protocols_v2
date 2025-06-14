@@ -6,14 +6,14 @@
           <div class="flex items-center space-x-2">
             <BeakerIcon class="w-8 h-8 text-blue-600" />
             <div>
-              <h1 class="text-xl font-bold text-gray-900">Environmental Control Lab</h1>
+              <h1 class="text-xl font-bold text-gray-900">Лаборатория управления микроклиматом</h1>
               <div class="flex items-center gap-2 text-sm text-gray-600">
                 <div class="flex items-center gap-1">
                   <div :class="[
                     'w-2 h-2 rounded-full',
                     chamberStore.selectedChamber?.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
                   ]"></div>
-                  <span>{{ chamberStore.selectedChamber?.name || 'No chamber selected' }}</span>
+                  <span>{{ chamberStore.selectedChamber?.name || 'Камера не выбрана' }}</span>
                 </div>
                 <span v-if="chamberStore.selectedChamber?.location" class="text-gray-400">•</span>
                 <span v-if="chamberStore.selectedChamber?.location">{{ chamberStore.selectedChamber.location }}</span>
@@ -21,7 +21,7 @@
             </div>
           </div>
           <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-            v0.2 pre-alpha
+            v0.2 пре-альфа
           </span>
         </div>
         
@@ -30,7 +30,7 @@
             to="/chambers"
             class="text-gray-600 hover:text-gray-900 text-sm font-medium"
           >
-            Switch Chamber
+            Сменить климатическую камеру
           </router-link>
           
           <!-- User Menu -->
@@ -60,7 +60,7 @@
                 class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100"
               >
                 <div class="px-4 py-3">
-                  <p class="text-sm">Signed in as</p>
+                  <p class="text-sm">Вы вошли как</p>
                   <p class="text-sm font-medium text-gray-900 truncate">
                     {{ authStore.userEmail }}
                   </p>
@@ -74,7 +74,7 @@
                   >
                     <div class="flex items-center">
                       <UserIcon class="w-4 h-4 mr-3" />
-                      My Profile
+                      Мой профиль
                     </div>
                   </router-link>
                   <router-link
@@ -84,7 +84,7 @@
                   >
                     <div class="flex items-center">
                       <BeakerIcon class="w-4 h-4 mr-3" />
-                      Experiments
+                      Эксперименты
                     </div>
                   </router-link>
                   <router-link
@@ -94,7 +94,7 @@
                   >
                     <div class="flex items-center">
                       <KeyIcon class="w-4 h-4 mr-3" />
-                      API Tokens
+                      API токены
                     </div>
                   </router-link>
                 </div>
@@ -108,7 +108,7 @@
                   >
                     <div class="flex items-center">
                       <UsersIcon class="w-4 h-4 mr-3" />
-                      Manage Users
+                      Управление пользователями
                     </div>
                   </router-link>
                 </div>
@@ -120,7 +120,7 @@
                   >
                     <div class="flex items-center">
                       <ArrowRightStartOnRectangleIcon class="w-4 h-4 mr-3" />
-                      Sign out
+                      Выйти
                     </div>
                   </button>
                 </div>

@@ -36,7 +36,7 @@ export const useChamberStore = defineStore('chamber', () => {
       } else {
         // For regular users, fetch only chambers they have access to
         if (authStore.user?.id) {
-          const response = await api.getUserChamberAccess(authStore.user.id)
+          const response = await api.getMyChamberAccess()
           if (response.success && response.data) {
             chambers.value = response.data
           }

@@ -6,14 +6,14 @@
           v-model="localPhase.title"
           type="text"
           class="text-xl font-medium text-gray-900 bg-transparent border-0 p-0 focus:ring-0 w-full"
-          placeholder="Phase title"
+          placeholder="Название фазы"
           @input="updatePhase"
         />
         <textarea
           v-model="localPhase.description"
           rows="2"
           class="mt-1 text-lg text-gray-500 bg-transparent border-0 p-0 focus:ring-0 w-full resize-none"
-          placeholder="Phase description..."
+          placeholder="Описание фазы..."
           @input="updatePhase"
         ></textarea>
       </div>
@@ -28,7 +28,7 @@
     <!-- Duration -->
     <div class="mb-4">
       <label class="block text-lg font-medium text-gray-700 mt-4">
-        Duration (days)
+        Продолжительность (дней)
       </label>
       <input
         v-model.number="localPhase.duration_days"
@@ -37,7 +37,7 @@
         class="w-full px-3 py-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         @input="updatePhase"
       />
-      <label class="block text-lg font-medium text-gray-700 mt-4">Start Day Time (HH:MM)</label>
+      <label class="block text-lg font-medium text-gray-700 mt-4">Время начала дня (HH:MM)</label>
       <input
         v-model="startDayTime"
         type="time"
@@ -55,13 +55,13 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
             <ClockIcon class="w-6 h-6 text-purple-500" />
-            <span>Day Duration Schedule</span>
+            <span>График продолжительности дня</span>
           </div>
           <button
             @click.prevent="toggleScheduleMode('dayDuration')"
             class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
           >
-            {{ scheduleMode.dayDuration === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+            {{ scheduleMode.dayDuration === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
           </button>
         </div>
         
@@ -75,13 +75,13 @@
           :step="1"
           :unit="' hours'"
           @update:model-value="updateDayDurationSchedule"
-          title="Day Duration Schedule"
+          title="График продолжительности дня"
         />
         
         <!-- Form Mode -->
         <div v-else class="bg-gray-50 p-4 rounded-lg">
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Day Duration (hours) - Applied to all days
+            Продолжительность дня (часы) - Применяется ко всем дням
           </label>
           <input
             v-model.number="formValues.dayDuration"
@@ -92,7 +92,7 @@
             class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             @input="updateFormValue('dayDuration', formValues.dayDuration)"
           />
-          <span class="ml-2 text-sm text-gray-500">hours</span>
+          <span class="ml-2 text-sm text-gray-500">часов</span>
         </div>
       </div>
 
@@ -101,18 +101,18 @@
       <div class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <SunIcon class="w-6 h-6 text-yellow-500" />
-          <span>Day Schedule</span>
+          <span>День</span>
         </div>
         
         <!-- Temperature Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">Temperature Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График температуры</h4>
             <button
               @click.prevent="toggleScheduleMode('temperatureDay')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.temperatureDay === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.temperatureDay === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -125,12 +125,12 @@
             :step="1"
             :unit="'°C'"
             @update:model-value="updateTemperatureDaySchedule"
-            title="Temperature Schedule"
+            title="График температуры"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Temperature (°C) - Applied to all days
+              Температура (°C) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.temperatureDay"
@@ -148,12 +148,12 @@
         <!-- Humidity Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">Humidity Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График влажности</h4>
             <button
               @click.prevent="toggleScheduleMode('humidityDay')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.humidityDay === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.humidityDay === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -166,12 +166,12 @@
             :step="5"
             :unit="'%'"
             @update:model-value="updateHumidityDaySchedule"
-            title="Humidity Schedule"
+            title="График влажности"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Humidity (%) - Applied to all days
+              Влажность (%) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.humidityDay"
@@ -189,12 +189,12 @@
         <!-- CO2 Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">CO2 Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График CO2</h4>
             <button
               @click.prevent="toggleScheduleMode('co2Day')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.co2Day === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.co2Day === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -207,12 +207,12 @@
             :step="100"
             :unit="'ppm'"
             @update:model-value="updateCO2DaySchedule"
-            title="CO2 Schedule"
+            title="График CO2"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              CO2 (ppm) - Applied to all days
+              CO2 (ppm) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.co2Day"
@@ -232,18 +232,18 @@
       <div class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <MoonIcon class="w-6 h-6 text-blue-500" />
-          <span>Night Schedule</span>
+          <span>Ночь</span>
         </div>
 
         <!-- Temperature Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">Temperature Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График температуры</h4>
             <button
               @click.prevent="toggleScheduleMode('temperatureNight')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.temperatureNight === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.temperatureNight === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -256,12 +256,12 @@
             :step="1"
             :unit="'°C'"
             @update:model-value="updateTemperatureNightSchedule"
-            title="Temperature Schedule"
+            title="График температуры"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Temperature (°C) - Applied to all days
+              Температура (°C) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.temperatureNight"
@@ -279,12 +279,12 @@
         <!-- Humidity Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">Humidity Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График влажности</h4>
             <button
               @click.prevent="toggleScheduleMode('humidityNight')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.humidityNight === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.humidityNight === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -297,12 +297,12 @@
             :step="5"
             :unit="'%'"
             @update:model-value="updateHumidityNightSchedule"
-            title="Humidity Schedule"
+            title="График влажности"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Humidity (%) - Applied to all days
+              Влажность (%) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.humidityNight"
@@ -320,12 +320,12 @@
         <!-- CO2 Schedule -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">CO2 Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">График CO2</h4>
             <button
               @click.prevent="toggleScheduleMode('co2Night')"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ scheduleMode.co2Night === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ scheduleMode.co2Night === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -338,12 +338,12 @@
             :step="100"
             :unit="'ppm'"
             @update:model-value="updateCO2NightSchedule"
-            title="CO2 Schedule"
+            title="График CO2"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              CO2 (ppm) - Applied to all days
+              CO2 (ppm) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.co2Night"
@@ -363,16 +363,16 @@
       <div v-if="chamber.lamps && chamber.lamps.length > 0" class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <LightBulbIcon class="w-6 h-6 text-yellow-400" />
-          <span>Lamp Intensity Schedules</span>
+          <span>График интенсивности ламп</span>
         </div>
         <div v-for="lamp in chamber.lamps" :key="lamp.entity_id" class="space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="text-md font-medium text-gray-700">{{ lamp.name }} Intensity Schedule</h4>
+            <h4 class="text-md font-medium text-gray-700">{{ lamp.name }} График интенсивности</h4>
             <button
               @click.prevent="toggleScheduleMode('lampIntensity', lamp.entity_id)"
               class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
             >
-              {{ (scheduleMode.lampIntensity[lamp.entity_id] || 'chart') === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+              {{ (scheduleMode.lampIntensity[lamp.entity_id] || 'chart') === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
             </button>
           </div>
           
@@ -385,12 +385,12 @@
             :step="5"
             :unit="'%'"
             @update:model-value="(schedule) => updateLampIntensitySchedule(lamp.entity_id, schedule)"
-            :title="`${lamp.name} Intensity Schedule`"
+            :title="`${lamp.name} График интенсивности`"
           />
           
           <div v-else class="bg-gray-50 p-4 rounded-lg">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              {{ lamp.name }} Intensity (%) - Applied to all days
+              {{ lamp.name }} Интенсивность (%) - Применяется ко всем дням
             </label>
             <input
               v-model.number="formValues.lampIntensity[lamp.entity_id]"
@@ -410,7 +410,7 @@
       <div v-if="chamber.watering_zones && chamber.watering_zones.length > 0" class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <BeakerIcon class="w-6 h-6 text-blue-500" />
-          <span>Watering Zones</span>
+          <span>Зоны полива</span>
         </div>
         
         <div v-for="(zone, index) in chamber.watering_zones" :key="`zone-${index}`" class="border border-gray-200 rounded-lg p-4 space-y-4">
@@ -419,12 +419,12 @@
           <!-- Start Time Schedule -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h5 class="text-sm font-medium text-gray-700">Start Time</h5>
+              <h5 class="text-sm font-medium text-gray-700">Время начала</h5>
               <button
                 @click.prevent="toggleScheduleMode('wateringZone', undefined, `zone_${index}`, 'start_time')"
                 class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
               >
-                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.start_time) || 'chart') === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.start_time) || 'chart') === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
               </button>
             </div>
             
@@ -437,12 +437,12 @@
               :step="1"
               :unit="':00'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'start_time', schedule)"
-              :title="`${zone.name} - Start Time`"
+              :title="`${zone.name} - Время начала`"
             />
             
             <div v-else class="bg-gray-50 p-3 rounded-lg">
               <label class="block text-xs font-medium text-gray-700 mb-2">
-                Start Time (hour) - Applied to all days
+                Время начала полива (часы) - Применяется ко всем дням
               </label>
               <input
                 v-model.number="formValues.wateringZones[`zone_${index}`].start_time"
@@ -460,12 +460,12 @@
           <!-- Period Schedule -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h5 class="text-sm font-medium text-gray-700">Period Between Watering</h5>
+              <h5 class="text-sm font-medium text-gray-700">Период между поливом</h5>
               <button
                 @click.prevent="toggleScheduleMode('wateringZone', undefined, `zone_${index}`, 'period')"
                 class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
               >
-                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.period) || 'chart') === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.period) || 'chart') === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
               </button>
             </div>
             
@@ -478,12 +478,12 @@
               :step="1"
               :unit="' hours'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'period', schedule)"
-              :title="`${zone.name} - Period Between Watering`"
+              :title="`${zone.name} - Период между поливом`"
             />
             
             <div v-else class="bg-gray-50 p-3 rounded-lg">
               <label class="block text-xs font-medium text-gray-700 mb-2">
-                Period (hours) - Applied to all days
+                Период между поливом (часы) - Применяется ко всем дням
               </label>
               <input
                 v-model.number="formValues.wateringZones[`zone_${index}`].period"
@@ -494,19 +494,19 @@
                 class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 @input="updateFormValue('wateringZone', formValues.wateringZones[`zone_${index}`].period, undefined, `zone_${index}`, 'period')"
               />
-              <span class="ml-1 text-xs text-gray-500">hours</span>
+              <span class="ml-1 text-xs text-gray-500">часов</span>
             </div>
           </div>
           
           <!-- Pause Between Schedule -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h5 class="text-sm font-medium text-gray-700">Pause Between Cycles</h5>
+              <h5 class="text-sm font-medium text-gray-700">Период между циклами</h5>
               <button
                 @click.prevent="toggleScheduleMode('wateringZone', undefined, `zone_${index}`, 'pause_between')"
                 class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
               >
-                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.pause_between) || 'chart') === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.pause_between) || 'chart') === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
               </button>
             </div>
             
@@ -519,12 +519,12 @@
               :step="1"
               :unit="' hours'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'pause_between', schedule)"
-              :title="`${zone.name} - Pause Between Cycles`"
+              :title="`${zone.name} - Период между циклами`"
             />
             
             <div v-else class="bg-gray-50 p-3 rounded-lg">
               <label class="block text-xs font-medium text-gray-700 mb-2">
-                Pause Between (hours) - Applied to all days
+                Период между циклами (часы) - Применяется ко всем дням
               </label>
               <input
                 v-model.number="formValues.wateringZones[`zone_${index}`].pause_between"
@@ -535,19 +535,19 @@
                 class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 @input="updateFormValue('wateringZone', formValues.wateringZones[`zone_${index}`].pause_between, undefined, `zone_${index}`, 'pause_between')"
               />
-              <span class="ml-1 text-xs text-gray-500">hours</span>
+              <span class="ml-1 text-xs text-gray-500">часов</span>
             </div>
           </div>
           
           <!-- Duration Schedule -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <h5 class="text-sm font-medium text-gray-700">Watering Duration</h5>
+              <h5 class="text-sm font-medium text-gray-700">Продолжительность полива</h5>
               <button
                 @click.prevent="toggleScheduleMode('wateringZone', undefined, `zone_${index}`, 'duration')"
                 class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
               >
-                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.duration) || 'chart') === 'chart' ? 'Switch to Form' : 'Switch to Chart' }}
+                {{ ((scheduleMode.wateringZones[`zone_${index}`]?.duration) || 'chart') === 'chart' ? 'Сменить на форму' : 'Сменить на график' }}
               </button>
             </div>
             
@@ -560,12 +560,12 @@
               :step="10"
               :unit="' sec'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'duration', schedule)"
-              :title="`${zone.name} - Watering Duration`"
+              :title="`${zone.name} - Продолжительность полива`"
             />
             
             <div v-else class="bg-gray-50 p-3 rounded-lg">
               <label class="block text-xs font-medium text-gray-700 mb-2">
-                Duration (seconds) - Applied to all days
+                Продолжительность (секунды) - Применяется ко всем дням
               </label>
               <input
                 v-model.number="formValues.wateringZones[`zone_${index}`].duration"
@@ -576,7 +576,7 @@
                 class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 @input="updateFormValue('wateringZone', formValues.wateringZones[`zone_${index}`].duration, undefined, `zone_${index}`, 'duration')"
               />
-              <span class="ml-1 text-xs text-gray-500">sec</span>
+              <span class="ml-1 text-xs text-gray-500">секунды</span>
             </div>
           </div>
         </div>

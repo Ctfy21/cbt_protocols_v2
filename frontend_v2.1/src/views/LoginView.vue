@@ -6,7 +6,7 @@
           <BeakerIcon class="w-16 h-16 text-blue-600" />
         </div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to your account
+          Вход в систему
         </h2>
         <!-- REMOVED: Register link paragraph -->
       </div>
@@ -14,7 +14,7 @@
       <form class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
-            <label for="email" class="sr-only">Email address</label>
+            <label for="email" class="sr-only">Email адрес</label>
             <input
               id="email"
               v-model="form.email"
@@ -23,11 +23,11 @@
               autocomplete="email"
               required
               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="Email address"
+              placeholder="Email адрес"
             />
           </div>
           <div>
-            <label for="password" class="sr-only">Password</label>
+            <label for="password" class="sr-only">Пароль</label>
             <input
               id="password"
               v-model="form.password"
@@ -36,7 +36,7 @@
               autocomplete="current-password"
               required
               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="Password"
+              placeholder="Пароль"
             />
           </div>
         </div>
@@ -61,7 +61,7 @@
             <span v-if="loading" class="absolute left-0 inset-y-0 flex items-center pl-3">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
             </span>
-            {{ loading ? 'Signing in...' : 'Sign in' }}
+            {{ loading ? 'Вход...' : 'Вход' }}
           </button>
         </div>
       </form>
@@ -106,13 +106,13 @@ async function handleSubmit() {
       password: form.password
     })
     
-    toastStore.success('Welcome back!', `Logged in as ${authStore.userName}`)
+    toastStore.success('Добро пожаловать!', `Вход выполнен как ${authStore.userName}`)
     
     // Redirect to intended page or home
     const redirectTo = route.query.redirect as string || '/'
     router.push(redirectTo)
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Invalid email or password'
+    error.value = err.response?.data?.error || 'Неверный email или пароль'
   } finally {
     loading.value = false
   }

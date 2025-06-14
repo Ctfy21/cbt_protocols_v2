@@ -6,20 +6,20 @@
       <!-- Main Content -->
       <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gray-900">My Profile</h1>
+          <h1 class="text-2xl font-bold text-gray-900">Мой профиль</h1>
         </div>
   
         <div class="bg-white shadow overflow-hidden sm:rounded-lg">
           <!-- User Info -->
           <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">User Information</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account settings.</p>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Информация о пользователе</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Личные данные и настройки учетной записи.</p>
           </div>
           
           <div class="border-t border-gray-200">
             <dl>
               <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Full name</dt>
+                <dt class="text-sm font-medium text-gray-500">Полное имя</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   <div v-if="!editingName" class="flex items-center justify-between">
                     <span>{{ authStore.user?.name }}</span>
@@ -35,35 +35,35 @@
                       v-model="newName"
                       type="text"
                       class="flex-1 px-3 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Enter your name"
+                      placeholder="Введите ваше имя"
                     />
                     <button
                       type="submit"
                       :disabled="updatingName"
                       class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                     >
-                      Save
+                      Сохранить
                     </button>
                     <button
                       type="button"
                       @click="cancelEditingName"
                       class="px-3 py-1 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                     >
-                      Cancel
+                      Отмена
                     </button>
                   </form>
                 </dd>
               </div>
               
               <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Email address</dt>
+                <dt class="text-sm font-medium text-gray-500">Email адрес</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {{ authStore.user?.email }}
                 </dd>
               </div>
               
               <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Account role</dt>
+                <dt class="text-sm font-medium text-gray-500">Роль учетной записи</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   <span :class="[
                     'px-2 py-1 text-xs font-medium rounded-full',
@@ -77,14 +77,14 @@
               </div>
               
               <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Member since</dt>
+                <dt class="text-sm font-medium text-gray-500">Участник с</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {{ formatDate(authStore.user?.created_at) }}
                 </dd>
               </div>
               
               <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt class="text-sm font-medium text-gray-500">Last login</dt>
+                <dt class="text-sm font-medium text-gray-500">Последний вход</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                   {{ formatDate(authStore.user?.last_login) }}
                 </dd>
@@ -96,8 +96,8 @@
         <!-- Change Password -->
         <div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
           <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Security</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Update your password.</p>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Безопасность</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Обновить ваш пароль.</p>
           </div>
           
           <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
@@ -106,13 +106,13 @@
               @click="changingPassword = true"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              Change Password
+              Изменить пароль
             </button>
             
             <form v-else @submit.prevent="updatePassword" class="space-y-4 max-w-md">
               <div>
                 <label for="currentPassword" class="block text-sm font-medium text-gray-700">
-                  Current Password
+                  Текущий пароль
                 </label>
                 <input
                   id="currentPassword"
@@ -125,7 +125,7 @@
               
               <div>
                 <label for="newPassword" class="block text-sm font-medium text-gray-700">
-                  New Password
+                  Новый пароль
                 </label>
                 <input
                   id="newPassword"
@@ -139,7 +139,7 @@
               
               <div>
                 <label for="confirmNewPassword" class="block text-sm font-medium text-gray-700">
-                  Confirm New Password
+                  Подтвердить новый пароль
                 </label>
                 <input
                   id="confirmNewPassword"
@@ -167,14 +167,14 @@
                   :disabled="updatingPassword"
                   class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {{ updatingPassword ? 'Updating...' : 'Update Password' }}
+                  {{ updatingPassword ? 'Обновление...' : 'Обновить пароль' }}
                 </button>
                 <button
                   type="button"
                   @click="cancelPasswordChange"
                   class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  Cancel
+                  Отмена
                 </button>
               </div>
             </form>
@@ -235,10 +235,10 @@
     updatingName.value = true
     try {
       await authStore.updateProfile({ name: newName.value.trim() })
-      toastStore.success('Success', 'Name updated successfully')
+      toastStore.success('Имя обновлено', 'Имя обновлено успешно')
       editingName.value = false
     } catch (error) {
-      toastStore.error('Error', 'Failed to update name')
+      toastStore.error('Ошибка', 'Не удалось обновить имя')
     } finally {
       updatingName.value = false
     }
@@ -257,23 +257,23 @@
     
     // Validate passwords match
     if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
-      passwordError.value = 'New passwords do not match'
+      passwordError.value = 'Новые пароли не совпадают'
       return
     }
     
     // Validate password length
     if (passwordForm.newPassword.length < 6) {
-      passwordError.value = 'Password must be at least 6 characters'
+      passwordError.value = 'Пароль должен быть не менее 6 символов'
       return
     }
     
     updatingPassword.value = true
     try {
       await authStore.changePassword(passwordForm.currentPassword, passwordForm.newPassword)
-      toastStore.success('Success', 'Password updated successfully')
+      toastStore.success('Пароль обновлен', 'Пароль обновлен успешно')
       cancelPasswordChange()
     } catch (error: any) {
-      passwordError.value = error.response?.data?.error || 'Failed to update password'
+      passwordError.value = error.response?.data?.error || 'Не удалось обновить пароль'
     } finally {
       updatingPassword.value = false
     }

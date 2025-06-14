@@ -6,7 +6,7 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <UsersIcon class="w-8 h-8 text-blue-600" />
-            <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Управление пользователями</h1>
           </div>
           <div class="flex items-center space-x-3">
             <button
@@ -14,7 +14,7 @@
               class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <ArrowLeftIcon class="w-4 h-4 mr-2" />
-              Back
+              Назад
             </button>
             <button
               @click="refreshData"
@@ -22,14 +22,14 @@
               class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
             >
               <ArrowPathIcon class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" />
-              Refresh
+              Обновить
             </button>
             <button
               @click="showCreateUserForm = true"
               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <PlusIcon class="w-4 h-4 mr-2" />
-              Add User
+              Добавить пользователя
             </button>
           </div>
         </div>
@@ -46,7 +46,7 @@
               <UsersIcon class="w-8 h-8 text-blue-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Total Users</p>
+              <p class="text-sm font-medium text-gray-500">Всего пользователей</p>
               <p class="text-3xl font-bold text-gray-900">{{ users.length }}</p>
             </div>
           </div>
@@ -58,7 +58,7 @@
               <CheckCircleIcon class="w-8 h-8 text-green-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Active Users</p>
+              <p class="text-sm font-medium text-gray-500">Активные пользователи</p>
               <p class="text-3xl font-bold text-gray-900">{{ activeUsersCount }}</p>
             </div>
           </div>
@@ -70,7 +70,7 @@
               <ShieldCheckIcon class="w-8 h-8 text-purple-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Admins</p>
+              <p class="text-sm font-medium text-gray-500">Администраторы</p>
               <p class="text-3xl font-bold text-gray-900">{{ adminUsersCount }}</p>
             </div>
           </div>
@@ -82,7 +82,7 @@
               <HomeIcon class="w-8 h-8 text-orange-600" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Total Chambers</p>
+              <p class="text-sm font-medium text-gray-500">Всего климатических камер</p>
               <p class="text-3xl font-bold text-gray-900">{{ chamberStore.chambers.length }}</p>
             </div>
           </div>
@@ -99,7 +99,7 @@
               <input
                 v-model="searchQuery"
                 type="text"
-                placeholder="Search users..."
+                placeholder="Поиск пользователей..."
                 class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -111,9 +111,9 @@
               v-model="roleFilter"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
+              <option value="">Все роли</option>
+              <option value="admin">Администратор</option>
+              <option value="user">Пользователь</option>
             </select>
           </div>
 
@@ -123,9 +123,9 @@
               v-model="statusFilter"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">All Status</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
+              <option value="">Все статусы</option>
+              <option value="true">Активный</option>
+              <option value="false">Неактивный</option>
             </select>
           </div>
         </div>
@@ -134,19 +134,19 @@
       <!-- Loading State -->
       <div v-if="loading && users.length === 0" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">Loading users...</p>
+        <p class="mt-2 text-gray-600">Загрузка пользователей...</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-12">
         <ExclamationCircleIcon class="w-16 h-16 text-red-400 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 mb-2">Error loading users</h3>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Ошибка загрузки пользователей</h3>
         <p class="text-gray-500">{{ error }}</p>
         <button
           @click="refreshData"
           class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Try Again
+          Попробовать снова
         </button>
       </div>
 
@@ -157,22 +157,22 @@
             <thead class="bg-gray-50">
               <tr>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  Пользователь
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                  Роль
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Статус
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Chamber Access
+                  Доступ к климатической камере
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Login
+                  Последний вход
                 </th>
                 <th scope="col" class="relative px-6 py-3">
-                  <span class="sr-only">Actions</span>
+                  <span class="sr-only">Действия</span>
                 </th>
               </tr>
             </thead>
@@ -215,12 +215,12 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
-                    <span class="text-sm text-gray-900">{{ userWithAccess.chambers.length }} chambers</span>
+                    <span class="text-sm text-gray-900">{{ userWithAccess.chambers.length }} климатических камер</span>
                     <button
                       @click="manageChamberAccess(userWithAccess)"
                       class="ml-2 text-blue-600 hover:text-blue-900 text-sm"
                     >
-                      Manage
+                      Управление
                     </button>
                   </div>
                 </td>
@@ -233,21 +233,21 @@
                       @click="editUser(userWithAccess.user)"
                       class="text-blue-600 hover:text-blue-900"
                     >
-                      Edit
+                      Редактировать
                     </button>
                     <button
                       v-if="userWithAccess.user.is_active"
                       @click="toggleUserStatus(userWithAccess.user, false)"
                       class="text-yellow-600 hover:text-yellow-900"
                     >
-                      Deactivate
+                      Деактивировать
                     </button>
                     <button
                       v-else
                       @click="toggleUserStatus(userWithAccess.user, true)"
                       class="text-green-600 hover:text-green-900"
                     >
-                      Activate
+                      Активировать
                     </button>
                   </div>
                 </td>
@@ -259,8 +259,8 @@
         <!-- Empty State -->
         <div v-if="filteredUsers.length === 0" class="text-center py-12">
           <UsersIcon class="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 class="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-          <p class="text-gray-500">{{ users.length === 0 ? 'No users in the system yet.' : 'No users match your current filters.' }}</p>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">Пользователи не найдены</h3>
+          <p class="text-gray-500">{{ users.length === 0 ? 'В системе пока нет пользователей.' : 'Пользователи не соответствуют вашим текущим фильтрам.' }}</p>
         </div>
       </div>
     </main>
@@ -270,7 +270,7 @@
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Create New User</h2>
+            <h2 class="text-xl font-semibold text-gray-900">Создать нового пользователя</h2>
             <button
               @click="closeCreateUserForm"
               class="text-gray-400 hover:text-gray-600"
@@ -287,12 +287,12 @@
                 type="text"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Full name"
+                placeholder="Полное имя"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email адрес</label>
               <input
                 v-model="newUserForm.email"
                 type="email"
@@ -303,25 +303,25 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
               <input
                 v-model="newUserForm.password"
                 type="password"
                 required
                 minlength="6"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Minimum 6 characters"
+                placeholder="Минимум 6 символов"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Роль</label>
               <select
                 v-model="newUserForm.role"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="user">Пользователь</option>
+                <option value="admin">Администратор</option>
               </select>
             </div>
 
@@ -331,14 +331,14 @@
                 @click="closeCreateUserForm"
                 class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                Отмена
               </button>
               <button
                 type="submit"
                 :disabled="creatingUser"
                 class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
-                {{ creatingUser ? 'Creating...' : 'Create User' }}
+                {{ creatingUser ? 'Создание...' : 'Создать пользователя' }}
               </button>
             </div>
           </form>
@@ -351,7 +351,7 @@
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Edit User</h2>
+            <h2 class="text-xl font-semibold text-gray-900">Редактировать пользователя</h2>
             <button
               @click="closeEditUserForm"
               class="text-gray-400 hover:text-gray-600"
@@ -362,7 +362,7 @@
 
           <form @submit.prevent="updateUser" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Имя</label>
               <input
                 v-model="editUserForm.name"
                 type="text"
@@ -372,7 +372,7 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email адрес</label>
               <input
                 v-model="editUserForm.email"
                 type="email"
@@ -382,13 +382,13 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Роль</label>
               <select
                 v-model="editUserForm.role"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="user">Пользователь</option>
+                <option value="admin">Администратор</option>
               </select>
             </div>
 
@@ -398,14 +398,14 @@
                 @click="closeEditUserForm"
                 class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                Отмена
               </button>
               <button
                 type="submit"
                 :disabled="updatingUser"
                 class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
-                {{ updatingUser ? 'Updating...' : 'Update User' }}
+                {{ updatingUser ? 'Обновление...' : 'Обновить пользователя' }}
               </button>
             </div>
           </form>
@@ -419,7 +419,7 @@
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900">
-              Manage Chamber Access - {{ managingAccessUser.user.name }}
+              Управление доступом к климатической камере - {{ managingAccessUser.user.name }}
             </h2>
             <button
               @click="closeChamberAccessModal"
@@ -432,15 +432,15 @@
           <!-- Loading State -->
           <div v-if="chamberStore.loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <p class="mt-2 text-sm text-gray-600">Loading chambers...</p>
+            <p class="mt-2 text-sm text-gray-600">Загрузка климатических камер...</p>
           </div>
 
           <!-- Chamber Selection -->
           <div v-else class="space-y-4">
             <div class="border border-gray-200 rounded-lg p-4">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Available Chambers</h3>
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Доступные климатические камеры</h3>
               <div v-if="chamberStore.chambers.length === 0" class="text-sm text-gray-500 italic">
-                No chambers available
+                Нет доступных климатических камер
               </div>
               <div v-else class="space-y-3">
                 <div
@@ -459,7 +459,7 @@
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-sm font-medium text-gray-900">{{ chamber.name }}</p>
-                        <p class="text-xs text-gray-500">{{ chamber.location || 'No location' }}</p>
+                        <p class="text-xs text-gray-500">{{ chamber.location || 'Неизвестное местоположение' }}</p>
                       </div>
                       <div :class="[
                         'px-2 py-1 text-xs font-medium rounded-full',
@@ -482,15 +482,15 @@
               @click="closeChamberAccessModal"
               class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              Отмена
             </button>
             <button
               @click="saveChamberAccess"
               :disabled="savingAccess"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              <span v-if="savingAccess">Saving...</span>
-              <span v-else>Save Changes</span>
+              <span v-if="savingAccess">Сохранение...</span>
+              <span v-else>Сохранить изменения</span>
             </button>
           </div>
         </div>
@@ -639,12 +639,12 @@ async function createUser() {
     })
     
     if (response.data.success) {
-      toastStore.success('User Created', `Successfully created user ${newUserForm.name}`)
+      toastStore.success('Пользователь создан', `Пользователь ${newUserForm.name} успешно создан`)
       closeCreateUserForm()
       await refreshData()
     }
   } catch (err: any) {
-    toastStore.error('Error', api.formatError(err))
+    toastStore.error('Ошибка', api.formatError(err))
   } finally {
     creatingUser.value = false
   }
@@ -677,12 +677,12 @@ async function updateUser() {
     })
     
     if (response.data.success) {
-      toastStore.success('User Updated', `Successfully updated ${editUserForm.name}`)
+      toastStore.success('Пользователь обновлен', `Пользователь ${editUserForm.name} успешно обновлен`)
       closeEditUserForm()
       await refreshData()
     }
   } catch (err: any) {
-    toastStore.error('Error', api.formatError(err))
+    toastStore.error('Ошибка', api.formatError(err))
   } finally {
     updatingUser.value = false
   }
@@ -698,13 +698,13 @@ async function toggleUserStatus(user: User, isActive: boolean) {
     
     if (response.data.success) {
       toastStore.success(
-        `User ${isActive ? 'Activated' : 'Deactivated'}`, 
-        `Successfully ${action}d ${user.name}`
+        `Пользователь ${isActive ? 'активирован' : 'деактивирован'}`, 
+        `Пользователь ${user.name} успешно ${action}н`
       )
       await refreshData()
     }
   } catch (err: any) {
-    toastStore.error('Error', api.formatError(err))
+    toastStore.error('Ошибка', api.formatError(err))
   }
 }
 

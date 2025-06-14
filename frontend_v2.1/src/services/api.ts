@@ -246,6 +246,11 @@ class ApiService {
     return response.data
   }
 
+  async getMyChamberAccess(): Promise<ApiResponse<Chamber[]>> {
+    const response = await this.api.get('/me/chambers')
+    return response.data
+  }
+
   // Helper methods
   formatError(error: any): string {
     if (error.response?.data?.error) {

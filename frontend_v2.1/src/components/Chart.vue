@@ -7,7 +7,7 @@
             @click.prevent="clearChart"
             class="px-3 py-2 text-base text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
           >
-            Clear
+            Очистить
           </button>
         </div>
       </div>
@@ -67,11 +67,11 @@
       <div class="mt-4 flex items-center gap-4 text-base text-gray-600">
         <div class="flex items-center gap-2">
           <div class="w-3 h-3 bg-gray-300 rounded-full opacity-40"></div>
-          <span>Available</span>
+          <span>Доступно</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 bg-red-500 rounded-full"></div>
-          <span>Selected</span>
+          <span>Выбрано</span>
         </div>
       </div>
     </div>

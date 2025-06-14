@@ -31,7 +31,7 @@ func (s *UserChamberAccessService) GrantChamberAccess(userID, chamberID primitiv
 	defer cancel()
 
 	// Check if access already exists
-	count, err := s.db.Database.Collection("user_chamber_access").CountDocuments(ctx, bson.M{
+	count, err := s.db.UserChamberAccessCollection.CountDocuments(ctx, bson.M{
 		"user_id":    userID,
 		"chamber_id": chamberID,
 	})
@@ -51,7 +51,7 @@ func (s *UserChamberAccessService) GrantChamberAccess(userID, chamberID primitiv
 		UpdatedAt: time.Now(),
 	}
 
-	_, err = s.db.Database.Collection("user_chamber_access").InsertOne(ctx, access)
+	_, err = s.db.UserChamberAccessCollection.InsertOne(ctx, access)
 	if err != nil {
 		return fmt.Errorf("failed to grant chamber access: %v", err)
 	}
@@ -64,7 +64,7 @@ func (s *UserChamberAccessService) RevokeChamberAccess(userID, chamberID primiti
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err := s.db.Database.Collection("user_chamber_access").DeleteMany(ctx, bson.M{
+	_, err := s.db.UserChamberAccessCollection.DeleteMany(ctx, bson.M{
 		"user_id":    userID,
 		"chamber_id": chamberID,
 	})
@@ -104,7 +104,7 @@ func (s *UserChamberAccessService) SetUserChamberAccess(userIDStr string, chambe
 
 	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
 		// Remove all existing access for this user
-		_, err := s.db.Database.Collection("user_chamber_access").DeleteMany(sessCtx, bson.M{
+		_, err := s.db.UserChamberAccessCollection.DeleteMany(sessCtx, bson.M{
 			"user_id": userID,
 		})
 		if err != nil {
@@ -125,7 +125,7 @@ func (s *UserChamberAccessService) SetUserChamberAccess(userIDStr string, chambe
 				})
 			}
 
-			_, err = s.db.Database.Collection("user_chamber_access").InsertMany(sessCtx, accessRecords)
+			_, err = s.db.UserChamberAccessCollection.InsertMany(sessCtx, accessRecords)
 			if err != nil {
 				return nil, fmt.Errorf("failed to insert new access records: %v", err)
 			}
@@ -143,7 +143,7 @@ func (s *UserChamberAccessService) GetUserChamberAccess(userID primitive.ObjectI
 	defer cancel()
 
 	// Get chamber IDs user has access to
-	cursor, err := s.db.Database.Collection("user_chamber_access").Find(ctx, bson.M{
+	cursor, err := s.db.UserChamberAccessCollection.Find(ctx, bson.M{
 		"user_id": userID,
 	})
 	if err != nil {
@@ -222,7 +222,7 @@ func (s *UserChamberAccessService) HasChamberAccess(userID, chamberID primitive.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	count, err := s.db.Database.Collection("user_chamber_access").CountDocuments(ctx, bson.M{
+	count, err := s.db.UserChamberAccessCollection.CountDocuments(ctx, bson.M{
 		"user_id":    userID,
 		"chamber_id": chamberID,
 	})

@@ -19,18 +19,18 @@
       </div>
       <div class="flex items-center text-sm text-gray-600">
         <ChartBarIcon class="w-4 h-4 mr-2" />
-        <span>{{ experiment.phases?.length || 0 }} phases</span>
+        <span>{{ experiment.phases?.length || 0 }} фаз</span>
       </div>
       <div class="flex items-center text-sm text-gray-600">
         <ClockIcon class="w-4 h-4 mr-2" />
-        <span>{{ totalDuration }} days</span>
+        <span>{{ totalDuration }} дней</span>
       </div>
     </div>
 
     <!-- Progress Bar (for active experiments) -->
     <div v-if="experiment.status === 'active' && progress >= 0" class="mb-4">
       <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
-        <span>Progress</span>
+        <span>Прогресс</span>
         <span>{{ Math.round(progress) }}%</span>
       </div>
       <div class="w-full bg-gray-200 rounded-full h-2">
@@ -49,7 +49,7 @@
           v-if="experiment.status === 'draft'"
           @click="$emit('status-change', experiment, 'active')"
           class="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-          title="Start Experiment"
+          title="Начать эксперимент"
         >
           <PlayIcon class="w-4 h-4" />
         </button>
@@ -57,7 +57,7 @@
           v-if="experiment.status === 'active'"
           @click="$emit('status-change', experiment, 'paused')"
           class="p-2 text-yellow-600 hover:bg-yellow-50 rounded-md transition-colors"
-          title="Pause Experiment"
+          title="Приостановить эксперимент"
         >
           <PauseIcon class="w-4 h-4" />
         </button>
@@ -65,7 +65,7 @@
           v-if="experiment.status === 'paused'"
           @click="$emit('status-change', experiment, 'active')"
           class="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-          title="Resume Experiment"
+          title="Продолжить эксперимент"
         >
           <PlayIcon class="w-4 h-4" />
         </button>
@@ -73,7 +73,7 @@
           v-if="experiment.status === 'active' || experiment.status === 'paused'"
           @click="$emit('status-change', experiment, 'completed')"
           class="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-          title="Stop Experiment"
+          title="Завершить эксперимент"
         >
           <StopIcon class="w-4 h-4" />
         </button>
@@ -108,21 +108,21 @@
                 class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <PencilIcon class="w-4 h-4 mr-3" />
-                Edit
+                Редактировать
               </button>
               <button
                 @click="handleAction('duplicate')"
                 class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <DocumentDuplicateIcon class="w-4 h-4 mr-3" />
-                Duplicate
+                Дублировать
               </button>
               <button
                 @click="handleAction('export')"
                 class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <ArrowDownTrayIcon class="w-4 h-4 mr-3" />
-                Export
+                Экспорт
               </button>
             </div>
             <div class="py-1">
@@ -131,7 +131,7 @@
                 class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
               >
                 <TrashIcon class="w-4 h-4 mr-3" />
-                Delete
+                Удалить
               </button>
             </div>
           </div>
