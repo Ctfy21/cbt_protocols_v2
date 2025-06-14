@@ -26,7 +26,9 @@ router.beforeEach(async (to, from, next) => {
   }
   
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false)
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin === true)
   const isAuthenticated = authStore.isAuthenticated
+  const isAdmin = authStore.isAdmin
   
   if (requiresAuth && !isAuthenticated) {
     // Redirect to login with return url
@@ -34,6 +36,9 @@ router.beforeEach(async (to, from, next) => {
       path: '/login',
       query: { redirect: to.fullPath }
     })
+  } else if (requiresAdmin && !isAdmin) {
+    // Redirect non-admin users to home
+    next('/')
   } else if (!requiresAuth && isAuthenticated && (to.path === '/login' || to.path === '/register')) {
     // Redirect authenticated users away from login/register
     next('/')

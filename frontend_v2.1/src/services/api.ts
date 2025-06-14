@@ -174,6 +174,37 @@ class ApiService {
     return response.data
   }
 
+  // User Chamber Access endpoints
+  async getAllUsersWithChamberAccess(): Promise<ApiResponse<any[]>> {
+    const response = await this.api.get('/users/chambers')
+    return response.data
+  }
+
+  async getUserChamberAccess(userId: string): Promise<ApiResponse<Chamber[]>> {
+    const response = await this.api.get(`/users/${userId}/chambers`)
+    return response.data
+  }
+
+  async setUserChamberAccess(userId: string, chamberIds: string[]): Promise<ApiResponse<void>> {
+    const response = await this.api.put(`/users/${userId}/chambers`, { chamber_ids: chamberIds })
+    return response.data
+  }
+
+  async grantChamberAccess(userId: string, chamberId: string): Promise<ApiResponse<void>> {
+    const response = await this.api.post(`/users/${userId}/chambers/${chamberId}`)
+    return response.data
+  }
+
+  async revokeChamberAccess(userId: string, chamberId: string): Promise<ApiResponse<void>> {
+    const response = await this.api.delete(`/users/${userId}/chambers/${chamberId}`)
+    return response.data
+  }
+
+  async hasChamberAccess(userId: string, chamberId: string): Promise<ApiResponse<{ has_access: boolean }>> {
+    const response = await this.api.get(`/users/${userId}/chambers/${chamberId}/check`)
+    return response.data
+  }
+
   // Helper methods
   formatError(error: any): string {
     if (error.response?.data?.error) {

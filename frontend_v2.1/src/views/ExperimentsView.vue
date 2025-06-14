@@ -410,18 +410,18 @@ async function handleStatusChange(experiment: Experiment, status: ExperimentStat
 
 async function handleSave(data: any) {
   console.log(data)
-  try {
-    if (editingExperiment.value?.id) {
-      await experimentStore.updateExperiment(editingExperiment.value.id, data)
-      toastStore.success('Experiment Updated', 'Changes saved successfully')
-    } else {
-      await experimentStore.createExperiment(data)
-      toastStore.success('Experiment Created', 'New experiment created successfully')
-    }
-    closeForm()
-  } catch (error: any) {
-    toastStore.error('Save Failed', error.message || 'Failed to save experiment')
-  }
+  // try {
+  //   if (editingExperiment.value?.id) {
+  //     await experimentStore.updateExperiment(editingExperiment.value.id, data)
+  //     toastStore.success('Experiment Updated', 'Changes saved successfully')
+  //   } else {
+  //     await experimentStore.createExperiment(data)
+  //     toastStore.success('Experiment Created', 'New experiment created successfully')
+  //   }
+  //   closeForm()
+  // } catch (error: any) {
+  //   toastStore.error('Save Failed', error.message || 'Failed to save experiment')
+  // }
 }
 
 function closeForm() {

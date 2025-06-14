@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Chamber } from '@/types'
 import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 export const useChamberStore = defineStore('chamber', () => {
   // State
@@ -24,9 +25,24 @@ export const useChamberStore = defineStore('chamber', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.getChambers()
-      if (response.success && response.data) {
-        chambers.value = response.data
+      const authStore = useAuthStore()
+      
+      // If user is admin, fetch all chambers
+      if (authStore.isAdmin) {
+        const response = await api.getChambers()
+        if (response.success && response.data) {
+          chambers.value = response.data
+        }
+      } else {
+        // For regular users, fetch only chambers they have access to
+        if (authStore.user?.id) {
+          const response = await api.getUserChamberAccess(authStore.user.id)
+          if (response.success && response.data) {
+            chambers.value = response.data
+          }
+        } else {
+          chambers.value = []
+        }
       }
     } catch (err) {
       error.value = api.formatError(err)

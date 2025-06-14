@@ -132,8 +132,6 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 	// Public auth routes
 	// api.POST("/auth/register", authHandler.Register)
 	api.POST("/auth/login", authHandler.Login)
-	api.GET("/experiments/:id", experimentHandler.GetExperiment)
-	api.GET("/experiments", experimentHandler.GetExperiments)
 
 	api.Use(middleware.AuthMiddleware(authHandler.AuthService(), apiTokenService))
 	{
@@ -150,6 +148,7 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 		api.DELETE("/api-tokens/:id", apiTokenHandler.RevokeAPIToken)
 
 		// Chamber routes
+
 		api.POST("/chambers", chamberHandler.RegisterChamber)
 		api.POST("/chambers/:id/heartbeat", chamberHandler.Heartbeat)
 		api.GET("/chambers/:id", chamberHandler.GetChamber)
@@ -157,6 +156,8 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 		api.GET("/chambers/:id/watering-zones", chamberHandler.GetChamberWateringZones)
 
 		// Experiment routes
+		api.GET("/experiments/:id", experimentHandler.GetExperiment)
+		api.GET("/experiments", experimentHandler.GetExperiments)
 		api.POST("/experiments", experimentHandler.CreateExperiment)
 		api.PUT("/experiments/:id", experimentHandler.UpdateExperiment)
 		api.DELETE("/experiments/:id", experimentHandler.DeleteExperiment)

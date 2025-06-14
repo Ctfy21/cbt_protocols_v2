@@ -97,6 +97,18 @@
                       API Tokens
                     </div>
                   </router-link>
+                  <!-- Admin Menu Item -->
+                  <router-link
+                    v-if="authStore.isAdmin"
+                    to="/admin/user-access"
+                    @click="showUserMenu = false"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <div class="flex items-center">
+                      <UsersIcon class="w-4 h-4 mr-3" />
+                      Manage User Access
+                    </div>
+                  </router-link>
                 </div>
                 
                 <div class="py-1">
@@ -127,7 +139,8 @@ import {
   UserIcon, 
   ChevronDownIcon,
   ArrowRightStartOnRectangleIcon,
-  KeyIcon
+  KeyIcon,
+  UsersIcon
 } from '@heroicons/vue/24/outline'
 import { useChamberStore } from '@/stores/chamber'
 import { useAuthStore } from '@/stores/auth'

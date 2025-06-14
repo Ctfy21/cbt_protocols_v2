@@ -8,6 +8,16 @@
             <HomeIcon class="w-8 h-8 text-blue-600" />
             <h1 class="text-2xl font-bold text-gray-900">Chamber Management</h1>
           </div>
+          <!-- Admin Button -->
+          <div v-if="authStore.isAdmin" class="flex space-x-3">
+            <button
+              @click="goToUserAccessManagement"
+              class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <UsersIcon class="w-4 h-4 mr-2" />
+              Manage User Access
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -104,15 +114,18 @@ import {
   PlusIcon, 
   ExclamationCircleIcon,
   GlobeAltIcon,
-  ClockIcon
+  ClockIcon,
+  UsersIcon
 } from '@heroicons/vue/24/outline'
 import { useChamberStore } from '@/stores/chamber'
 import { useToastStore } from '@/stores/toast'
+import { useAuthStore } from '@/stores/auth'
 import type { Chamber } from '@/types'
 
 const router = useRouter()
 const chamberStore = useChamberStore()
 const toastStore = useToastStore()
+const authStore = useAuthStore()
 
 const showRegisterForm = ref(false)
 
@@ -162,5 +175,9 @@ function onRegisterSuccess(chamber: Chamber) {
   showRegisterForm.value = false
   toastStore.success('Chamber Registered', `Successfully registered ${chamber.name}`)
   selectAndNavigate(chamber)
+}
+
+function goToUserAccessManagement() {
+  router.push('/admin/user-access')
 }
 </script> 

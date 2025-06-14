@@ -48,6 +48,12 @@ const routes: RouteRecordRaw[] = [
     name: 'api-tokens',
     component: () => import('@/views/ApiTokensView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/user-access',
+    name: 'admin-user-access',
+    component: () => import('@/views/AdminUserAccessView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
