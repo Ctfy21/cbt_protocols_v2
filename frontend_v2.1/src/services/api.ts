@@ -53,7 +53,7 @@ class ApiService {
 
   // Chamber endpoints
   async getChambers(): Promise<ApiResponse<Chamber[]>> {
-    const response = await this.api.get('/me/chambers')
+    const response = await this.api.get('/chambers')
     return response.data
   }
 

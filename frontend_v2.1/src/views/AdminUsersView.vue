@@ -10,6 +10,13 @@
           </div>
           <div class="flex items-center space-x-3">
             <button
+              @click="$router.back()"
+              class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <ArrowLeftIcon class="w-4 h-4 mr-2" />
+              Back
+            </button>
+            <button
               @click="refreshData"
               :disabled="loading"
               class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
@@ -504,7 +511,8 @@ import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
   ShieldCheckIcon,
-  HomeIcon
+  HomeIcon,
+  ArrowLeftIcon
 } from '@heroicons/vue/24/outline'
 import { useUserChamberAccessStore, type UserWithChamberAccess } from '@/stores/userChamberAccess'
 import { useChamberStore } from '@/stores/chamber'

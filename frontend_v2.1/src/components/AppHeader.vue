@@ -111,16 +111,6 @@
                       Manage Users
                     </div>
                   </router-link>
-                  <router-link
-                    to="/admin/user-access"
-                    @click="showUserMenu = false"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <div class="flex items-center">
-                      <KeyIcon class="w-4 h-4 mr-3" />
-                      Chamber Access
-                    </div>
-                  </router-link>
                 </div>
                 
                 <div class="py-1">

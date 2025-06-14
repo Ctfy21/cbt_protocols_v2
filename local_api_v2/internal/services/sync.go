@@ -78,9 +78,9 @@ func (s *SyncService) syncExperiments() error {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
-	// if s.config.BackendAPIKey != "" {
-	// 	req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
-	// }
+	if s.config.BackendAPIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
