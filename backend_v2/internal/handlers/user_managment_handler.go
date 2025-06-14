@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,45 +11,43 @@ import (
 	"backend_v2/internal/services"
 )
 
-// UserHandler handles user management HTTP requests
-type UserHandler struct {
+// UserManagementHandler handles user management HTTP requests (Admin only)
+type UserManagementHandler struct {
 	authService *services.AuthService
 }
 
-// NewUserHandler creates a new user handler
-func NewUserHandler(authService *services.AuthService) *UserHandler {
-	return &UserHandler{
+// NewUserManagementHandler creates a new user management handler
+func NewUserManagementHandler(authService *services.AuthService) *UserManagementHandler {
+	return &UserManagementHandler{
 		authService: authService,
 	}
 }
 
 // CreateUser handles POST /users (Admin only)
-func (h *UserHandler) CreateUser(c *gin.Context) {
-	var req models.RegisterRequest
+func (h *UserManagementHandler) CreateUser(c *gin.Context) {
+	var req struct {
+		models.RegisterRequest
+		Role models.UserRole `json:"role"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
 		return
 	}
 
-	// Check role from request body (optional, defaults to user)
-	type CreateUserRequest struct {
-		models.RegisterRequest
-		Role models.UserRole `json:"role"`
+	// If no role specified, default to user
+	if req.Role == "" {
+		req.Role = models.RoleUser
 	}
 
-	var createReq CreateUserRequest
-	if err := c.ShouldBindJSON(&createReq); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
+	// Validate role
+	if req.Role != models.RoleUser && req.Role != models.RoleAdmin {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse("Invalid role"))
 		return
 	}
 
-	// If no role specified, default to user
-	if createReq.Role == "" {
-		createReq.Role = models.RoleUser
-	}
-
-	// Create user through auth service (we'll need to add this method)
-	user, err := h.authService.CreateUser(&createReq.RegisterRequest, createReq.Role)
+	// Create user through auth service
+	user, err := h.authService.CreateUser(&req.RegisterRequest, req.Role)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
 		return
@@ -58,7 +57,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 }
 
 // GetUsers handles GET /users (Admin only)
-func (h *UserHandler) GetUsers(c *gin.Context) {
+func (h *UserManagementHandler) GetUsers(c *gin.Context) {
 	users, err := h.authService.GetAllUsers()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
@@ -69,7 +68,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 }
 
 // GetUser handles GET /users/:id (Admin only)
-func (h *UserHandler) GetUser(c *gin.Context) {
+func (h *UserManagementHandler) GetUser(c *gin.Context) {
 	userID := c.Param("id")
 
 	user, err := h.authService.GetUserByID(userID)
@@ -82,7 +81,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 }
 
 // UpdateUser handles PUT /users/:id (Admin only)
-func (h *UserHandler) UpdateUser(c *gin.Context) {
+func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 	userID := c.Param("id")
 
 	var req struct {
@@ -94,6 +93,25 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	// Validate role if provided
+	if req.Role != "" && req.Role != models.RoleUser && req.Role != models.RoleAdmin {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse("Invalid role"))
+		return
+	}
+
+	// Get current user ID from context to prevent self-modification in critical ways
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse("User not found in context"))
+		return
+	}
+
+	// Prevent admin from deactivating themselves
+	if req.IsActive != nil && !*req.IsActive && currentUserID.(string) == userID {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse("Cannot deactivate your own account"))
 		return
 	}
 
@@ -127,7 +145,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 }
 
 // DeactivateUser handles DELETE /users/:id (Admin only - soft delete)
-func (h *UserHandler) DeactivateUser(c *gin.Context) {
+func (h *UserManagementHandler) DeactivateUser(c *gin.Context) {
 	userID := c.Param("id")
 
 	// Don't allow admin to deactivate themselves
@@ -148,7 +166,7 @@ func (h *UserHandler) DeactivateUser(c *gin.Context) {
 }
 
 // ActivateUser handles POST /users/:id/activate (Admin only)
-func (h *UserHandler) ActivateUser(c *gin.Context) {
+func (h *UserManagementHandler) ActivateUser(c *gin.Context) {
 	userID := c.Param("id")
 
 	update := bson.M{"is_active": true}
@@ -159,4 +177,118 @@ func (h *UserHandler) ActivateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.MessageResponse("User activated successfully"))
+}
+
+// GetUserStats handles GET /users/stats (Admin only)
+func (h *UserManagementHandler) GetUserStats(c *gin.Context) {
+	users, err := h.authService.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	stats := struct {
+		Total  int `json:"total"`
+		Active int `json:"active"`
+		Admins int `json:"admins"`
+	}{
+		Total: len(users),
+	}
+
+	for _, user := range users {
+		if user.IsActive {
+			stats.Active++
+		}
+		if user.Role == models.RoleAdmin {
+			stats.Admins++
+		}
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(stats))
+}
+
+// ResetUserPassword handles POST /users/:id/reset-password (Admin only)
+func (h *UserManagementHandler) ResetUserPassword(c *gin.Context) {
+	userID := c.Param("id")
+
+	var req struct {
+		NewPassword string `json:"new_password" binding:"required,min=6"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	// Update password directly (admin function)
+	err := h.authService.UpdatePassword(userID, req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.MessageResponse("Password reset successfully"))
+}
+
+// SearchUsers handles GET /users/search (Admin only)
+func (h *UserManagementHandler) SearchUsers(c *gin.Context) {
+	query := c.Query("q")
+	role := c.Query("role")
+	status := c.Query("status")
+
+	users, err := h.authService.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	// Filter users based on query parameters
+	var filteredUsers []models.User
+	for _, user := range users {
+		// Skip filtering if no criteria provided
+		include := true
+
+		// Text search filter
+		if query != "" {
+			include = include && (contains(user.Name, query) ||
+				contains(user.Email, query))
+		}
+
+		// Role filter
+		if role != "" && role != "all" {
+			include = include && (string(user.Role) == role)
+		}
+
+		// Status filter
+		if status != "" && status != "all" {
+			if status == "active" {
+				include = include && user.IsActive
+			} else if status == "inactive" {
+				include = include && !user.IsActive
+			}
+		}
+
+		if include {
+			filteredUsers = append(filteredUsers, user)
+		}
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(filteredUsers))
+}
+
+// Helper function for case-insensitive string search
+func contains(text, substr string) bool {
+	// Simple case-insensitive search
+	// In production, you might want to use a proper text search library
+	return len(text) >= len(substr) &&
+		findInString(strings.ToLower(text), strings.ToLower(substr)) >= 0
+}
+
+func findInString(text, substr string) int {
+	for i := 0; i <= len(text)-len(substr); i++ {
+		if text[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }

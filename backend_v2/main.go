@@ -55,7 +55,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
 	userChamberAccessHandler := handlers.NewUserChamberAccessHandler(userChamberAccessService)
-	userHandler := handlers.NewUserHandler(authService)
+	userHandler := handlers.NewUserManagementHandler(authService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -127,7 +127,7 @@ func setupRoutes(
 	authHandler *handlers.AuthHandler,
 	apiTokenHandler *handlers.APITokenHandler,
 	userChamberAccessHandler *handlers.UserChamberAccessHandler,
-	userHandler *handlers.UserHandler,
+	userHandler *handlers.UserManagementHandler,
 	apiTokenService *services.APITokenService,
 	authService *services.AuthService,
 ) {

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import type { User, LoginCredentials, RegisterData } from '@/types/auth'
+import type { User, LoginCredentials } from '@/types/auth'
 
 const TOKEN_KEY = 'auth_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
@@ -41,22 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(data: RegisterData) {
-    loading.value = true
-    error.value = null
-    try {
-      const response = await api.register(data)
-      if (response.success && response.data) {
-        setAuthData(response.data)
-        return response.data
-      }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || 'Registration failed'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
+  // REMOVED: register function
 
   async function logout() {
     try {
@@ -265,7 +250,6 @@ export const useAuthStore = defineStore('auth', () => {
     
     // Actions
     login,
-    register,
     logout,
     refreshAccessToken,
     fetchCurrentUser,

@@ -17,6 +17,7 @@ const router = createRouter({
 app.use(pinia)
 
 // Navigation guard
+// Navigation guard
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
@@ -39,8 +40,8 @@ router.beforeEach(async (to, from, next) => {
   } else if (requiresAdmin && !isAdmin) {
     // Redirect non-admin users to home
     next('/')
-  } else if (!requiresAuth && isAuthenticated && (to.path === '/login' || to.path === '/register')) {
-    // Redirect authenticated users away from login/register
+  } else if (!requiresAuth && isAuthenticated && to.path === '/login') {
+    // Redirect authenticated users away from login
     next('/')
   } else {
     next()

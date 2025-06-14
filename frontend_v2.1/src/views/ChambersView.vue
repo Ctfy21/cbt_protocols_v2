@@ -178,6 +178,6 @@ function onRegisterSuccess(chamber: Chamber) {
 }
 
 function goToUserAccessManagement() {
-  router.push('/admin/user-access')
+  router.push('/admin/users')
 }
 </script> 

@@ -150,6 +150,47 @@ class ApiService {
     }
   }
 
+  // User Management endpoints (Admin only)
+  async getAllUsers(): Promise<ApiResponse<User[]>> {
+    const response = await this.api.get('/users')
+    return response.data
+  }
+
+  async getUser(id: string): Promise<ApiResponse<User>> {
+    const response = await this.api.get(`/users/${id}`)
+    return response.data
+  }
+
+  async createUser(data: {
+    name: string
+    email: string
+    password: string
+    role: 'user' | 'admin'
+  }): Promise<ApiResponse<User>> {
+    const response = await this.api.post('/users', data)
+    return response.data
+  }
+
+  async updateUser(id: string, data: {
+    name?: string
+    email?: string
+    role?: 'user' | 'admin'
+    is_active?: boolean
+  }): Promise<ApiResponse<User>> {
+    const response = await this.api.put(`/users/${id}`, data)
+    return response.data
+  }
+
+  async deactivateUser(id: string): Promise<ApiResponse<void>> {
+    const response = await this.api.delete(`/users/${id}`)
+    return response.data
+  }
+
+  async activateUser(id: string): Promise<ApiResponse<void>> {
+    const response = await this.api.post(`/users/${id}/activate`)
+    return response.data
+  }
+
   // API Token endpoints
   async getApiTokens(): Promise<ApiResponse<ApiToken[]>> {
     const response = await this.api.get('/api-tokens')
@@ -218,4 +259,4 @@ class ApiService {
   }
 }
 
-export default new ApiService() 
+export default new ApiService()
