@@ -15,6 +15,7 @@ type Client struct {
 	BaseURL    string
 	Token      string
 	HTTPClient *http.Client
+	Status     bool
 }
 
 // NewClient creates a new Home Assistant client
@@ -25,7 +26,20 @@ func NewClient(baseURL, token string) *Client {
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		Status: false,
 	}
+}
+
+func (c *Client) IsConnected() bool {
+	resp, err := c.HTTPClient.Get(c.BaseURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent {
+		return true
+	}
+	return false
 }
 
 // State represents a Home Assistant entity state

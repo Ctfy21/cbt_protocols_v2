@@ -196,8 +196,10 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 
 	log.Printf("Applying phase settings for phase %s, day %d", phase.Title, currentDay)
 
-	if err := s.haClient.SetInputNumber(, phase.StartDay); err != nil {
-		log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+	for _, startDayConfig := range phase.StartDay {
+		if err := s.haClient.SetInputNumber(startDayConfig.EntityID, startDayConfig.Value); err != nil {
+			log.Printf("Failed to set %s: %v", startDayConfig.EntityID, err)
+		}
 	}
 
 	// Apply climate controls based on day/night
@@ -292,6 +294,22 @@ func (s *ExecutorService) applyLightControls(phase *models.Phase, currentDay int
 
 // applyWateringControls handles watering zone controls
 func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay int) error {
+
+	// Find matching entities from chamber's InputNumbers
+	for _, scheduleConfig := range phase.WateringZones {
+		if err := s.haClient.SetInputNumber(scheduleConfig.StartTimeEntityID, scheduleConfig.StartTimeSchedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.StartTimeEntityID, err)
+		}
+		if err := s.haClient.SetInputNumber(scheduleConfig.PeriodEntityID, scheduleConfig.PeriodSchedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.PeriodEntityID, err)
+		}
+		if err := s.haClient.SetInputNumber(scheduleConfig.PauseBetweenEntityID, scheduleConfig.PauseBetweenSchedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.PauseBetweenEntityID, err)
+		}
+		if err := s.haClient.SetInputNumber(scheduleConfig.DurationEntityID, scheduleConfig.DurationSchedule[currentDay]); err != nil {
+			log.Printf("Failed to set %s: %v", scheduleConfig.DurationEntityID, err)
+		}
+	}
 
 	return nil
 }

@@ -44,6 +44,7 @@ func main() {
 
 	// Initialize Home Assistant client
 	haClient := homeassistant.NewClient(cfg.HomeAssistantURL, cfg.HomeAssistantToken)
+	haClient.Status = haClient.IsConnected()
 
 	// Get or create chamber
 	chamber, err := getOrCreateChamber(ctx, db, cfg)
@@ -61,28 +62,37 @@ func main() {
 
 	// Run initial discovery
 	log.Println("Running initial entity discovery...")
-	inputNumbers, lamps, wateringZones, err := discoveryService.DiscoverInputNumbers()
+	go func() {
+		for {
+			if haClient.IsConnected() {
+				inputNumbers, lamps, wateringZones, err := discoveryService.DiscoverInputNumbers()
 
-	for _, inputNumber := range inputNumbers {
-		log.Printf("Input number: %s, entity_id: %s", inputNumber.Name, inputNumber.EntityID)
-	}
+				for _, inputNumber := range inputNumbers {
+					log.Printf("Input number: %s, entity_id: %s", inputNumber.Name, inputNumber.EntityID)
+				}
 
-	if err != nil {
-		log.Printf("Warning: Entity discovery failed: %v", err)
-	} else {
-		// Update chamber with discovered entities
-		chamber.InputNumbers = inputNumbers
-		chamber.Lamps = lamps
-		chamber.WateringZones = wateringZones
+				if err != nil {
+					log.Printf("Warning: Entity discovery failed: %v", err)
+				} else {
+					// Update chamber with discovered entities
+					chamber.InputNumbers = inputNumbers
+					chamber.Lamps = lamps
+					chamber.WateringZones = wateringZones
 
-		// Save discovered entities
-		if err := saveDiscoveredEntities(ctx, db, chamber); err != nil {
-			log.Printf("Warning: Failed to save discovered entities: %v", err)
+					// Save discovered entities
+					if err := saveDiscoveredEntities(ctx, db, chamber); err != nil {
+						log.Printf("Warning: Failed to save discovered entities: %v", err)
+					}
+
+					log.Printf("Discovered: %d input numbers, %d lamps, %d watering zones",
+						len(inputNumbers), len(lamps), len(wateringZones))
+					haClient.Status = true
+					break
+				}
+			}
+			time.Sleep(10 * time.Second)
 		}
-
-		log.Printf("Discovered: %d input numbers, %d lamps, %d watering zones",
-			len(inputNumbers), len(lamps), len(wateringZones))
-	}
+	}()
 
 	// Set chamber ID for services
 	registrationService.SetChamberID(chamber.ID)
@@ -102,9 +112,17 @@ func main() {
 	go syncService.StartSync(ctx)
 
 	// Start executor service
-	if err := executorService.Start(ctx); err != nil {
-		log.Printf("Warning: Failed to start executor service: %v", err)
-	}
+	go func() {
+		for {
+			if haClient.Status {
+				if err := executorService.Start(ctx); err != nil {
+					log.Printf("Warning: Failed to start executor service: %v", err)
+				}
+				break
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
 	defer executorService.Stop()
 
 	// Start simple HTTP server for health checks

@@ -54,7 +54,7 @@ func Load() (*Config, error) {
 	cfg.JWTExpiration = duration
 
 	// Parse heartbeat timeout
-	heartbeatTimeout := getEnvInt("HEARTBEAT_TIMEOUT", 60)
+	heartbeatTimeout := getEnvInt("HEARTBEAT_TIMEOUT", 300)
 	cfg.HeartbeatTimeout = time.Duration(heartbeatTimeout) * time.Second
 
 	// Parse cleanup interval

@@ -71,7 +71,7 @@ export interface Phase {
   title: string
   description: string
   duration_days: number
-  start_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  start_day?: Record<string, { entity_id: string; value: number }>
   work_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
   temperature_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
   temperature_night_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
@@ -80,7 +80,19 @@ export interface Phase {
   co2_day_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
   co2_night_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
   light_intensity_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
-  watering_schedule?: Record<string, { entity_id: string; schedule: Record<number, number> }>
+  watering_zones?: Record<string, WateringZoneSchedule>
+}
+
+export interface WateringZoneSchedule {
+  name: string
+  start_time_entity_id: string
+  period_entity_id: string
+  pause_between_entity_id: string
+  duration_entity_id: string
+  start_time_schedule: Record<number, number>
+  period_schedule: Record<number, number>
+  pause_between_schedule: Record<number, number>
+  duration_schedule: Record<number, number>
 }
 
 export interface ScheduleItem {

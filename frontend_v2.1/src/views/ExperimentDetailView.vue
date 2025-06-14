@@ -114,33 +114,6 @@
                 </div>
               </div>
 
-              <!-- Phase Parameters -->
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div v-if="getPhaseValue(phase, 'temp_day')">
-                  <span class="text-gray-500">Day Temp:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'temp_day') }}°C</span>
-                </div>
-                <div v-if="getPhaseValue(phase, 'temp_night')">
-                  <span class="text-gray-500">Night Temp:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'temp_night') }}°C</span>
-                </div>
-                <div v-if="getPhaseValue(phase, 'humidity_day')">
-                  <span class="text-gray-500">Day Humidity:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'humidity_day') }}%</span>
-                </div>
-                <div v-if="getPhaseValue(phase, 'humidity_night')">
-                  <span class="text-gray-500">Night Humidity:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'humidity_night') }}%</span>
-                </div>
-                <div v-if="getPhaseValue(phase, 'co2_day')">
-                  <span class="text-gray-500">Day CO2:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'co2_day') }} ppm</span>
-                </div>
-                <div v-if="getPhaseValue(phase, 'co2_night')">
-                  <span class="text-gray-500">Night CO2:</span>
-                  <span class="ml-1 font-medium">{{ getPhaseValue(phase, 'co2_night') }} ppm</span>
-                </div>
-              </div>
 
               <!-- Light Settings -->
               <div v-if="phase.light_intensity_schedule && Object.keys(phase.light_intensity_schedule).length > 0" class="mt-4 pt-4 border-t border-gray-100">
@@ -148,6 +121,27 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                   <div v-for="light in Object.values(phase.light_intensity_schedule)" :key="light.entity_id">
                     <span class="text-gray-500">{{ getLampName(light.entity_id) }}:</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Watering Zones -->
+              <div v-if="phase.watering_zones && Object.keys(phase.watering_zones).length > 0" class="mt-4 pt-4 border-t border-gray-100">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Watering Zones</h4>
+                <div class="space-y-2">
+                  <div v-for="(zone, zoneKey) in phase.watering_zones" :key="zoneKey" class="text-sm">
+                    <span class="font-medium">{{ zone.name }}:</span>
+                    <div class="ml-4 text-gray-600">
+                      <span v-if="getFirstScheduleValue(zone.start_time_schedule)">
+                        Start: {{ getFirstScheduleValue(zone.start_time_schedule) }}:00,
+                      </span>
+                      <span v-if="getFirstScheduleValue(zone.period_schedule)">
+                        Period: {{ getFirstScheduleValue(zone.period_schedule) }}h,
+                      </span>
+                      <span v-if="getFirstScheduleValue(zone.duration_schedule)">
+                        Duration: {{ getFirstScheduleValue(zone.duration_schedule) }}s
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -266,21 +260,15 @@ function calculateEndDate(): string | null {
   return end.toISOString()
 }
 
-function getPhaseValue(phase: Phase, type: string): number | null {
-  const day = phase.start_day || 0
-  if (type === 'temp_day') return phase.temperature_day_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'temp_night') return phase.temperature_night_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'humidity_day') return phase.humidity_day_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'humidity_night') return phase.humidity_night_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'co2_day') return phase.co2_day_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'co2_night') return phase.co2_night_schedule?.[day]?.schedule?.[day] || null
-  if (type === 'work_day') return phase.work_day_schedule?.[day]?.schedule?.[day] || null
-  return null
-}
-
 function getLampName(entityId: string): string {
   const lamp = chamberStore.selectedChamber?.lamps.find(l => l.entity_id === entityId)
   return lamp?.friendly_name || entityId
+}
+
+function getFirstScheduleValue(schedule?: Record<number, number>): number | null {
+  if (!schedule || Object.keys(schedule).length === 0) return null
+  const firstDay = Math.min(...Object.keys(schedule).map(Number))
+  return schedule[firstDay] || null
 }
 
 function editExperiment() {
@@ -298,4 +286,4 @@ async function handleSave(data: any) {
     toastStore.error('Save Failed', error.message || 'Failed to save experiment')
   }
 }
-</script> 
+</script>
