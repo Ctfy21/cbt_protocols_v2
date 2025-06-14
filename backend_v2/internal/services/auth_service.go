@@ -472,3 +472,72 @@ func (s *AuthService) UpdatePassword(userID string, newPassword string) error {
 
 	return nil
 }
+
+// CreateUser creates a new user (admin function)
+func (s *AuthService) CreateUser(req *models.RegisterRequest, role models.UserRole) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Check if user already exists
+	var existingUser models.User
+	err := s.db.UsersCollection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&existingUser)
+	if err == nil {
+		return nil, fmt.Errorf("user with email %s already exists", req.Email)
+	}
+	if err != mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("failed to check existing user: %v", err)
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %v", err)
+	}
+
+	// Create user
+	now := time.Now()
+	user := models.User{
+		ID:        primitive.NewObjectID(),
+		Email:     req.Email,
+		Password:  string(hashedPassword),
+		Name:      req.Name,
+		Role:      role,
+		IsActive:  true,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	_, err = s.db.UsersCollection.InsertOne(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %v", err)
+	}
+
+	// Clear password before returning
+	user.Password = ""
+
+	return &user, nil
+}
+
+// GetAllUsers retrieves all users (admin function)
+func (s *AuthService) GetAllUsers() ([]models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := s.db.UsersCollection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, fmt.Errorf("failed to decode users: %v", err)
+	}
+
+	// Clear passwords from all users
+	for i := range users {
+		users[i].Password = ""
+	}
+
+	return users, nil
+}

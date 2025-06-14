@@ -39,14 +39,18 @@ func (s *APITokenService) ParseExpiresAt(expiresAt string) (*time.Time, error) {
 
 // CreateAPIToken creates a new API token
 func (s *APITokenService) CreateAPIToken(userID primitive.ObjectID, req *models.CreateAPITokenRequest) (*models.APITokenResponse, error) {
-
-	expiresAt, err := s.ParseExpiresAt(req.ExpiresAt)
-	if err != nil {
-		return nil, fmt.Errorf("invalid expires_at format: %v", err)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Parse expiration if provided
+	var expiresAt *time.Time
+	if req.ExpiresAt != "" {
+		parsed, err := s.ParseExpiresAt(req.ExpiresAt)
+		if err != nil {
+			return nil, fmt.Errorf("invalid expires_at format: %v", err)
+		}
+		expiresAt = parsed
+	}
 
 	// Generate secure random token
 	token, err := s.generateSecureToken()
@@ -76,8 +80,8 @@ func (s *APITokenService) CreateAPIToken(userID primitive.ObjectID, req *models.
 		return nil, fmt.Errorf("failed to create API token: %v", err)
 	}
 
-	// Return response
-	return &models.APITokenResponse{
+	// Prepare response
+	response := &models.APITokenResponse{
 		ID:          apiToken.ID,
 		Name:        apiToken.Name,
 		Token:       apiToken.Token,
@@ -85,9 +89,14 @@ func (s *APITokenService) CreateAPIToken(userID primitive.ObjectID, req *models.
 		ServiceName: apiToken.ServiceName,
 		Permissions: apiToken.Permissions,
 		IsActive:    apiToken.IsActive,
-		ExpiresAt:   apiToken.ExpiresAt.Format(time.RFC3339),
 		CreatedAt:   apiToken.CreatedAt.Format(time.RFC3339),
-	}, nil
+	}
+
+	if apiToken.ExpiresAt != nil {
+		response.ExpiresAt = apiToken.ExpiresAt.Format(time.RFC3339)
+	}
+
+	return response, nil
 }
 
 // ValidateAPIToken validates an API token and returns associated user

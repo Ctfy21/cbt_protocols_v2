@@ -47,12 +47,15 @@ func main() {
 	experimentService := services.NewExperimentService(db)
 	authService := services.NewAuthService(db, cfg)
 	apiTokenService := services.NewAPITokenService(db)
+	userChamberAccessService := services.NewUserChamberAccessService(db)
 
 	// Initialize handlers
 	chamberHandler := handlers.NewChamberHandler(chamberService)
 	experimentHandler := handlers.NewExperimentHandler(experimentService)
 	authHandler := handlers.NewAuthHandler(authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
+	userChamberAccessHandler := handlers.NewUserChamberAccessHandler(userChamberAccessService)
+	userHandler := handlers.NewUserHandler(authService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -73,7 +76,7 @@ func main() {
 	}))
 
 	// Setup routes
-	setupRoutes(router, chamberHandler, experimentHandler, authHandler, apiTokenHandler, apiTokenService)
+	setupRoutes(router, chamberHandler, experimentHandler, authHandler, apiTokenHandler, userChamberAccessHandler, userHandler, apiTokenService, authService)
 
 	// Start background services
 	ctx, cancel := context.WithCancel(context.Background())
@@ -117,7 +120,17 @@ func main() {
 	log.Println("✅ Server shutdown complete")
 }
 
-func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, experimentHandler *handlers.ExperimentHandler, authHandler *handlers.AuthHandler, apiTokenHandler *handlers.APITokenHandler, apiTokenService *services.APITokenService) {
+func setupRoutes(
+	router *gin.Engine,
+	chamberHandler *handlers.ChamberHandler,
+	experimentHandler *handlers.ExperimentHandler,
+	authHandler *handlers.AuthHandler,
+	apiTokenHandler *handlers.APITokenHandler,
+	userChamberAccessHandler *handlers.UserChamberAccessHandler,
+	userHandler *handlers.UserHandler,
+	apiTokenService *services.APITokenService,
+	authService *services.AuthService,
+) {
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, models.SuccessResponse(gin.H{
@@ -133,7 +146,7 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 	// api.POST("/auth/register", authHandler.Register)
 	api.POST("/auth/login", authHandler.Login)
 
-	api.Use(middleware.AuthMiddleware(authHandler.AuthService(), apiTokenService))
+	api.Use(middleware.AuthMiddleware(authService, apiTokenService))
 	{
 		// Auth routes
 		api.POST("/auth/refresh", authHandler.RefreshToken)
@@ -148,7 +161,6 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 		api.DELETE("/api-tokens/:id", apiTokenHandler.RevokeAPIToken)
 
 		// Chamber routes
-
 		api.POST("/chambers", chamberHandler.RegisterChamber)
 		api.POST("/chambers/:id/heartbeat", chamberHandler.Heartbeat)
 		api.GET("/chambers/:id", chamberHandler.GetChamber)
@@ -161,5 +173,46 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 		api.POST("/experiments", experimentHandler.CreateExperiment)
 		api.PUT("/experiments/:id", experimentHandler.UpdateExperiment)
 		api.DELETE("/experiments/:id", experimentHandler.DeleteExperiment)
+
+		// User Chamber Access routes (Admin only)
+		adminRoutes := api.Group("/")
+		adminRoutes.Use(middleware.RequireRole(models.RoleAdmin))
+		{
+			// User management routes
+			adminRoutes.POST("/users", userHandler.CreateUser)
+			adminRoutes.GET("/users", userHandler.GetUsers)
+			adminRoutes.GET("/users/:id", userHandler.GetUser)
+			adminRoutes.PUT("/users/:id", userHandler.UpdateUser)
+			adminRoutes.DELETE("/users/:id", userHandler.DeactivateUser)
+			adminRoutes.POST("/users/:id/activate", userHandler.ActivateUser)
+
+			// User chamber access management
+			adminRoutes.GET("/users/chambers", userChamberAccessHandler.GetAllUsersWithChamberAccess)
+			adminRoutes.PUT("/users/:id/chambers", userChamberAccessHandler.SetUserChamberAccess)
+			adminRoutes.GET("/users/:id/chambers", userChamberAccessHandler.GetUserChamberAccess)
+			adminRoutes.POST("/users/:id/chambers/:chamber_id", userChamberAccessHandler.GrantChamberAccess)
+			adminRoutes.DELETE("/users/:id/chambers/:chamber_id", userChamberAccessHandler.RevokeChamberAccess)
+			adminRoutes.GET("/users/:id/chambers/:chamber_id/check", userChamberAccessHandler.HasChamberAccess)
+		}
+
+		// User's own chamber access (non-admin users can check their own access)
+		api.GET("/me/chambers", func(c *gin.Context) {
+			// Get user from context
+			userInterface, exists := c.Get("user")
+			if !exists {
+				c.JSON(http.StatusUnauthorized, models.ErrorResponse("User not found"))
+				return
+			}
+
+			user, ok := userInterface.(*models.User)
+			if !ok {
+				c.JSON(http.StatusInternalServerError, models.ErrorResponse("Invalid user data"))
+				return
+			}
+
+			// Use the user chamber access handler but with current user's ID
+			c.Params = gin.Params{{Key: "id", Value: user.ID.Hex()}}
+			userChamberAccessHandler.GetUserChamberAccess(c)
+		})
 	}
 }
