@@ -15,6 +15,7 @@ import (
 	"backend_v2/internal/config"
 	"backend_v2/internal/database"
 	"backend_v2/internal/handlers"
+	"backend_v2/internal/middleware"
 	"backend_v2/internal/models"
 	"backend_v2/internal/services"
 )
@@ -44,10 +45,14 @@ func main() {
 	// Initialize services
 	chamberService := services.NewChamberService(db, cfg)
 	experimentService := services.NewExperimentService(db)
+	authService := services.NewAuthService(db, cfg)
+	apiTokenService := services.NewAPITokenService(db)
 
 	// Initialize handlers
 	chamberHandler := handlers.NewChamberHandler(chamberService)
 	experimentHandler := handlers.NewExperimentHandler(experimentService)
+	authHandler := handlers.NewAuthHandler(authService)
+	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -68,7 +73,7 @@ func main() {
 	}))
 
 	// Setup routes
-	setupRoutes(router, chamberHandler, experimentHandler)
+	setupRoutes(router, chamberHandler, experimentHandler, authHandler, apiTokenHandler, apiTokenService)
 
 	// Start background services
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,7 +117,7 @@ func main() {
 	log.Println("✅ Server shutdown complete")
 }
 
-func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, experimentHandler *handlers.ExperimentHandler) {
+func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, experimentHandler *handlers.ExperimentHandler, authHandler *handlers.AuthHandler, apiTokenHandler *handlers.APITokenHandler, apiTokenService *services.APITokenService) {
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, models.SuccessResponse(gin.H{
@@ -123,7 +128,27 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 
 	// API routes
 	api := router.Group("/")
+
+	// Public auth routes
+	// api.POST("/auth/register", authHandler.Register)
+	api.POST("/auth/login", authHandler.Login)
+	api.GET("/experiments/:id", experimentHandler.GetExperiment)
+	api.GET("/experiments", experimentHandler.GetExperiments)
+
+	api.Use(middleware.AuthMiddleware(authHandler.AuthService(), apiTokenService))
 	{
+		// Auth routes
+		api.POST("/auth/refresh", authHandler.RefreshToken)
+		api.POST("/auth/logout", authHandler.Logout)
+		api.GET("/auth/me", authHandler.Me)
+		api.PUT("/auth/profile", authHandler.UpdateProfile)
+		api.POST("/auth/change-password", authHandler.ChangePassword)
+
+		// API Token routes
+		api.POST("/api-tokens", apiTokenHandler.CreateAPIToken)
+		api.GET("/api-tokens", apiTokenHandler.GetAPITokens)
+		api.DELETE("/api-tokens/:id", apiTokenHandler.RevokeAPIToken)
+
 		// Chamber routes
 		api.POST("/chambers", chamberHandler.RegisterChamber)
 		api.POST("/chambers/:id/heartbeat", chamberHandler.Heartbeat)
@@ -133,8 +158,6 @@ func setupRoutes(router *gin.Engine, chamberHandler *handlers.ChamberHandler, ex
 
 		// Experiment routes
 		api.POST("/experiments", experimentHandler.CreateExperiment)
-		api.GET("/experiments/:id", experimentHandler.GetExperiment)
-		api.GET("/experiments", experimentHandler.GetExperiments)
 		api.PUT("/experiments/:id", experimentHandler.UpdateExperiment)
 		api.DELETE("/experiments/:id", experimentHandler.DeleteExperiment)
 	}

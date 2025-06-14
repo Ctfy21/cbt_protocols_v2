@@ -77,9 +77,9 @@ func (s *RegistrationService) RegisterWithBackend(chamber *models.Chamber) error
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	// if s.config.BackendAPIKey != "" {
-	// 	httpReq.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
-	// }
+	if s.config.BackendAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
+	}
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {

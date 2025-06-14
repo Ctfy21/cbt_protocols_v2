@@ -15,6 +15,9 @@ type MongoDB struct {
 	Database              *mongo.Database
 	ChambersCollection    *mongo.Collection
 	ExperimentsCollection *mongo.Collection
+	UsersCollection       *mongo.Collection
+	SessionsCollection    *mongo.Collection
+	APITokensCollection   *mongo.Collection
 }
 
 // Connect establishes a connection to MongoDB
@@ -44,6 +47,9 @@ func Connect(uri, databaseName string) (*MongoDB, error) {
 		Database:              db,
 		ChambersCollection:    db.Collection("chambers"),
 		ExperimentsCollection: db.Collection("experiments"),
+		UsersCollection:       db.Collection("users"),
+		SessionsCollection:    db.Collection("sessions"),
+		APITokensCollection:   db.Collection("api_tokens"),
 	}, nil
 }
 

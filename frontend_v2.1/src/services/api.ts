@@ -1,9 +1,11 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
 import type { ApiResponse, Chamber, Experiment, ExperimentFormData } from '@/types'
+import type { LoginCredentials, RegisterData, AuthResponse, User, ApiToken } from '@/types/auth'
+import { useAuthStore } from '@/stores/auth'
 
 class ApiService {
-  private api: AxiosInstance
+  public api: AxiosInstance
 
   constructor() {
     this.api = axios.create({
@@ -16,7 +18,11 @@ class ApiService {
     // Request interceptor
     this.api.interceptors.request.use(
       (config) => {
-        // Add any auth headers here if needed
+        // Get token from auth store instead of localStorage
+        const authStore = useAuthStore()
+        if (authStore.token) {
+          config.headers.Authorization = `Bearer ${authStore.token}`
+        }
         return config
       },
       (error) => {
@@ -94,6 +100,77 @@ class ApiService {
 
   async deleteExperiment(id: string): Promise<ApiResponse<void>> {
     const response = await this.api.delete(`/experiments/${id}`)
+    return response.data
+  }
+
+  // Auth endpoints
+  async login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> {
+    const response = await this.api.post('/auth/login', credentials)
+    return response.data
+  }
+
+  async register(data: RegisterData): Promise<ApiResponse<AuthResponse>> {
+    const response = await this.api.post('/auth/register', data)
+    return response.data
+  }
+
+  async logout(): Promise<ApiResponse<void>> {
+    const response = await this.api.post('/auth/logout')
+    return response.data
+  }
+
+  async refreshToken(refreshToken: string): Promise<ApiResponse<AuthResponse>> {
+    const response = await this.api.post('/auth/refresh', { refresh_token: refreshToken })
+    return response.data
+  }
+
+  async getCurrentUser(): Promise<ApiResponse<User>> {
+    const response = await this.api.get('/auth/me')
+    return response.data
+  }
+
+  async updateProfile(data: { name?: string }): Promise<ApiResponse<User>> {
+    const response = await this.api.put('/auth/profile', data)
+    return response.data
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    const response = await this.api.put('/auth/password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    })
+    return response.data
+  }
+
+  setAuthToken(token: string | null) {
+    if (token) {
+      this.api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    } else {
+      delete this.api.defaults.headers.common['Authorization']
+    }
+  }
+
+  // API Token endpoints
+  async getApiTokens(): Promise<ApiResponse<ApiToken[]>> {
+    const response = await this.api.get('/api-tokens')
+    return response.data
+  }
+
+  async createApiToken(data: {
+    name: string
+    type: 'personal' | 'service'
+    service_name?: string
+    permissions: string[]
+    expires_at?: string
+  }): Promise<ApiResponse<ApiToken>> {
+    console.log(data)
+    
+    const response = await this.api.post('/api-tokens', data)
+    return response.data
+  }
+
+  async deleteApiToken(id: string): Promise<ApiResponse<void>> {
+    const response = await this.api.delete(`/api-tokens/${id}`)
     return response.data
   }
 
