@@ -237,7 +237,7 @@ func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Exp
 
 // getCurrentPhase determines which phase should be active based on the schedule using NTP time
 func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*models.Phase, int, int) {
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 
 	for _, scheduleItem := range exp.Schedule {
 		// Parse schedule timestamps
@@ -292,7 +292,7 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 	}
 
 	// Update last executed time using NTP time
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 	phase.LastExecuted = &now
 
 	if len(errors) > 0 {
@@ -452,7 +452,7 @@ func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay 
 
 // updateExperimentActivePhase updates the active phase index in the database using NTP time
 func (s *ExecutorService) updateExperimentActivePhase(ctx context.Context, exp *models.Experiment) error {
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 	update := bson.M{
 		"$set": bson.M{
 			"active_phase_index": exp.ActivePhaseIndex,
@@ -495,12 +495,13 @@ func (s *ExecutorService) GetStatus() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	now := s.ntpService.NowInMoscow()
 	return map[string]interface{}{
 		"running":       s.isRunning,
 		"chamber_id":    s.chamber.ID.Hex(),
 		"chamber_name":  s.chamber.Name,
 		"ntp_enabled":   s.ntpService.IsEnabled(),
 		"ntp_connected": s.ntpService.IsConnected(),
-		"current_time":  s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"current_time":  now.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

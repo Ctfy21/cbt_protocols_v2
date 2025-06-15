@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	"local_api_v2/pkg/ntp"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -114,12 +116,12 @@ const (
 )
 
 // GetCurrentPhase returns the current active phase based on the current date
-func (e *Experiment) GetCurrentPhase() (*Phase, int, error) {
+func (e *Experiment) GetCurrentPhase(ntpService *ntp.TimeService) (*Phase, int, error) {
 	if e.Status != StatusActive || e.StartDate == nil {
 		return nil, -1, nil
 	}
 
-	now := time.Now()
+	now := ntpService.NowInMoscow()
 
 	for _, scheduleItem := range e.Schedule {
 		// Use timestamps for comparison
