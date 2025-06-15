@@ -222,3 +222,95 @@ func (s *RegistrationService) SetChamberID(id primitive.ObjectID) {
 func (s *RegistrationService) SetBackendID(id primitive.ObjectID) {
 	s.backendID = id
 }
+
+// RegisterRoomChamberWithBackend registers a room chamber with the backend
+func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models.RoomChamber) error {
+	// Prepare registration request
+	req := RegistrationRequest{
+		Name:          roomChamber.Name,
+		Location:      fmt.Sprintf("Room: %s", roomChamber.RoomSuffix),
+		HAUrl:         roomChamber.HomeAssistantURL,
+		AccessToken:   s.config.HomeAssistantToken,
+		LocalIP:       roomChamber.LocalIP,
+		InputNumbers:  roomChamber.InputNumbers,
+		Lamps:         roomChamber.Lamps,
+		WateringZones: roomChamber.WateringZones,
+	}
+
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal registration request: %v", err)
+	}
+
+	// Send registration request to backend
+	url := fmt.Sprintf("%s/chambers", s.config.BackendURL)
+	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if s.config.BackendAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
+	}
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send registration request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("backend returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response to get backend chamber ID
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		Error string `json:"error"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("registration failed: %s", response.Error)
+	}
+
+	// Convert backend ID to ObjectID
+	backendID, err := primitive.ObjectIDFromHex(response.Data.ID)
+	if err != nil {
+		return fmt.Errorf("invalid backend ID: %v", err)
+	}
+
+	// Update room chamber with backend ID
+	roomChamber.BackendID = backendID
+
+	// Update in database
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = s.db.Database.Collection("room_chambers").UpdateOne(
+		ctx,
+		bson.M{"_id": roomChamber.ID},
+		bson.M{"$set": bson.M{
+			"backend_id": backendID,
+			"updated_at": time.Now(),
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update room chamber with backend ID: %v", err)
+	}
+
+	log.Printf("✅ Successfully registered room chamber '%s' with backend. Backend ID: %s", roomChamber.Name, backendID.Hex())
+	return nil
+}

@@ -21,6 +21,23 @@ type Chamber struct {
 	UpdatedAt        time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
+// RoomChamber represents a virtual chamber for a specific room
+type RoomChamber struct {
+	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name             string             `bson:"name" json:"name"`
+	RoomSuffix       string             `bson:"room_suffix" json:"room_suffix"`
+	ParentChamberID  primitive.ObjectID `bson:"parent_chamber_id" json:"parent_chamber_id"`
+	LocalIP          string             `bson:"local_ip" json:"local_ip"`
+	HomeAssistantURL string             `bson:"ha_url" json:"ha_url"`
+	LastHeartbeat    time.Time          `bson:"last_heartbeat" json:"last_heartbeat"`
+	InputNumbers     []InputNumber      `bson:"input_numbers" json:"input_numbers"`
+	Lamps            []Lamp             `bson:"lamps" json:"lamps"`
+	WateringZones    []WateringZone     `bson:"watering_zones" json:"watering_zones"`
+	BackendID        primitive.ObjectID `bson:"backend_id,omitempty" json:"backend_id,omitempty"`
+	CreatedAt        time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt        time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
 // InputNumber represents a Home Assistant input_number entity
 type InputNumber struct {
 	EntityID     string  `bson:"entity_id" json:"entity_id"`

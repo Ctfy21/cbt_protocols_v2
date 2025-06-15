@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"local_api_v2/internal/models"
@@ -19,6 +20,14 @@ func NewDiscoveryService(haClient *homeassistant.Client) *DiscoveryService {
 	return &DiscoveryService{
 		haClient: haClient,
 	}
+}
+
+// RoomEntities represents entities grouped by room suffix
+type RoomEntities struct {
+	RoomSuffix    string
+	InputNumbers  []models.InputNumber
+	Lamps         []models.Lamp
+	WateringZones []models.WateringZone
 }
 
 // DiscoverInputNumbers discovers and categorizes input_number entities
@@ -257,4 +266,155 @@ func extractZoneName(entityID, friendlyName string) string {
 
 	// Default zone name
 	return "Zone 1"
+}
+
+// extractRoomSuffix extracts room suffix from entity ID (e.g., "room1", "room2", "midi_room1")
+func extractRoomSuffix(entityID string) string {
+	// Регулярное выражение для поиска суффиксов вида room1, room2, midi_room1 и т.д.
+	re := regexp.MustCompile(`(room\d+)$`)
+	matches := re.FindStringSubmatch(strings.ToLower(entityID))
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	// Также ищем паттерны вида midi_room1, watering_room1
+	re2 := regexp.MustCompile(`_?(room\d+)$`)
+	matches2 := re2.FindStringSubmatch(strings.ToLower(entityID))
+	if len(matches2) > 1 {
+		return matches2[1]
+	}
+
+	return ""
+}
+
+// getRoomBaseName extracts base name by removing room suffix
+func getRoomBaseName(entityID, roomSuffix string) string {
+	if roomSuffix == "" {
+		return entityID
+	}
+
+	// Удаляем суффикс комнаты из entity ID
+	lowerID := strings.ToLower(entityID)
+	lowerSuffix := strings.ToLower(roomSuffix)
+
+	// Удаляем суффикс с возможным префиксом "_"
+	if strings.HasSuffix(lowerID, "_"+lowerSuffix) {
+		return entityID[:len(entityID)-len("_"+lowerSuffix)]
+	} else if strings.HasSuffix(lowerID, lowerSuffix) {
+		return entityID[:len(entityID)-len(lowerSuffix)]
+	}
+
+	return entityID
+}
+
+// DiscoverRoomEntities discovers entities grouped by room suffixes
+func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, error) {
+	// Get all input numbers from Home Assistant
+	haEntities, err := s.haClient.GetInputNumbers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get input numbers: %v", err)
+	}
+
+	roomMap := make(map[string]*RoomEntities)
+
+	// Сначала собираем все entity по комнатам
+	for _, entity := range haEntities {
+		entityID := entity.EntityID
+		lowerEntityID := strings.ToLower(entityID)
+		friendlyName := entity.FriendlyName
+
+		if strings.Contains(entityID, "prog") || strings.Contains(entityID, "test") {
+			continue
+		}
+
+		roomSuffix := extractRoomSuffix(entityID)
+		if roomSuffix == "" {
+			roomSuffix = "default" // Для entity без суффикса комнаты
+		}
+
+		// Создаем или получаем комнату
+		if _, exists := roomMap[roomSuffix]; !exists {
+			roomMap[roomSuffix] = &RoomEntities{
+				RoomSuffix:    roomSuffix,
+				InputNumbers:  []models.InputNumber{},
+				Lamps:         []models.Lamp{},
+				WateringZones: []models.WateringZone{},
+			}
+		}
+
+		room := roomMap[roomSuffix]
+
+		log.Printf("Processing entity for room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
+
+		// Обработка ламп
+		if isLampEntity(lowerEntityID, friendlyName) {
+			lampName := extractLampName(entityID, friendlyName)
+			lamp := models.Lamp{
+				Name:         lampName,
+				EntityID:     entityID,
+				IntensityMin: entity.Min,
+				IntensityMax: entity.Max,
+				CurrentValue: entity.Value,
+			}
+			room.Lamps = append(room.Lamps, lamp)
+			continue
+		}
+
+		// Обработка полива
+		wateringType, zoneName := getWateringType(lowerEntityID, friendlyName)
+		if wateringType != "" {
+			// Ищем существующую зону полива для этой комнаты
+			var targetZone *models.WateringZone
+			for i := range room.WateringZones {
+				if room.WateringZones[i].Name == zoneName {
+					targetZone = &room.WateringZones[i]
+					break
+				}
+			}
+
+			if targetZone == nil {
+				// Создаем новую зону
+				newZone := models.WateringZone{Name: zoneName}
+				room.WateringZones = append(room.WateringZones, newZone)
+				targetZone = &room.WateringZones[len(room.WateringZones)-1]
+			}
+
+			// Устанавливаем соответствующий entity ID
+			switch wateringType {
+			case models.InputNumberWateringStart:
+				targetZone.StartTimeEntityID = entityID
+			case models.InputNumberWateringPeriod:
+				targetZone.PeriodEntityID = entityID
+			case models.InputNumberWateringPause:
+				targetZone.PauseBetweenEntityID = entityID
+			case models.InputNumberWateringDuration:
+				targetZone.DurationEntityID = entityID
+			}
+			continue
+		}
+
+		// Обработка обычных input numbers (климат контроль)
+		inputType := getInputNumberType(lowerEntityID, friendlyName)
+		if inputType != "" {
+			inputNumber := models.InputNumber{
+				EntityID:     entityID,
+				Name:         friendlyName,
+				Type:         inputType,
+				Min:          entity.Min,
+				Max:          entity.Max,
+				Step:         entity.Step,
+				CurrentValue: entity.Value,
+				Unit:         entity.Unit,
+			}
+			room.InputNumbers = append(room.InputNumbers, inputNumber)
+		}
+	}
+
+	log.Printf("Discovered entities grouped by rooms:")
+	for roomSuffix, room := range roomMap {
+		log.Printf("  Room '%s': %d input numbers, %d lamps, %d watering zones",
+			roomSuffix, len(room.InputNumbers), len(room.Lamps), len(room.WateringZones))
+	}
+
+	return roomMap, nil
 }
