@@ -39,6 +39,7 @@ func NewSyncService(cfg *config.Config, db *database.MongoDB) *SyncService {
 // SetBackendID sets the backend chamber ID for syncing experiments
 func (s *SyncService) SetBackendID(id primitive.ObjectID) {
 	s.backendID = id
+	log.Printf("Sync service: Backend ID set to %s", id.Hex())
 }
 
 // StartSync starts the periodic synchronization
@@ -59,7 +60,12 @@ func (s *SyncService) StartSync(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := s.syncExperiments(); err != nil {
-				log.Printf("❌ Sync failed: %v", err)
+				// Only log as warning if it's not the "no backend ID" error
+				if s.backendID.IsZero() {
+					log.Printf("⚠️  Sync skipped: Chamber not registered with backend yet")
+				} else {
+					log.Printf("❌ Sync failed: %v", err)
+				}
 			}
 		}
 	}
@@ -142,7 +148,7 @@ func (s *SyncService) syncExperiments() error {
 		} else {
 			// Insert new experiment
 			experiment.ID = primitive.NewObjectID()
-			fmt.Println("Inserting experiment:", experiment)
+			log.Printf("Inserting new experiment: %s", experiment.Title)
 			_, err = s.db.ExperimentsCollection.InsertOne(ctx, experiment)
 			if err != nil {
 				log.Printf("Failed to insert experiment %s: %v", experiment.Title, err)

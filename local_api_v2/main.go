@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -45,20 +46,28 @@ func main() {
 
 	// Initialize Home Assistant client
 	haClient := homeassistant.NewClient(cfg.HomeAssistantURL, cfg.HomeAssistantToken)
-	haClient.Status = haClient.IsConnected()
 
 	// Initialize services
 	discoveryService := services.NewDiscoveryService(haClient)
-
-	// Chamber manager for handling multiple chambers with custom suffixes
 	chamberManager := services.NewChamberManager(cfg, db, discoveryService)
-
 	registrationService := services.NewRegistrationService(cfg, db)
 	syncService := services.NewSyncService(cfg, db)
 
-	// Run initial discovery and chamber initialization
-	log.Println("Running initial entity discovery and chamber initialization...")
+	// Use WaitGroups and channels for proper synchronization
+	var (
+		wg                    sync.WaitGroup
+		chamberInitialized    = make(chan struct{})
+		registrationCompleted = make(chan struct{})
+		executorService       *services.ExecutorService
+		executorStarted       = make(chan struct{})
+	)
+
+	// Step 1: Wait for Home Assistant connection and initialize chambers
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		defer close(chamberInitialized)
+
 		for {
 			if haClient.IsConnected() {
 				log.Printf("Home Assistant connected. Initializing chambers with suffixes: %v", cfg.ChamberSuffixes)
@@ -83,6 +92,15 @@ func main() {
 				}
 
 				haClient.Status = true
+
+				// Set chamber ID for services immediately after initialization
+				registrationService.SetChamberID(parentChamber.ID)
+				log.Printf("Services configured with parent chamber: %s", parentChamber.Name)
+
+				// Create executor service now that chamber is ready
+				executorService = services.NewExecutorService(db, haClient, parentChamber)
+				log.Println("Executor service created")
+
 				break
 			}
 			log.Println("Waiting for Home Assistant connection...")
@@ -90,78 +108,93 @@ func main() {
 		}
 	}()
 
-	// Wait for chamber initialization and set chamber ID for services
+	// Step 2: Register with backend after chamber initialization
+	wg.Add(1)
 	go func() {
-		for {
-			parentChamber := chamberManager.GetParentChamber()
-			if parentChamber != nil {
-				registrationService.SetChamberID(parentChamber.ID)
-				log.Printf("Services configured with parent chamber: %s", parentChamber.Name)
-				break
+		defer wg.Done()
+		defer close(registrationCompleted)
+
+		// Wait for chamber initialization
+		<-chamberInitialized
+
+		parentChamber := chamberManager.GetParentChamber()
+		if parentChamber == nil {
+			log.Printf("Parent chamber is nil after initialization")
+			return
+		}
+
+		log.Println("Registering parent chamber with backend...")
+		if err := registrationService.RegisterWithBackend(parentChamber); err != nil {
+			log.Printf("Warning: Parent chamber registration failed: %v", err)
+			// Don't return here - we can still function without backend registration
+		} else {
+			// Update sync service with backend ID only if registration was successful
+			syncService.SetBackendID(parentChamber.BackendID)
+			registrationService.SetBackendID(parentChamber.BackendID)
+
+			// Register room chambers with backend
+			log.Println("Registering room chambers with backend...")
+			if err := chamberManager.RegisterRoomChambersWithBackend(registrationService); err != nil {
+				log.Printf("Warning: Room chambers registration failed: %v", err)
+			} else {
+				log.Println("✅ All chambers registered successfully with backend")
 			}
-			time.Sleep(1 * time.Second)
 		}
 	}()
 
-	// Create executor service after chamber is initialized
-	var executorService *services.ExecutorService
+	// Step 3: Start background services after registration
+	wg.Add(1)
 	go func() {
-		for {
-			parentChamber := chamberManager.GetParentChamber()
-			if parentChamber != nil {
-				executorService = services.NewExecutorService(db, haClient, parentChamber)
-				break
-			}
-			time.Sleep(1 * time.Second)
-		}
+		defer wg.Done()
+
+		// Wait for registration to complete (or fail)
+		<-registrationCompleted
+
+		// Start heartbeat service (it will handle the case where backend ID is not set)
+		go func() {
+			log.Println("Starting heartbeat service...")
+			registrationService.StartHeartbeat(ctx)
+		}()
+
+		// Start sync service
+		go func() {
+			log.Println("Starting sync service...")
+			syncService.StartSync(ctx)
+		}()
 	}()
 
-	// Register with backend
+	// Step 4: Start executor service after all prerequisites are met
+	wg.Add(1)
 	go func() {
-		for {
-			parentChamber := chamberManager.GetParentChamber()
-			if parentChamber != nil {
-				log.Println("Registering parent chamber with backend...")
-				if err := registrationService.RegisterWithBackend(parentChamber); err != nil {
-					log.Printf("Warning: Parent chamber registration failed: %v", err)
-				} else {
-					// Update sync service with backend ID
-					syncService.SetBackendID(parentChamber.BackendID)
-					registrationService.SetBackendID(parentChamber.BackendID)
+		defer wg.Done()
+		defer close(executorStarted)
 
-					// Register room chambers with backend
-					log.Println("Registering room chambers with backend...")
-					if err := chamberManager.RegisterRoomChambersWithBackend(registrationService); err != nil {
-						log.Printf("Warning: Room chambers registration failed: %v", err)
-					} else {
-						log.Println("✅ All chambers registered successfully with backend")
-					}
-				}
-				break
-			}
-			time.Sleep(1 * time.Second)
+		// Wait for chamber initialization
+		<-chamberInitialized
+
+		// Wait a bit more to ensure executor service is created
+		time.Sleep(2 * time.Second)
+
+		if executorService == nil {
+			log.Printf("Executor service is nil - cannot start")
+			return
 		}
-	}()
 
-	// Start background services
-	go registrationService.StartHeartbeat(ctx)
-	go syncService.StartSync(ctx)
-
-	// Start executor service
-	go func() {
 		for {
 			if haClient.Status {
+				log.Println("Starting executor service...")
 				if err := executorService.Start(ctx); err != nil {
 					log.Printf("Warning: Failed to start executor service: %v", err)
+					time.Sleep(5 * time.Second)
+					continue
 				} else {
 					log.Println("✅ Executor service started successfully")
+					break
 				}
-				break
 			}
 			time.Sleep(10 * time.Second)
 		}
 	}()
-	defer executorService.Stop()
 
 	// Start simple HTTP server for health checks
 	mux := http.NewServeMux()
@@ -183,9 +216,21 @@ func main() {
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	log.Println("🚀 Local API v2 initialization complete - waiting for shutdown signal...")
+
 	<-quit
 
 	log.Println("Shutting down server...")
+
+	// Stop executor service first
+	if executorService != nil {
+		log.Println("Stopping executor service...")
+		executorService.Stop()
+	}
+
+	// Cancel context to stop background services
+	cancel()
 
 	// Shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -209,8 +254,12 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 		roomChambers := chamberManager.GetRoomChambers()
 
 		if parentChamber != nil {
+			backendID := "none"
+			if !parentChamber.BackendID.IsZero() {
+				backendID = parentChamber.BackendID.Hex()
+			}
 			fmt.Fprintf(w, `{"status":"healthy","chamber_id":"%s","backend_id":"%s","name":"%s","room_chambers":%d}`,
-				parentChamber.ID.Hex(), parentChamber.BackendID.Hex(), parentChamber.Name, len(roomChambers))
+				parentChamber.ID.Hex(), backendID, parentChamber.Name, len(roomChambers))
 		} else {
 			fmt.Fprintf(w, `{"status":"initializing"}`)
 		}
@@ -228,8 +277,12 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 
 		parentChamber := chamberManager.GetParentChamber()
 		if parentChamber != nil {
+			backendID := "none"
+			if !parentChamber.BackendID.IsZero() {
+				backendID = parentChamber.BackendID.Hex()
+			}
 			fmt.Fprintf(w, `{"chamber":{"id":"%s","name":"%s","local_ip":"%s","backend_id":"%s","input_numbers":%d,"lamps":%d,"watering_zones":%d}}`,
-				parentChamber.ID.Hex(), parentChamber.Name, parentChamber.LocalIP, parentChamber.BackendID.Hex(),
+				parentChamber.ID.Hex(), parentChamber.Name, parentChamber.LocalIP, backendID,
 				len(parentChamber.InputNumbers), len(parentChamber.Lamps), len(parentChamber.WateringZones))
 		} else {
 			fmt.Fprintf(w, `{"error":"Chamber not initialized"}`)
@@ -254,7 +307,7 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 			if !first {
 				fmt.Fprintf(w, ",")
 			}
-			backendID := ""
+			backendID := "none"
 			if !roomChamber.BackendID.IsZero() {
 				backendID = roomChamber.BackendID.Hex()
 			}
@@ -319,7 +372,14 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 		}
 
 		ctx := r.Context()
-		cursor, err := db.ExperimentsCollection.Find(ctx, bson.M{"chamber_id": parentChamber.BackendID})
+		var filter interface{}
+		if !parentChamber.BackendID.IsZero() {
+			filter = bson.M{"chamber_id": parentChamber.BackendID}
+		} else {
+			filter = bson.M{} // Return all experiments if no backend ID
+		}
+
+		cursor, err := db.ExperimentsCollection.Find(ctx, filter)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, `{"error":"Failed to fetch experiments"}`)

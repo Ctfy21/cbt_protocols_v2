@@ -27,6 +27,19 @@ type ExecutorService struct {
 
 // NewExecutorService creates a new executor service
 func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, chamber *models.Chamber) *ExecutorService {
+	if db == nil {
+		log.Printf("Error: Database is nil - cannot create executor service")
+		return nil
+	}
+	if haClient == nil {
+		log.Printf("Error: Home Assistant client is nil - cannot create executor service")
+		return nil
+	}
+	if chamber == nil {
+		log.Printf("Error: Chamber is nil - cannot create executor service")
+		return nil
+	}
+
 	return &ExecutorService{
 		db:       db,
 		haClient: haClient,
@@ -37,6 +50,10 @@ func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, ch
 
 // Start begins the execution loop
 func (s *ExecutorService) Start(ctx context.Context) error {
+	if s == nil {
+		return fmt.Errorf("executor service is nil")
+	}
+
 	s.mu.Lock()
 	if s.isRunning {
 		s.mu.Unlock()
@@ -45,6 +62,20 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 	s.isRunning = true
 	s.mu.Unlock()
 
+	// Validate that all required components are available
+	if s.db == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	if s.haClient == nil {
+		return fmt.Errorf("home assistant client is not initialized")
+	}
+	if s.chamber == nil {
+		return fmt.Errorf("chamber is not initialized")
+	}
+	if s.cron == nil {
+		return fmt.Errorf("cron scheduler is not initialized")
+	}
+
 	// Add job to check and execute phases every minute
 	_, err := s.cron.AddFunc("* * * * *", func() {
 		if err := s.executeActivePhasesWrapper(ctx); err != nil {
@@ -52,6 +83,9 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 		}
 	})
 	if err != nil {
+		s.mu.Lock()
+		s.isRunning = false
+		s.mu.Unlock()
 		return fmt.Errorf("failed to add cron job: %w", err)
 	}
 
@@ -71,6 +105,11 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 
 // Stop halts the execution loop
 func (s *ExecutorService) Stop() {
+	if s == nil {
+		log.Printf("Warning: Attempt to stop nil executor service")
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -78,8 +117,11 @@ func (s *ExecutorService) Stop() {
 		return
 	}
 
-	ctx := s.cron.Stop()
-	<-ctx.Done()
+	if s.cron != nil {
+		ctx := s.cron.Stop()
+		<-ctx.Done()
+	}
+
 	s.isRunning = false
 	log.Println("Executor service stopped")
 }
@@ -121,9 +163,20 @@ func (s *ExecutorService) executeActivePhases(ctx context.Context) error {
 
 // getActiveExperiments retrieves all experiments with status "active"
 func (s *ExecutorService) getActiveExperiments(ctx context.Context) ([]models.Experiment, error) {
-	filter := bson.M{
-		"status":     "active",
-		"chamber_id": s.chamber.BackendID,
+	if s.chamber == nil {
+		return nil, fmt.Errorf("chamber is not initialized")
+	}
+
+	var filter bson.M
+	if s.chamber.BackendID.IsZero() {
+		// If no backend ID, get all active experiments
+		filter = bson.M{"status": "active"}
+	} else {
+		// If backend ID is available, filter by chamber
+		filter = bson.M{
+			"status":     "active",
+			"chamber_id": s.chamber.BackendID,
+		}
 	}
 
 	cursor, err := s.db.ExperimentsCollection.Find(ctx, filter)
@@ -149,7 +202,7 @@ func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Exp
 		return nil
 	}
 
-	log.Printf("Executing phase %d (%s) for experiment %s", phaseIndex, currentPhase.Title, exp.Title)
+	log.Printf("Executing phase %d (%s) for experiment %s, day %d", phaseIndex, currentPhase.Title, exp.Title, currentDay)
 
 	// Update the active phase index if changed
 	if exp.ActivePhaseIndex == nil || *exp.ActivePhaseIndex != phaseIndex {
@@ -196,9 +249,11 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 
 	log.Printf("Applying phase settings for phase %s, day %d", phase.Title, currentDay)
 
+	// Apply start day configurations
 	for _, startDayConfig := range phase.StartDay {
 		if err := s.haClient.SetInputNumber(startDayConfig.EntityID, startDayConfig.Value); err != nil {
 			log.Printf("Failed to set %s: %v", startDayConfig.EntityID, err)
+			errors = append(errors, fmt.Errorf("start day config %s: %w", startDayConfig.EntityID, err))
 		}
 	}
 
@@ -230,50 +285,80 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 
 // applyClimateControls applies temperature, humidity, and CO2 settings
 func (s *ExecutorService) applyClimateControls(phase *models.Phase, currentDay int) error {
+	var errors []error
 
-	// Find matching entities from chamber's InputNumbers
+	// Apply work day schedule
 	for _, scheduleConfig := range phase.WorkDaySchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
-	// Find matching entities from chamber's InputNumbers
+	// Apply temperature day schedule
 	for _, scheduleConfig := range phase.TemperatureDaySchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
-	// Find matching entities from chamber's InputNumbers
+	// Apply temperature night schedule
 	for _, scheduleConfig := range phase.TemperatureNightSchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
+	// Apply humidity day schedule
 	for _, scheduleConfig := range phase.HumidityDaySchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
+	// Apply humidity night schedule
 	for _, scheduleConfig := range phase.HumidityNightSchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
+	// Apply CO2 day schedule
 	for _, scheduleConfig := range phase.CO2DaySchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
 	}
 
+	// Apply CO2 night schedule
 	for _, scheduleConfig := range phase.CO2NightSchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("climate control errors: %v", errors)
 	}
 
 	return nil
@@ -281,12 +366,20 @@ func (s *ExecutorService) applyClimateControls(phase *models.Phase, currentDay i
 
 // applyLightControls applies light intensity settings for each lamp
 func (s *ExecutorService) applyLightControls(phase *models.Phase, currentDay int) error {
+	var errors []error
 
-	// Find matching entities from chamber's InputNumbers
+	// Apply light intensity schedule
 	for _, scheduleConfig := range phase.LightIntensitySchedule {
-		if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, scheduleConfig.Schedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+		if value, exists := scheduleConfig.Schedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.EntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.EntityID, err)
+				errors = append(errors, err)
+			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("light control errors: %v", errors)
 	}
 
 	return nil
@@ -294,21 +387,45 @@ func (s *ExecutorService) applyLightControls(phase *models.Phase, currentDay int
 
 // applyWateringControls handles watering zone controls
 func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay int) error {
+	var errors []error
 
-	// Find matching entities from chamber's InputNumbers
+	// Apply watering zone schedules
 	for _, scheduleConfig := range phase.WateringZones {
-		if err := s.haClient.SetInputNumber(scheduleConfig.StartTimeEntityID, scheduleConfig.StartTimeSchedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.StartTimeEntityID, err)
+		// Start time schedule
+		if value, exists := scheduleConfig.StartTimeSchedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.StartTimeEntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.StartTimeEntityID, err)
+				errors = append(errors, err)
+			}
 		}
-		if err := s.haClient.SetInputNumber(scheduleConfig.PeriodEntityID, scheduleConfig.PeriodSchedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.PeriodEntityID, err)
+
+		// Period schedule
+		if value, exists := scheduleConfig.PeriodSchedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.PeriodEntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.PeriodEntityID, err)
+				errors = append(errors, err)
+			}
 		}
-		if err := s.haClient.SetInputNumber(scheduleConfig.PauseBetweenEntityID, scheduleConfig.PauseBetweenSchedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.PauseBetweenEntityID, err)
+
+		// Pause between schedule
+		if value, exists := scheduleConfig.PauseBetweenSchedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.PauseBetweenEntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.PauseBetweenEntityID, err)
+				errors = append(errors, err)
+			}
 		}
-		if err := s.haClient.SetInputNumber(scheduleConfig.DurationEntityID, scheduleConfig.DurationSchedule[currentDay]); err != nil {
-			log.Printf("Failed to set %s: %v", scheduleConfig.DurationEntityID, err)
+
+		// Duration schedule
+		if value, exists := scheduleConfig.DurationSchedule[currentDay]; exists {
+			if err := s.haClient.SetInputNumber(scheduleConfig.DurationEntityID, value); err != nil {
+				log.Printf("Failed to set %s: %v", scheduleConfig.DurationEntityID, err)
+				errors = append(errors, err)
+			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("watering control errors: %v", errors)
 	}
 
 	return nil

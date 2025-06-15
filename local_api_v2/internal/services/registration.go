@@ -160,7 +160,12 @@ func (s *RegistrationService) StartHeartbeat(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := s.sendHeartbeat(); err != nil {
-				log.Printf("❌ Failed to send heartbeat: %v", err)
+				// Only log as warning if it's not the "no backend ID" error
+				if s.backendID.IsZero() {
+					log.Printf("⚠️  Heartbeat skipped: Chamber not registered with backend yet")
+				} else {
+					log.Printf("❌ Failed to send heartbeat: %v", err)
+				}
 			}
 		}
 	}
@@ -168,23 +173,26 @@ func (s *RegistrationService) StartHeartbeat(ctx context.Context) {
 
 // sendHeartbeat sends a heartbeat to the backend
 func (s *RegistrationService) sendHeartbeat() error {
-	if s.backendID.IsZero() {
-		return fmt.Errorf("no backend ID set - chamber not registered")
+	// Update local heartbeat timestamp first
+	if !s.chamberID.IsZero() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err := s.db.ChambersCollection.UpdateOne(
+			ctx,
+			bson.M{"_id": s.chamberID},
+			bson.M{"$set": bson.M{
+				"last_heartbeat": time.Now(),
+			}},
+		)
+		if err != nil {
+			log.Printf("Failed to update local heartbeat: %v", err)
+		}
 	}
 
-	// Update local heartbeat timestamp
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := s.db.ChambersCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": s.chamberID},
-		bson.M{"$set": bson.M{
-			"last_heartbeat": time.Now(),
-		}},
-	)
-	if err != nil {
-		log.Printf("Failed to update local heartbeat: %v", err)
+	// Skip backend heartbeat if not registered yet
+	if s.backendID.IsZero() {
+		return fmt.Errorf("no backend ID set - chamber not registered")
 	}
 
 	// Send heartbeat to backend
@@ -216,11 +224,13 @@ func (s *RegistrationService) sendHeartbeat() error {
 // SetChamberID sets the local chamber ID for the service
 func (s *RegistrationService) SetChamberID(id primitive.ObjectID) {
 	s.chamberID = id
+	log.Printf("Registration service: Chamber ID set to %s", id.Hex())
 }
 
 // SetBackendID sets the backend chamber ID for the service
 func (s *RegistrationService) SetBackendID(id primitive.ObjectID) {
 	s.backendID = id
+	log.Printf("Registration service: Backend ID set to %s", id.Hex())
 }
 
 // RegisterRoomChamberWithBackend registers a room chamber with the backend
