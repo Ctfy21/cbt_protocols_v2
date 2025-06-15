@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 
 	"local_api_v2/internal/models"
@@ -323,20 +322,20 @@ func (s *DiscoveryService) extractRoomSuffix(entityID string) string {
 	}
 
 	// Затем проверяем стандартные паттерны room1, room2, etc.
-	re := regexp.MustCompile(`(room\d+)$`)
-	matches := re.FindStringSubmatch(lowerEntityID)
-	if len(matches) > 1 {
-		log.Printf("Found room suffix '%s' in entity '%s' (pattern: room\\d+)", matches[1], entityID)
-		return matches[1]
-	}
+	// re := regexp.MustCompile(`(room\d+)$`)
+	// matches := re.FindStringSubmatch(lowerEntityID)
+	// if len(matches) > 1 {
+	// 	log.Printf("Found room suffix '%s' in entity '%s' (pattern: room\\d+)", matches[1], entityID)
+	// 	return matches[1]
+	// }
 
-	// Также ищем паттерны вида midi_room1, watering_room1
-	re2 := regexp.MustCompile(`_?(room\d+)$`)
-	matches2 := re2.FindStringSubmatch(lowerEntityID)
-	if len(matches2) > 1 {
-		log.Printf("Found room suffix '%s' in entity '%s' (pattern: _room\\d+)", matches2[1], entityID)
-		return matches2[1]
-	}
+	// // Также ищем паттерны вида midi_room1, watering_room1
+	// re2 := regexp.MustCompile(`_?(room\d+)$`)
+	// matches2 := re2.FindStringSubmatch(lowerEntityID)
+	// if len(matches2) > 1 {
+	// 	log.Printf("Found room suffix '%s' in entity '%s' (pattern: _room\\d+)", matches2[1], entityID)
+	// 	return matches2[1]
+	// }
 
 	return ""
 }
