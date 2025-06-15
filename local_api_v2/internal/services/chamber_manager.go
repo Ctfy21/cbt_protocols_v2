@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,6 +27,9 @@ type ChamberManager struct {
 
 // NewChamberManager создает новый менеджер chamber
 func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *DiscoveryService) *ChamberManager {
+	// Устанавливаем chamber суффиксы в discovery service
+	discovery.SetChamberSuffixes(cfg.ChamberSuffixes)
+
 	return &ChamberManager{
 		config:       cfg,
 		db:           db,
@@ -110,7 +114,19 @@ func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuf
 	// Определяем имя для room chamber
 	roomChamberName := cm.config.ChamberName
 	if roomSuffix != "default" {
-		roomChamberName = fmt.Sprintf("%s_%s", cm.config.ChamberName, roomSuffix)
+		// Для известных суффиксов создаем более описательные имена
+		switch roomSuffix {
+		case "galo":
+			roomChamberName = fmt.Sprintf("%s_Galo", cm.config.ChamberName)
+		case "sb4":
+			roomChamberName = fmt.Sprintf("%s_SB4", cm.config.ChamberName)
+		case "oreol":
+			roomChamberName = fmt.Sprintf("%s_Oreol", cm.config.ChamberName)
+		case "sb1":
+			roomChamberName = fmt.Sprintf("%s_SB1", cm.config.ChamberName)
+		default:
+			roomChamberName = fmt.Sprintf("%s_%s", cm.config.ChamberName, strings.ToUpper(roomSuffix))
+		}
 	}
 
 	// Пытаемся найти существующую room chamber

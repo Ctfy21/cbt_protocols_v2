@@ -12,14 +12,22 @@ import (
 
 // DiscoveryService handles discovery of Home Assistant entities
 type DiscoveryService struct {
-	haClient *homeassistant.Client
+	haClient        *homeassistant.Client
+	chamberSuffixes []string // Настраиваемые суффиксы камер
 }
 
 // NewDiscoveryService creates a new discovery service
 func NewDiscoveryService(haClient *homeassistant.Client) *DiscoveryService {
 	return &DiscoveryService{
-		haClient: haClient,
+		haClient:        haClient,
+		chamberSuffixes: []string{}, // Будет установлено позже через SetChamberSuffixes
 	}
+}
+
+// SetChamberSuffixes устанавливает список поддерживаемых суффиксов камер
+func (s *DiscoveryService) SetChamberSuffixes(suffixes []string) {
+	s.chamberSuffixes = suffixes
+	log.Printf("Discovery service configured with chamber suffixes: %v", suffixes)
 }
 
 // RoomEntities represents entities grouped by room suffix
@@ -268,19 +276,65 @@ func extractZoneName(entityID, friendlyName string) string {
 	return "Zone 1"
 }
 
-// extractRoomSuffix extracts room suffix from entity ID (e.g., "room1", "room2", "midi_room1")
-func extractRoomSuffix(entityID string) string {
-	// Регулярное выражение для поиска суффиксов вида room1, room2, midi_room1 и т.д.
+// extractRoomSuffix extracts room suffix from entity ID with support for custom chamber suffixes
+func (s *DiscoveryService) extractRoomSuffix(entityID string) string {
+	lowerEntityID := strings.ToLower(entityID)
+
+	// Сначала проверяем настраиваемые суффиксы (galo, sb4, oreol, sb1, etc.)
+	for _, suffix := range s.chamberSuffixes {
+		lowerSuffix := strings.ToLower(suffix)
+
+		// Проверяем различные варианты окончаний:
+		// 1. _suffix в конце (например, input_number.temp_galo)
+		if strings.HasSuffix(lowerEntityID, "_"+lowerSuffix) {
+			log.Printf("Found chamber suffix '%s' in entity '%s' (pattern: _suffix)", suffix, entityID)
+			return lowerSuffix
+		}
+
+		// 2. suffix в конце (например, input_number.tempgalo)
+		if strings.HasSuffix(lowerEntityID, lowerSuffix) {
+			// Проверяем, что это не просто совпадение в середине слова
+			suffixStart := len(lowerEntityID) - len(lowerSuffix)
+			if suffixStart > 0 {
+				prevChar := lowerEntityID[suffixStart-1]
+				// Суффикс должен быть отделен символом, не буквой
+				if prevChar == '_' || prevChar == '.' || prevChar == '-' {
+					log.Printf("Found chamber suffix '%s' in entity '%s' (pattern: suffix)", suffix, entityID)
+					return lowerSuffix
+				}
+			} else {
+				// Суффикс в самом начале
+				log.Printf("Found chamber suffix '%s' in entity '%s' (pattern: suffix)", suffix, entityID)
+				return lowerSuffix
+			}
+		}
+
+		// 3. suffix_ в любом месте (например, input_number.galo_temp)
+		if strings.Contains(lowerEntityID, lowerSuffix+"_") {
+			log.Printf("Found chamber suffix '%s' in entity '%s' (pattern: suffix_)", suffix, entityID)
+			return lowerSuffix
+		}
+
+		// 4. _suffix_ в любом месте (например, input_number.temp_galo_day)
+		if strings.Contains(lowerEntityID, "_"+lowerSuffix+"_") {
+			log.Printf("Found chamber suffix '%s' in entity '%s' (pattern: _suffix_)", suffix, entityID)
+			return lowerSuffix
+		}
+	}
+
+	// Затем проверяем стандартные паттерны room1, room2, etc.
 	re := regexp.MustCompile(`(room\d+)$`)
-	matches := re.FindStringSubmatch(strings.ToLower(entityID))
+	matches := re.FindStringSubmatch(lowerEntityID)
 	if len(matches) > 1 {
+		log.Printf("Found room suffix '%s' in entity '%s' (pattern: room\\d+)", matches[1], entityID)
 		return matches[1]
 	}
 
 	// Также ищем паттерны вида midi_room1, watering_room1
 	re2 := regexp.MustCompile(`_?(room\d+)$`)
-	matches2 := re2.FindStringSubmatch(strings.ToLower(entityID))
+	matches2 := re2.FindStringSubmatch(lowerEntityID)
 	if len(matches2) > 1 {
+		log.Printf("Found room suffix '%s' in entity '%s' (pattern: _room\\d+)", matches2[1], entityID)
 		return matches2[1]
 	}
 
@@ -317,6 +371,8 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 
 	roomMap := make(map[string]*RoomEntities)
 
+	log.Printf("Discovering room entities with configured suffixes: %v", s.chamberSuffixes)
+
 	// Сначала собираем все entity по комнатам
 	for _, entity := range haEntities {
 		entityID := entity.EntityID
@@ -327,7 +383,7 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 			continue
 		}
 
-		roomSuffix := extractRoomSuffix(entityID)
+		roomSuffix := s.extractRoomSuffix(entityID)
 		if roomSuffix == "" {
 			roomSuffix = "default" // Для entity без суффикса комнаты
 		}

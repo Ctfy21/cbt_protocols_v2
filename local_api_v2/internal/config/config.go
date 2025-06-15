@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -27,8 +28,9 @@ type Config struct {
 	BackendAPIKey string
 
 	// Chamber configuration
-	ChamberName string
-	LocalIP     string
+	ChamberName     string
+	LocalIP         string
+	ChamberSuffixes []string // Поддерживаемые суффиксы камер
 
 	// Heartbeat configuration
 	HeartbeatInterval int
@@ -55,6 +57,7 @@ func Load() (*Config, error) {
 		BackendAPIKey:      getEnv("BACKEND_API_KEY", ""),
 		ChamberName:        getEnv("CHAMBER_NAME", "Climate Chamber"),
 		LocalIP:            getEnv("LOCAL_IP", ""),
+		ChamberSuffixes:    parseChamberSuffixes(getEnv("CHAMBER_SUFFIXES", "room1,room2,room3,galo,sb4,oreol,sb1")),
 		HeartbeatInterval:  getEnvAsInt("HEARTBEAT_INTERVAL", 30),
 		LogLevel:           getEnv("LOG_LEVEL", "info"),
 	}
@@ -72,7 +75,23 @@ func Load() (*Config, error) {
 		cfg.LocalIP = getLocalIP()
 	}
 
+	log.Printf("Configured chamber suffixes: %v", cfg.ChamberSuffixes)
+
 	return cfg, nil
+}
+
+// parseChamberSuffixes parses comma-separated chamber suffixes
+func parseChamberSuffixes(suffixesStr string) []string {
+	if suffixesStr == "" {
+		return []string{}
+	}
+
+	suffixes := strings.Split(suffixesStr, ",")
+	for i := range suffixes {
+		suffixes[i] = strings.TrimSpace(suffixes[i])
+	}
+
+	return suffixes
 }
 
 // getEnv gets an environment variable with a default value

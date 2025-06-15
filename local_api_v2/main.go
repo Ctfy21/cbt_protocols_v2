@@ -17,7 +17,6 @@ import (
 	"local_api_v2/pkg/homeassistant"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func main() {
@@ -26,6 +25,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+
+	log.Printf("Starting Local API v2 with chamber suffixes: %v", cfg.ChamberSuffixes)
 
 	// Set up context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -49,7 +50,7 @@ func main() {
 	// Initialize services
 	discoveryService := services.NewDiscoveryService(haClient)
 
-	// Chamber manager for handling multiple chambers
+	// Chamber manager for handling multiple chambers with custom suffixes
 	chamberManager := services.NewChamberManager(cfg, db, discoveryService)
 
 	registrationService := services.NewRegistrationService(cfg, db)
@@ -60,6 +61,8 @@ func main() {
 	go func() {
 		for {
 			if haClient.IsConnected() {
+				log.Printf("Home Assistant connected. Initializing chambers with suffixes: %v", cfg.ChamberSuffixes)
+
 				// Initialize chambers with room separation
 				if err := chamberManager.InitializeChambers(ctx); err != nil {
 					log.Printf("Warning: Chamber initialization failed: %v", err)
@@ -71,7 +74,7 @@ func main() {
 				parentChamber := chamberManager.GetParentChamber()
 				roomChambers := chamberManager.GetRoomChambers()
 
-				log.Printf("Discovered chambers:")
+				log.Printf("Successfully discovered chambers:")
 				log.Printf("  Parent chamber: %s (ID: %s)", parentChamber.Name, parentChamber.ID.Hex())
 				for roomSuffix, roomChamber := range roomChambers {
 					log.Printf("  Room chamber '%s': %s (%d inputs, %d lamps, %d zones)",
@@ -82,6 +85,7 @@ func main() {
 				haClient.Status = true
 				break
 			}
+			log.Println("Waiting for Home Assistant connection...")
 			time.Sleep(10 * time.Second)
 		}
 	}()
@@ -129,6 +133,8 @@ func main() {
 					log.Println("Registering room chambers with backend...")
 					if err := chamberManager.RegisterRoomChambersWithBackend(registrationService); err != nil {
 						log.Printf("Warning: Room chambers registration failed: %v", err)
+					} else {
+						log.Println("✅ All chambers registered successfully with backend")
 					}
 				}
 				break
@@ -147,6 +153,8 @@ func main() {
 			if haClient.Status {
 				if err := executorService.Start(ctx); err != nil {
 					log.Printf("Warning: Failed to start executor service: %v", err)
+				} else {
+					log.Println("✅ Executor service started successfully")
 				}
 				break
 			}
@@ -198,9 +206,11 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 		w.WriteHeader(http.StatusOK)
 
 		parentChamber := chamberManager.GetParentChamber()
+		roomChambers := chamberManager.GetRoomChambers()
+
 		if parentChamber != nil {
-			fmt.Fprintf(w, `{"status":"healthy","chamber_id":"%s","backend_id":"%s","name":"%s"}`,
-				parentChamber.ID.Hex(), parentChamber.BackendID.Hex(), parentChamber.Name)
+			fmt.Fprintf(w, `{"status":"healthy","chamber_id":"%s","backend_id":"%s","name":"%s","room_chambers":%d}`,
+				parentChamber.ID.Hex(), parentChamber.BackendID.Hex(), parentChamber.Name, len(roomChambers))
 		} else {
 			fmt.Fprintf(w, `{"status":"initializing"}`)
 		}
@@ -244,13 +254,54 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 			if !first {
 				fmt.Fprintf(w, ",")
 			}
-			fmt.Fprintf(w, `{"room_suffix":"%s","id":"%s","name":"%s","input_numbers":%d,"lamps":%d,"watering_zones":%d}`,
-				roomSuffix, roomChamber.ID.Hex(), roomChamber.Name,
+			backendID := ""
+			if !roomChamber.BackendID.IsZero() {
+				backendID = roomChamber.BackendID.Hex()
+			}
+			fmt.Fprintf(w, `{"room_suffix":"%s","id":"%s","name":"%s","backend_id":"%s","input_numbers":%d,"lamps":%d,"watering_zones":%d}`,
+				roomSuffix, roomChamber.ID.Hex(), roomChamber.Name, backendID,
 				len(roomChamber.InputNumbers), len(roomChamber.Lamps), len(roomChamber.WateringZones))
 			first = false
 		}
 
 		fmt.Fprintf(w, `]}`)
+	})
+
+	// Chambers summary endpoint
+	mux.HandleFunc("/api/v1/chambers/summary", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		parentChamber := chamberManager.GetParentChamber()
+		roomChambers := chamberManager.GetRoomChambers()
+
+		fmt.Fprintf(w, `{"summary":{"total_chambers":%d,"parent_chamber":`, len(roomChambers)+1)
+
+		if parentChamber != nil {
+			fmt.Fprintf(w, `{"name":"%s","entities":%d}`,
+				parentChamber.Name,
+				len(parentChamber.InputNumbers)+len(parentChamber.Lamps)+len(parentChamber.WateringZones))
+		} else {
+			fmt.Fprintf(w, `null`)
+		}
+
+		fmt.Fprintf(w, `,"room_chambers":[`)
+		first := true
+		for suffix, chamber := range roomChambers {
+			if !first {
+				fmt.Fprintf(w, ",")
+			}
+			fmt.Fprintf(w, `{"suffix":"%s","name":"%s","entities":%d}`,
+				suffix, chamber.Name,
+				len(chamber.InputNumbers)+len(chamber.Lamps)+len(chamber.WateringZones))
+			first = false
+		}
+		fmt.Fprintf(w, `]}}`)
 	})
 
 	// Experiments endpoint
@@ -287,60 +338,4 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"experiments":%d,"count":%d}`, len(experiments), len(experiments))
 	})
-}
-
-// getOrCreateChamber retrieves existing chamber or creates a new one
-func getOrCreateChamber(ctx context.Context, db *database.MongoDB, cfg *config.Config) (*models.Chamber, error) {
-	// Try to find existing chamber
-	var chamber models.Chamber
-	err := db.ChambersCollection.FindOne(ctx, bson.M{}).Decode(&chamber)
-
-	if err == nil {
-		// Chamber exists, return it
-		log.Printf("Found existing chamber: %s", chamber.Name)
-		return &chamber, nil
-	}
-
-	// Create new chamber
-	log.Println("Creating new chamber...")
-	chamber = models.Chamber{
-		ID:               primitive.NewObjectID(),
-		Name:             cfg.ChamberName,
-		LocalIP:          cfg.LocalIP,
-		HomeAssistantURL: cfg.HomeAssistantURL,
-		InputNumbers:     []models.InputNumber{},
-		Lamps:            []models.Lamp{},
-		WateringZones:    []models.WateringZone{},
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
-	}
-
-	// Insert chamber
-	_, err = db.ChambersCollection.InsertOne(ctx, chamber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chamber: %w", err)
-	}
-
-	log.Printf("Created new chamber: %s", chamber.Name)
-	return &chamber, nil
-}
-
-// saveDiscoveredEntities saves the discovered entities to the database
-func saveDiscoveredEntities(ctx context.Context, db *database.MongoDB, chamber *models.Chamber) error {
-	update := bson.M{
-		"$set": bson.M{
-			"input_numbers":  chamber.InputNumbers,
-			"lamps":          chamber.Lamps,
-			"watering_zones": chamber.WateringZones,
-			"updated_at":     time.Now(),
-		},
-	}
-
-	_, err := db.ChambersCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": chamber.ID},
-		update,
-	)
-
-	return err
 }
