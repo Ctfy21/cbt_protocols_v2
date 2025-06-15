@@ -8,8 +8,11 @@ class ApiService {
   public api: AxiosInstance
 
   constructor() {
+    // Use relative URL for production, localhost for development
+    const baseURL = import.meta.env.DEV ? 'http://localhost:8080' : ''
+    
     this.api = axios.create({
-      baseURL: 'http://localhost:8080',
+      baseURL: baseURL + '/api',
       headers: {
         'Content-Type': 'application/json'
       }
