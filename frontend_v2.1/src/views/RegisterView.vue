@@ -1,4 +1,4 @@
-<!-- <template>
+<template>
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div class="max-w-md w-full space-y-8">
         <div>
@@ -35,18 +35,18 @@
             </div>
             
             <div>
-              <label for="email" class="block text-sm font-medium text-gray-700">
-                Email Address
+              <label for="username" class="block text-sm font-medium text-gray-700">
+                Username
               </label>
               <input
-                id="email"
-                v-model="form.email"
-                name="email"
-                type="email"
-                autocomplete="email"
+                id="username"
+                v-model="form.username"
+                name="username"
+                type="text"
+                autocomplete="username"
                 required
                 class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="john@example.com"
+                placeholder="johndoe"
               />
             </div>
             
@@ -125,7 +125,7 @@
   
   const form = reactive({
     name: '',
-    email: '',
+    username: '',
     password: '',
     confirmPassword: ''
   })
@@ -154,7 +154,7 @@
     try {
       await authStore.register({
         name: form.name,
-        email: form.email,
+        username: form.username,
         password: form.password
       })
       
@@ -167,4 +167,4 @@
       loading.value = false
     }
   }
-  </script> -->
+  </script>
