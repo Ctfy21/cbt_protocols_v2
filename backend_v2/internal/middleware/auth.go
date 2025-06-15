@@ -161,9 +161,9 @@ func isPublicPath(path string) bool {
 	publicPaths := []string{
 		"/health",
 		"/api/health",
-		"/auth/login",
-		"/auth/register",
-		"/auth/refresh",
+		"/api/auth/login",
+		"/api/auth/register",
+		"/api/auth/refresh",
 	}
 
 	for _, publicPath := range publicPaths {

@@ -146,7 +146,7 @@
                     <td v-for="chamber in chamberStore.chambers.slice(0, 3)" :key="chamber.id" class="py-2 text-center">
                       <div :class="[
                         'w-3 h-3 rounded-full mx-auto',
-                        userWithAccess.chambers.some(c => c.id === chamber.id) ? 'bg-green-500' : 'bg-gray-300'
+                        userWithAccess.chambers?.some(c => c.id === chamber.id) ?? false ? 'bg-green-500' : 'bg-gray-300'
                       ]"></div>
                     </td>
                   </tr>
@@ -297,12 +297,12 @@
                   <div class="flex items-center justify-between">
                     <div>
                       <div class="flex flex-wrap gap-1">
-                        <span v-if="userWithAccess.chambers.length === 0" class="text-sm text-gray-500 italic">
+                        <span v-if="userWithAccess.chambers?.length === 0" class="text-sm text-gray-500 italic">
                           Нет доступа
                         </span>
                         <span 
                           v-else
-                          v-for="chamber in userWithAccess.chambers.slice(0, 3)" 
+                          v-for="chamber in userWithAccess.chambers?.slice(0, 3) || []" 
                           :key="chamber.id"
                           :class="[
                             'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
@@ -312,13 +312,13 @@
                           {{ chamber.name }}
                         </span>
                         <span 
-                          v-if="userWithAccess.chambers.length > 3"
+                          v-if="userWithAccess.chambers?.length > 3"
                           class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                         >
-                          +{{ userWithAccess.chambers.length - 3 }} больше
+                          +{{ (userWithAccess.chambers?.length || 0) - 3 }} больше
                         </span>
                       </div>
-                      <p class="text-xs text-gray-500 mt-1">{{ userWithAccess.chambers.length }} климатических камер всего</p>
+                      <p class="text-xs text-gray-500 mt-1">{{ userWithAccess.chambers?.length || 0 }} климатических камер всего</p>
                     </div>
                     <button
                       @click="manageChamberAccess(userWithAccess)"
@@ -516,7 +516,7 @@
           <!-- Current Access Summary -->
           <div class="mb-6 p-4 bg-blue-50 rounded-lg">
             <h3 class="text-sm font-medium text-blue-900 mb-2">Текущий доступ</h3>
-            <div v-if="managingAccessUser.chambers.length === 0" class="text-sm text-blue-700">
+            <div v-if="managingAccessUser.chambers?.length === 0" class="text-sm text-blue-700">
               У этого пользователя нет доступа к климатическим камерам
             </div>
             <div v-else class="flex flex-wrap gap-2">
@@ -625,8 +625,8 @@
               <span class="text-sm text-gray-600">
                 Выбрано {{ selectedChamberIds.length }} из {{ chamberStore.chambers.length }} климатических камер
               </span>
-              <div v-if="selectedChamberIds.length !== managingAccessUser.chambers.length || 
-                         !managingAccessUser.chambers.every(c => selectedChamberIds.includes(c.id))" 
+              <div v-if="selectedChamberIds.length !== (managingAccessUser.chambers?.length || 0) || 
+                         !managingAccessUser.chambers?.every(c => selectedChamberIds.includes(c.id))" 
                    class="text-sm text-orange-600 font-medium">
                 Несохраненные изменения
               </div>
@@ -683,7 +683,7 @@
                     />
                     <div class="ml-3">
                       <p class="text-sm font-medium text-gray-900">{{ userWithAccess.user.username }}</p>
-                      <p class="text-xs text-gray-500">{{ userWithAccess.chambers.length }} климатических камер</p>
+                      <p class="text-xs text-gray-500">{{ userWithAccess.chambers?.length || 0 }} климатических камер</p>
                     </div>
                   </label>
                 </div>
@@ -934,7 +934,7 @@ function formatUrl(url: string): string {
 
 function getUsersForChamber(chamberId: string): UserWithChamberAccess[] {
   return users.value.filter(userWithAccess => 
-    userWithAccess.chambers.some(chamber => chamber.id === chamberId)
+    userWithAccess.chambers?.some(chamber => chamber.id === chamberId) ?? false
   )
 }
 

@@ -39,7 +39,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		MongoURI:      getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		MongoDatabase: getEnv("MONGODB_DATABASE", "cbt_protocols_v2"),
-		Port:          getEnv("PORT", "8081"),
+		Port:          getEnv("PORT", "8080"),
 		GinMode:       getEnv("GIN_MODE", "debug"),
 		JWTSecret:     getEnv("JWT_SECRET", "default-secret-key"),
 		APIKey:        getEnv("API_KEY", ""),

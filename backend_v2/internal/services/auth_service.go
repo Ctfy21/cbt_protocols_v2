@@ -103,7 +103,7 @@ func (s *AuthService) Login(req *models.LoginRequest, userAgent, ip string) (*mo
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Find user by email
+	// Find user by username
 	var user models.User
 	err := s.db.UsersCollection.FindOne(ctx, bson.M{"username": req.Username}).Decode(&user)
 	if err != nil {
@@ -121,7 +121,7 @@ func (s *AuthService) Login(req *models.LoginRequest, userAgent, ip string) (*mo
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, fmt.Errorf("invalid username or password")
 	}
 
 	// Update last login
