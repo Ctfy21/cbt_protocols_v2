@@ -18,7 +18,7 @@ app.use(pinia)
 
 // Navigation guard
 // Navigation guard
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _, next) => {
   const authStore = useAuthStore()
   
   // Initialize auth store if not already done
