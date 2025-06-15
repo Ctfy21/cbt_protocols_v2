@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -35,6 +36,12 @@ type Config struct {
 	// Heartbeat configuration
 	HeartbeatInterval int
 
+	// NTP configuration
+	NTPEnabled      bool
+	NTPServers      []string
+	NTPSyncInterval time.Duration
+	NTPTimeout      time.Duration
+
 	// Logging
 	LogLevel string
 }
@@ -59,7 +66,14 @@ func Load() (*Config, error) {
 		LocalIP:            getEnv("LOCAL_IP", ""),
 		ChamberSuffixes:    parseChamberSuffixes(getEnv("CHAMBER_SUFFIXES", "room1,room2,room3,galo,sb4,oreol,sb1")),
 		HeartbeatInterval:  getEnvAsInt("HEARTBEAT_INTERVAL", 30),
-		LogLevel:           getEnv("LOG_LEVEL", "info"),
+
+		// NTP configuration
+		NTPEnabled:      getEnvAsBool("NTP_ENABLED", true),
+		NTPServers:      parseNTPServers(getEnv("NTP_SERVERS", "ru.pool.ntp.org,europe.pool.ntp.org,0.ru.pool.ntp.org,1.ru.pool.ntp.org,pool.ntp.org")),
+		NTPSyncInterval: getEnvAsDuration("NTP_SYNC_INTERVAL", "5m"),
+		NTPTimeout:      getEnvAsDuration("NTP_TIMEOUT", "5s"),
+
+		LogLevel: getEnv("LOG_LEVEL", "info"),
 	}
 
 	// Validate required configuration
@@ -76,6 +90,8 @@ func Load() (*Config, error) {
 	}
 
 	log.Printf("Configured chamber suffixes: %v", cfg.ChamberSuffixes)
+	log.Printf("NTP configuration: enabled=%v, servers=%v, sync_interval=%v",
+		cfg.NTPEnabled, cfg.NTPServers, cfg.NTPSyncInterval)
 
 	return cfg, nil
 }
@@ -94,6 +110,20 @@ func parseChamberSuffixes(suffixesStr string) []string {
 	return suffixes
 }
 
+// parseNTPServers parses comma-separated NTP servers
+func parseNTPServers(serversStr string) []string {
+	if serversStr == "" {
+		return []string{"pool.ntp.org"} // Default fallback
+	}
+
+	servers := strings.Split(serversStr, ",")
+	for i := range servers {
+		servers[i] = strings.TrimSpace(servers[i])
+	}
+
+	return servers
+}
+
 // getEnv gets an environment variable with a default value
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -110,6 +140,31 @@ func getEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getEnvAsBool gets an environment variable as boolean with a default value
+func getEnvAsBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
+}
+
+// getEnvAsDuration gets an environment variable as duration with a default value
+func getEnvAsDuration(key string, defaultValue string) time.Duration {
+	value := getEnv(key, defaultValue)
+	if duration, err := time.ParseDuration(value); err == nil {
+		return duration
+	}
+
+	// Fallback parsing for defaultValue
+	if duration, err := time.ParseDuration(defaultValue); err == nil {
+		return duration
+	}
+
+	return 5 * time.Minute // Ultimate fallback
 }
 
 // getLocalIP attempts to get the local IP address

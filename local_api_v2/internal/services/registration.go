@@ -16,22 +16,25 @@ import (
 	"local_api_v2/internal/config"
 	"local_api_v2/internal/database"
 	"local_api_v2/internal/models"
+	"local_api_v2/pkg/ntp"
 )
 
 // RegistrationService handles chamber registration with backend
 type RegistrationService struct {
 	config     *config.Config
 	db         *database.MongoDB
+	ntpService *ntp.TimeService
 	httpClient *http.Client
 	chamberID  primitive.ObjectID
 	backendID  primitive.ObjectID
 }
 
 // NewRegistrationService creates a new registration service
-func NewRegistrationService(cfg *config.Config, db *database.MongoDB) *RegistrationService {
+func NewRegistrationService(cfg *config.Config, db *database.MongoDB, ntpService *ntp.TimeService) *RegistrationService {
 	return &RegistrationService{
-		config: cfg,
-		db:     db,
+		config:     cfg,
+		db:         db,
+		ntpService: ntpService,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -50,6 +53,9 @@ type RegistrationRequest struct {
 	InputNumbers    []models.InputNumber  `json:"input_numbers"`
 	Lamps           []models.Lamp         `json:"lamps"`
 	WateringZones   []models.WateringZone `json:"watering_zones"`
+	NTPEnabled      bool                  `json:"ntp_enabled"`
+	NTPConnected    bool                  `json:"ntp_connected"`
+	CurrentTime     string                `json:"current_time"`
 }
 
 // RegisterWithBackend registers the chamber with the backend
@@ -64,6 +70,9 @@ func (s *RegistrationService) RegisterWithBackend(chamber *models.Chamber) error
 		InputNumbers:  chamber.InputNumbers,
 		Lamps:         chamber.Lamps,
 		WateringZones: chamber.WateringZones,
+		NTPEnabled:    s.ntpService.IsEnabled(),
+		NTPConnected:  s.ntpService.IsConnected(),
+		CurrentTime:   s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -129,12 +138,13 @@ func (s *RegistrationService) RegisterWithBackend(chamber *models.Chamber) error
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	now := s.ntpService.Now()
 	_, err = s.db.ChambersCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": chamber.ID},
 		bson.M{"$set": bson.M{
 			"backend_id": backendID,
-			"updated_at": time.Now(),
+			"updated_at": now,
 		}},
 	)
 	if err != nil {
@@ -180,11 +190,12 @@ func (s *RegistrationService) sendHeartbeat() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
+		now := s.ntpService.Now()
 		_, err := s.db.ChambersCollection.UpdateOne(
 			ctx,
 			bson.M{"_id": s.chamberID},
 			bson.M{"$set": bson.M{
-				"last_heartbeat": time.Now(),
+				"last_heartbeat": now,
 			}},
 		)
 		if err != nil {
@@ -197,13 +208,28 @@ func (s *RegistrationService) sendHeartbeat() error {
 		return fmt.Errorf("no backend ID set - chamber not registered")
 	}
 
+	// Prepare heartbeat payload with NTP status
+	heartbeatData := map[string]interface{}{
+		"timestamp":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"ntp_enabled":   s.ntpService.IsEnabled(),
+		"ntp_connected": s.ntpService.IsConnected(),
+		"ntp_offset":    s.ntpService.GetOffset().String(),
+	}
+
+	jsonData, err := json.Marshal(heartbeatData)
+	if err != nil {
+		log.Printf("Warning: Failed to marshal heartbeat data: %v", err)
+		jsonData = []byte("{}")
+	}
+
 	// Send heartbeat to backend
 	url := fmt.Sprintf("%s/chambers/%s/heartbeat", s.config.BackendURL, s.backendID.Hex())
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create heartbeat request: %v", err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	if s.config.BackendAPIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
 	}
@@ -248,6 +274,9 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 		InputNumbers:    roomChamber.InputNumbers,
 		Lamps:           roomChamber.Lamps,
 		WateringZones:   roomChamber.WateringZones,
+		NTPEnabled:      s.ntpService.IsEnabled(),
+		NTPConnected:    s.ntpService.IsConnected(),
+		CurrentTime:     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -312,12 +341,13 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	now := s.ntpService.Now()
 	_, err = s.db.Database.Collection("room_chambers").UpdateOne(
 		ctx,
 		bson.M{"_id": roomChamber.ID},
 		bson.M{"$set": bson.M{
 			"backend_id": backendID,
-			"updated_at": time.Now(),
+			"updated_at": now,
 		}},
 	)
 	if err != nil {
@@ -335,13 +365,29 @@ func (s *RegistrationService) SendRoomChamberHeartbeat(roomChamber *models.RoomC
 		return fmt.Errorf("no backend ID set for room chamber %s - not registered", roomChamber.Name)
 	}
 
+	// Prepare heartbeat payload with NTP status
+	heartbeatData := map[string]interface{}{
+		"timestamp":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"ntp_enabled":   s.ntpService.IsEnabled(),
+		"ntp_connected": s.ntpService.IsConnected(),
+		"ntp_offset":    s.ntpService.GetOffset().String(),
+		"room_suffix":   roomChamber.RoomSuffix,
+	}
+
+	jsonData, err := json.Marshal(heartbeatData)
+	if err != nil {
+		log.Printf("Warning: Failed to marshal room chamber heartbeat data: %v", err)
+		jsonData = []byte("{}")
+	}
+
 	// Send heartbeat to backend
 	url := fmt.Sprintf("%s/room-chambers/%s/heartbeat", s.config.BackendURL, roomChamber.BackendID.Hex())
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create heartbeat request: %v", err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	if s.config.BackendAPIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
 	}

@@ -15,21 +15,24 @@ import (
 	"local_api_v2/internal/config"
 	"local_api_v2/internal/database"
 	"local_api_v2/internal/models"
+	"local_api_v2/pkg/ntp"
 )
 
 // SyncService handles synchronization of experiments from backend
 type SyncService struct {
 	config     *config.Config
 	db         *database.MongoDB
+	ntpService *ntp.TimeService
 	httpClient *http.Client
 	backendID  primitive.ObjectID
 }
 
 // NewSyncService creates a new sync service
-func NewSyncService(cfg *config.Config, db *database.MongoDB) *SyncService {
+func NewSyncService(cfg *config.Config, db *database.MongoDB, ntpService *ntp.TimeService) *SyncService {
 	return &SyncService{
-		config: cfg,
-		db:     db,
+		config:     cfg,
+		db:         db,
+		ntpService: ntpService,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -84,6 +87,11 @@ func (s *SyncService) syncExperiments() error {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// Add NTP timing information to request headers
+	req.Header.Set("X-Local-Time", s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"))
+	req.Header.Set("X-NTP-Enabled", fmt.Sprintf("%t", s.ntpService.IsEnabled()))
+	req.Header.Set("X-NTP-Connected", fmt.Sprintf("%t", s.ntpService.IsConnected()))
+
 	if s.config.BackendAPIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
 	}
@@ -119,12 +127,14 @@ func (s *SyncService) syncExperiments() error {
 	defer cancel()
 
 	syncedCount := 0
+	now := s.ntpService.Now()
+
 	for _, experiment := range response.Data {
 		// Store backend ID
 		backendID := experiment.ID
 		experiment.BackendID = backendID
 		experiment.ID = primitive.ObjectID{} // Clear ID for local storage
-		experiment.SyncedAt = time.Now()
+		experiment.SyncedAt = now
 
 		// Check if experiment already exists
 		var existingExperiment models.Experiment
@@ -136,6 +146,7 @@ func (s *SyncService) syncExperiments() error {
 		if err == nil {
 			// Update existing experiment
 			experiment.ID = existingExperiment.ID
+			experiment.UpdatedAt = now
 			_, err = s.db.ExperimentsCollection.ReplaceOne(
 				ctx,
 				bson.M{"_id": existingExperiment.ID},
@@ -148,6 +159,8 @@ func (s *SyncService) syncExperiments() error {
 		} else {
 			// Insert new experiment
 			experiment.ID = primitive.NewObjectID()
+			experiment.CreatedAt = now
+			experiment.UpdatedAt = now
 			log.Printf("Inserting new experiment: %s", experiment.Title)
 			_, err = s.db.ExperimentsCollection.InsertOne(ctx, experiment)
 			if err != nil {
@@ -165,7 +178,14 @@ func (s *SyncService) syncExperiments() error {
 		}
 	}
 
-	log.Printf("📊 Synced %d experiments from backend", syncedCount)
+	log.Printf("📊 Synced %d experiments from backend (using %s time)",
+		syncedCount,
+		func() string {
+			if s.ntpService.IsConnected() {
+				return "NTP"
+			}
+			return "system"
+		}())
 	return nil
 }
 
@@ -191,13 +211,13 @@ func (s *SyncService) GetActiveExperiments() ([]models.Experiment, error) {
 	return experiments, nil
 }
 
-// isExperimentActive determines if an experiment should be active
+// isExperimentActive determines if an experiment should be active using NTP time
 func (s *SyncService) isExperimentActive(exp *models.Experiment) bool {
 	if exp.Status != "active" {
 		return false
 	}
 
-	now := time.Now()
+	now := s.ntpService.Now()
 
 	// Check if current time is within any schedule item
 	for _, scheduleItem := range exp.Schedule {
@@ -211,4 +231,18 @@ func (s *SyncService) isExperimentActive(exp *models.Experiment) bool {
 	}
 
 	return false
+}
+
+// GetSyncStatus returns sync service status information
+func (s *SyncService) GetSyncStatus() map[string]interface{} {
+	activeExperiments, _ := s.GetActiveExperiments()
+
+	return map[string]interface{}{
+		"backend_connected":  !s.backendID.IsZero(),
+		"backend_id":         s.backendID.Hex(),
+		"active_experiments": len(activeExperiments),
+		"last_sync_time":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"ntp_enabled":        s.ntpService.IsEnabled(),
+		"ntp_connected":      s.ntpService.IsConnected(),
+	}
 }

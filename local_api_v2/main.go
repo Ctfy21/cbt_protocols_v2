@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"local_api_v2/internal/models"
 	"local_api_v2/internal/services"
 	"local_api_v2/pkg/homeassistant"
+	"local_api_v2/pkg/ntp"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -33,6 +35,19 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Initialize NTP service
+	ntpService := ntp.NewTimeService(ntp.Config{
+		Enabled:      cfg.NTPEnabled,
+		Servers:      cfg.NTPServers,
+		Timeout:      cfg.NTPTimeout,
+		SyncInterval: cfg.NTPSyncInterval,
+	})
+
+	// Start NTP service
+	if err := ntpService.Start(ctx, cfg.NTPSyncInterval); err != nil {
+		log.Printf("Warning: Failed to start NTP service: %v", err)
+	}
+
 	// Initialize database
 	db, err := database.NewMongoDB(cfg.MongoDBURI, cfg.MongoDBDatabase)
 	if err != nil {
@@ -47,11 +62,11 @@ func main() {
 	// Initialize Home Assistant client
 	haClient := homeassistant.NewClient(cfg.HomeAssistantURL, cfg.HomeAssistantToken)
 
-	// Initialize services
+	// Initialize services with NTP time service
 	discoveryService := services.NewDiscoveryService(haClient)
-	chamberManager := services.NewChamberManager(cfg, db, discoveryService)
-	registrationService := services.NewRegistrationService(cfg, db)
-	syncService := services.NewSyncService(cfg, db)
+	chamberManager := services.NewChamberManager(cfg, db, discoveryService, ntpService)
+	registrationService := services.NewRegistrationService(cfg, db, ntpService)
+	syncService := services.NewSyncService(cfg, db, ntpService)
 
 	// Use WaitGroups and channels for proper synchronization
 	var (
@@ -98,7 +113,7 @@ func main() {
 				log.Printf("Services configured with parent chamber: %s", parentChamber.Name)
 
 				// Create executor service now that chamber is ready
-				executorService = services.NewExecutorService(db, haClient, parentChamber)
+				executorService = services.NewExecutorService(db, haClient, parentChamber, ntpService)
 				log.Println("Executor service created")
 
 				break
@@ -198,7 +213,7 @@ func main() {
 
 	// Start simple HTTP server for health checks
 	mux := http.NewServeMux()
-	setupRoutes(mux, db, chamberManager)
+	setupRoutes(mux, db, chamberManager, ntpService)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
@@ -223,6 +238,9 @@ func main() {
 
 	log.Println("Shutting down server...")
 
+	// Stop NTP service
+	ntpService.Stop()
+
 	// Stop executor service first
 	if executorService != nil {
 		log.Println("Stopping executor service...")
@@ -244,7 +262,7 @@ func main() {
 }
 
 // setupRoutes configures HTTP routes
-func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager) {
+func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager, ntpService *ntp.TimeService) {
 	// Health check endpoint
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -258,11 +276,48 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 			if !parentChamber.BackendID.IsZero() {
 				backendID = parentChamber.BackendID.Hex()
 			}
-			fmt.Fprintf(w, `{"status":"healthy","chamber_id":"%s","backend_id":"%s","name":"%s","room_chambers":%d}`,
-				parentChamber.ID.Hex(), backendID, parentChamber.Name, len(roomChambers))
+			fmt.Fprintf(w, `{"status":"healthy","chamber_id":"%s","backend_id":"%s","name":"%s","room_chambers":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
+				parentChamber.ID.Hex(), backendID, parentChamber.Name, len(roomChambers), ntpService.IsEnabled(), ntpService.IsConnected())
 		} else {
-			fmt.Fprintf(w, `{"status":"initializing"}`)
+			fmt.Fprintf(w, `{"status":"initializing","ntp_enabled":%t,"ntp_connected":%t}`,
+				ntpService.IsEnabled(), ntpService.IsConnected())
 		}
+	})
+
+	// NTP status endpoint
+	mux.HandleFunc("/api/v1/ntp/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		status := ntpService.GetStatus()
+		statusJSON, _ := json.Marshal(status)
+		w.Write(statusJSON)
+	})
+
+	// Time endpoint (returns current time from NTP or system)
+	mux.HandleFunc("/api/v1/time", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		currentTime := ntpService.Now()
+		moscowTime := ntpService.NowInMoscow()
+
+		fmt.Fprintf(w, `{"current_time":"%s","moscow_time":"%s","unix_timestamp":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
+			currentTime.Format("2006-01-02T15:04:05Z07:00"),
+			moscowTime.Format("2006-01-02T15:04:05Z07:00"),
+			ntpService.Unix(),
+			ntpService.IsEnabled(),
+			ntpService.IsConnected())
 	})
 
 	// Chamber info endpoint

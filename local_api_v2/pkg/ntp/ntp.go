@@ -1,6 +1,7 @@
 package ntp
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -9,7 +10,7 @@ import (
 	"github.com/beevik/ntp"
 )
 
-// TimeService provides NTP time synchronization
+// TimeService provides NTP time synchronization with Moscow timezone support
 type TimeService struct {
 	servers     []string
 	timeout     time.Duration
@@ -19,19 +20,96 @@ type TimeService struct {
 	lastSync    time.Time
 	mu          sync.RWMutex
 	isConnected bool
+	enabled     bool
+	stopChan    chan struct{}
+	moscowTZ    *time.Location
 }
 
-// NewTimeService creates a new NTP time service
-func NewTimeService() *TimeService {
-	return &TimeService{
-		servers: []string{
+// Config holds NTP service configuration
+type Config struct {
+	Enabled      bool
+	Servers      []string
+	Timeout      time.Duration
+	SyncInterval time.Duration
+}
+
+// NewTimeService creates a new NTP time service with configuration
+func NewTimeService(config Config) *TimeService {
+	servers := config.Servers
+	if len(servers) == 0 {
+		servers = []string{
 			"ru.pool.ntp.org",     // Russia NTP pool
 			"europe.pool.ntp.org", // Europe NTP pool
 			"0.ru.pool.ntp.org",   // Russia specific
 			"1.ru.pool.ntp.org",   // Russia specific
 			"pool.ntp.org",        // Global fallback
-		},
-		timeout: 5 * time.Second,
+		}
+	}
+
+	timeout := config.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
+	// Load Moscow timezone
+	moscowTZ, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Printf("Warning: Could not load Moscow timezone: %v", err)
+		moscowTZ = time.UTC
+	}
+
+	return &TimeService{
+		servers:  servers,
+		timeout:  timeout,
+		enabled:  config.Enabled,
+		stopChan: make(chan struct{}),
+		moscowTZ: moscowTZ,
+	}
+}
+
+// Start begins the NTP service with periodic synchronization
+func (ts *TimeService) Start(ctx context.Context, syncInterval time.Duration) error {
+	if !ts.enabled {
+		log.Println("NTP service disabled - using system time")
+		return nil
+	}
+
+	log.Printf("Starting NTP service with servers: %v", ts.servers)
+
+	// Initial sync
+	if err := ts.Sync(); err != nil {
+		log.Printf("Initial NTP sync failed: %v", err)
+		// Don't return error - continue with periodic attempts
+	}
+
+	// Start periodic sync in background
+	go func() {
+		ticker := time.NewTicker(syncInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("NTP service stopped by context")
+				return
+			case <-ts.stopChan:
+				log.Println("NTP service stopped")
+				return
+			case <-ticker.C:
+				if err := ts.Sync(); err != nil {
+					log.Printf("Periodic NTP sync failed: %v", err)
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+// Stop stops the NTP service
+func (ts *TimeService) Stop() {
+	if ts.stopChan != nil {
+		close(ts.stopChan)
 	}
 }
 
@@ -114,6 +192,12 @@ func (ts *TimeService) GetOffset() time.Duration {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 	return ts.offset
+}
+
+func (ts *TimeService) IsEnabled() bool {
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+	return ts.enabled
 }
 
 // StartPeriodicSync starts automatic NTP synchronization

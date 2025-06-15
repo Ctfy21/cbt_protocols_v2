@@ -10,6 +10,7 @@ import (
 	"local_api_v2/internal/database"
 	"local_api_v2/internal/models"
 	"local_api_v2/pkg/homeassistant"
+	"local_api_v2/pkg/ntp"
 
 	"github.com/robfig/cron/v3"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,16 +18,17 @@ import (
 
 // ExecutorService handles the execution of experiment phases
 type ExecutorService struct {
-	db        *database.MongoDB
-	haClient  *homeassistant.Client
-	cron      *cron.Cron
-	chamber   *models.Chamber
-	mu        sync.RWMutex
-	isRunning bool
+	db         *database.MongoDB
+	haClient   *homeassistant.Client
+	ntpService *ntp.TimeService
+	cron       *cron.Cron
+	chamber    *models.Chamber
+	mu         sync.RWMutex
+	isRunning  bool
 }
 
 // NewExecutorService creates a new executor service
-func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, chamber *models.Chamber) *ExecutorService {
+func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, chamber *models.Chamber, ntpService *ntp.TimeService) *ExecutorService {
 	if db == nil {
 		log.Printf("Error: Database is nil - cannot create executor service")
 		return nil
@@ -39,12 +41,17 @@ func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, ch
 		log.Printf("Error: Chamber is nil - cannot create executor service")
 		return nil
 	}
+	if ntpService == nil {
+		log.Printf("Error: NTP service is nil - cannot create executor service")
+		return nil
+	}
 
 	return &ExecutorService{
-		db:       db,
-		haClient: haClient,
-		cron:     cron.New(cron.WithLocation(time.Local)),
-		chamber:  chamber,
+		db:         db,
+		haClient:   haClient,
+		ntpService: ntpService,
+		cron:       cron.New(cron.WithLocation(time.Local)),
+		chamber:    chamber,
 	}
 }
 
@@ -75,6 +82,9 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 	if s.cron == nil {
 		return fmt.Errorf("cron scheduler is not initialized")
 	}
+	if s.ntpService == nil {
+		return fmt.Errorf("NTP service is not initialized")
+	}
 
 	// Add job to check and execute phases every minute
 	_, err := s.cron.AddFunc("* * * * *", func() {
@@ -99,7 +109,11 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 		}
 	}()
 
-	log.Println("Executor service started")
+	timeSource := "system"
+	if s.ntpService.IsConnected() {
+		timeSource = "NTP"
+	}
+	log.Printf("Executor service started (using %s time)", timeSource)
 	return nil
 }
 
@@ -193,16 +207,21 @@ func (s *ExecutorService) getActiveExperiments(ctx context.Context) ([]models.Ex
 	return experiments, nil
 }
 
-// processExperiment processes a single experiment
+// processExperiment processes a single experiment using NTP time
 func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Experiment) error {
-	// Determine current phase based on schedule
+	// Determine current phase based on schedule using NTP time
 	currentPhase, phaseIndex, currentDay := s.getCurrentPhaseWithDay(exp)
 	if currentPhase == nil {
 		log.Printf("No active phase found for experiment %s", exp.Title)
 		return nil
 	}
 
-	log.Printf("Executing phase %d (%s) for experiment %s, day %d", phaseIndex, currentPhase.Title, exp.Title, currentDay)
+	timeSource := "system"
+	if s.ntpService.IsConnected() {
+		timeSource = "NTP"
+	}
+	log.Printf("Executing phase %d (%s) for experiment %s, day %d (using %s time)",
+		phaseIndex, currentPhase.Title, exp.Title, currentDay, timeSource)
 
 	// Update the active phase index if changed
 	if exp.ActivePhaseIndex == nil || *exp.ActivePhaseIndex != phaseIndex {
@@ -216,9 +235,9 @@ func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Exp
 	return s.applyPhaseSettings(currentPhase, currentDay)
 }
 
-// getCurrentPhase determines which phase should be active based on the schedule
+// getCurrentPhase determines which phase should be active based on the schedule using NTP time
 func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*models.Phase, int, int) {
-	now := time.Now()
+	now := s.ntpService.Now()
 
 	for _, scheduleItem := range exp.Schedule {
 		// Parse schedule timestamps
@@ -272,8 +291,8 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 		errors = append(errors, fmt.Errorf("watering controls: %w", err))
 	}
 
-	// Update last executed time
-	now := time.Now()
+	// Update last executed time using NTP time
+	now := s.ntpService.Now()
 	phase.LastExecuted = &now
 
 	if len(errors) > 0 {
@@ -431,12 +450,13 @@ func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay 
 	return nil
 }
 
-// updateExperimentActivePhase updates the active phase index in the database
+// updateExperimentActivePhase updates the active phase index in the database using NTP time
 func (s *ExecutorService) updateExperimentActivePhase(ctx context.Context, exp *models.Experiment) error {
+	now := s.ntpService.Now()
 	update := bson.M{
 		"$set": bson.M{
 			"active_phase_index": exp.ActivePhaseIndex,
-			"updated_at":         time.Now(),
+			"updated_at":         now,
 		},
 	}
 
@@ -468,4 +488,19 @@ func getDaysAndTimestamps(startTimestamp, endTimestamp int64) []models.DayAndTim
 	}
 
 	return result
+}
+
+// GetStatus returns executor service status
+func (s *ExecutorService) GetStatus() map[string]interface{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return map[string]interface{}{
+		"running":       s.isRunning,
+		"chamber_id":    s.chamber.ID.Hex(),
+		"chamber_name":  s.chamber.Name,
+		"ntp_enabled":   s.ntpService.IsEnabled(),
+		"ntp_connected": s.ntpService.IsConnected(),
+		"current_time":  s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+	}
 }

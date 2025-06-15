@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,6 +13,7 @@ import (
 	"local_api_v2/internal/config"
 	"local_api_v2/internal/database"
 	"local_api_v2/internal/models"
+	"local_api_v2/pkg/ntp"
 )
 
 // ChamberManager управляет множественными chamber в зависимости от комнат
@@ -21,12 +21,13 @@ type ChamberManager struct {
 	config        *config.Config
 	db            *database.MongoDB
 	discovery     *DiscoveryService
+	ntpService    *ntp.TimeService
 	parentChamber *models.Chamber
 	roomChambers  map[string]*models.RoomChamber
 }
 
 // NewChamberManager создает новый менеджер chamber
-func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *DiscoveryService) *ChamberManager {
+func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *DiscoveryService, ntpService *ntp.TimeService) *ChamberManager {
 	// Устанавливаем chamber суффиксы в discovery service
 	discovery.SetChamberSuffixes(cfg.ChamberSuffixes)
 
@@ -34,6 +35,7 @@ func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *Disc
 		config:       cfg,
 		db:           db,
 		discovery:    discovery,
+		ntpService:   ntpService,
 		roomChambers: make(map[string]*models.RoomChamber),
 	}
 }
@@ -87,6 +89,7 @@ func (cm *ChamberManager) getOrCreateParentChamber(ctx context.Context) (*models
 
 	// Создаем новую chamber
 	log.Println("Creating new parent chamber...")
+	now := cm.ntpService.Now()
 	chamber = models.Chamber{
 		ID:               primitive.NewObjectID(),
 		Name:             cm.config.ChamberName,
@@ -95,8 +98,8 @@ func (cm *ChamberManager) getOrCreateParentChamber(ctx context.Context) (*models
 		InputNumbers:     []models.InputNumber{},
 		Lamps:            []models.Lamp{},
 		WateringZones:    []models.WateringZone{},
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	// Вставляем chamber в базу
@@ -136,7 +139,7 @@ func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuf
 		"room_suffix":       roomSuffix,
 	}).Decode(&roomChamber)
 
-	now := time.Now()
+	now := cm.ntpService.Now()
 
 	if err == mongo.ErrNoDocuments {
 		// Создаем новую room chamber
@@ -218,7 +221,7 @@ func (cm *ChamberManager) GetRoomChamber(roomSuffix string) *models.RoomChamber 
 
 // UpdateHeartbeat обновляет heartbeat для всех chambers
 func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
-	now := time.Now()
+	now := cm.ntpService.Now()
 
 	// Обновляем parent chamber
 	if cm.parentChamber != nil {
