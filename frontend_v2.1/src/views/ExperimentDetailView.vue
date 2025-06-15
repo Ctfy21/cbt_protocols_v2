@@ -164,7 +164,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { format } from 'date-fns'
 import { 
   ExclamationCircleIcon,
@@ -176,10 +176,10 @@ import { useExperimentStore } from '@/stores/experiment'
 import { useToastStore } from '@/stores/toast'
 import AppHeader from '@/components/AppHeader.vue'
 import ExperimentForm from '@/components/ExperimentForm.vue'
-import type { Phase } from '@/types'
+// import type { Phase } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
+// const router = useRouter()
 const chamberStore = useChamberStore()
 const experimentStore = useExperimentStore()
 const toastStore = useToastStore()

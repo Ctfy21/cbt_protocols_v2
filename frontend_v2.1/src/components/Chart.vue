@@ -208,11 +208,11 @@ const gridPoints = computed(() => {
 })
 
 // Sorted selected days for line drawing
-const sortedSelectedDays = computed(() => {
-  return Object.keys(selectedPoints.value)
-    .map(Number)
-    .sort((a, b) => a - b)
-})
+// const sortedSelectedDays = computed(() => {
+//   return Object.keys(selectedPoints.value)
+//     .map(Number)
+//     .sort((a, b) => a - b)
+// })
 
 
 function getYLabelStyle(temp: number) {

@@ -589,7 +589,7 @@
 import { ref, reactive, watch, onBeforeMount } from 'vue'
 import { TrashIcon, SunIcon, MoonIcon, LightBulbIcon, ClockIcon, BeakerIcon } from '@heroicons/vue/24/outline'
 import Chart from './Chart.vue'
-import type { Phase, Chamber, WateringZoneSchedule } from '@/types'
+import type { Phase, Chamber } from '@/types'
 
 interface Props {
   phase: Phase
@@ -765,7 +765,7 @@ function initializeValues() {
 
   // Initialize watering zones
   if (props.chamber.watering_zones && props.chamber.watering_zones.length > 0) {
-    props.chamber.watering_zones.forEach((zone, index) => {
+    props.chamber.watering_zones.forEach((_, index) => {
       const zoneKey = `zone_${index}`
       
       // Default schedules for watering zones
@@ -841,7 +841,7 @@ function initializeValues() {
 
   // Update watering zone schedules
   if (props.chamber.watering_zones && props.chamber.watering_zones.length > 0) {
-    props.chamber.watering_zones.forEach((zone, index) => {
+    props.chamber.watering_zones.forEach((_, index) => {
       const zoneKey = `zone_${index}`
       updateWateringZoneSchedule(zoneKey, 'start_time', wateringZoneSchedules[zoneKey].start_time_schedule)
       updateWateringZoneSchedule(zoneKey, 'period', wateringZoneSchedules[zoneKey].period_schedule)

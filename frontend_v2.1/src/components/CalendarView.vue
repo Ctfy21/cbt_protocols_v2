@@ -123,10 +123,10 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const emit = defineEmits<{
-  'create-experiment': [options: { defaultStartDate: Date }]
-  'edit-experiment': [experiment: Experiment]
-}>()
+// const emit = defineEmits<{
+//   'create-experiment': [options: { defaultStartDate: Date }]
+//   'edit-experiment': [experiment: Experiment]
+// }>()
 
 const currentMonth = ref(new Date())
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -215,7 +215,7 @@ function calculateEndDate(experiment: Experiment): Date | null {
   return end
 }
 
-function getEventColorClass(type: string, status: ExperimentStatus): string {
+function getEventColorClass(_: string, status: ExperimentStatus): string {
   const baseClasses = 'text-xs'
   
   switch (status) {

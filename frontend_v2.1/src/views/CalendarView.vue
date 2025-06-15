@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+// import { useRouter } from 'vue-router'
 import { useChamberStore } from '@/stores/chamber'
 import { useExperimentStore } from '@/stores/experiment'
 import { useToastStore } from '@/stores/toast'
@@ -39,7 +39,7 @@ import CalendarComponent from '@/components/CalendarView.vue'
 import ExperimentForm from '@/components/ExperimentForm.vue'
 import type { Experiment } from '@/types'
 
-const router = useRouter()
+// const router = useRouter()
 const chamberStore = useChamberStore()
 const experimentStore = useExperimentStore()
 const toastStore = useToastStore()
