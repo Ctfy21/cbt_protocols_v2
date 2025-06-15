@@ -38,16 +38,18 @@ func NewRegistrationService(cfg *config.Config, db *database.MongoDB) *Registrat
 	}
 }
 
-// RegistrationRequest represents the data sent to backend for registration
+// Update the RegistrationRequest struct to support room chambers:
 type RegistrationRequest struct {
-	Name          string                `json:"name"`
-	Location      string                `json:"location"`
-	HAUrl         string                `json:"ha_url"`
-	AccessToken   string                `json:"access_token"`
-	LocalIP       string                `json:"local_ip"`
-	InputNumbers  []models.InputNumber  `json:"input_numbers"`
-	Lamps         []models.Lamp         `json:"lamps"`
-	WateringZones []models.WateringZone `json:"watering_zones"`
+	Name            string                `json:"name"`
+	RoomSuffix      string                `json:"room_suffix,omitempty"`       // For room chambers
+	ParentChamberID string                `json:"parent_chamber_id,omitempty"` // For room chambers
+	Location        string                `json:"location"`
+	HAUrl           string                `json:"ha_url"`
+	AccessToken     string                `json:"access_token"`
+	LocalIP         string                `json:"local_ip"`
+	InputNumbers    []models.InputNumber  `json:"input_numbers"`
+	Lamps           []models.Lamp         `json:"lamps"`
+	WateringZones   []models.WateringZone `json:"watering_zones"`
 }
 
 // RegisterWithBackend registers the chamber with the backend
@@ -233,18 +235,19 @@ func (s *RegistrationService) SetBackendID(id primitive.ObjectID) {
 	log.Printf("Registration service: Backend ID set to %s", id.Hex())
 }
 
-// RegisterRoomChamberWithBackend registers a room chamber with the backend
 func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models.RoomChamber) error {
-	// Prepare registration request
+	// Prepare registration request for room chamber
 	req := RegistrationRequest{
-		Name:          roomChamber.Name,
-		Location:      fmt.Sprintf("Room: %s", roomChamber.RoomSuffix),
-		HAUrl:         roomChamber.HomeAssistantURL,
-		AccessToken:   s.config.HomeAssistantToken,
-		LocalIP:       roomChamber.LocalIP,
-		InputNumbers:  roomChamber.InputNumbers,
-		Lamps:         roomChamber.Lamps,
-		WateringZones: roomChamber.WateringZones,
+		Name:            roomChamber.Name,
+		RoomSuffix:      roomChamber.RoomSuffix,
+		ParentChamberID: roomChamber.ParentChamberID.Hex(),
+		Location:        fmt.Sprintf("Room: %s", roomChamber.RoomSuffix),
+		HAUrl:           roomChamber.HomeAssistantURL,
+		AccessToken:     s.config.HomeAssistantToken,
+		LocalIP:         roomChamber.LocalIP,
+		InputNumbers:    roomChamber.InputNumbers,
+		Lamps:           roomChamber.Lamps,
+		WateringZones:   roomChamber.WateringZones,
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -252,8 +255,8 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 		return fmt.Errorf("failed to marshal registration request: %v", err)
 	}
 
-	// Send registration request to backend
-	url := fmt.Sprintf("%s/chambers", s.config.BackendURL)
+	// Send registration request to backend room-chambers endpoint
+	url := fmt.Sprintf("%s/room-chambers", s.config.BackendURL)
 	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -279,7 +282,7 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 		return fmt.Errorf("backend returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse response to get backend chamber ID
+	// Parse response to get backend room chamber ID
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
@@ -323,4 +326,79 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 
 	log.Printf("✅ Successfully registered room chamber '%s' with backend. Backend ID: %s", roomChamber.Name, backendID.Hex())
 	return nil
+}
+
+// SendRoomChamberHeartbeat sends a heartbeat for a specific room chamber
+func (s *RegistrationService) SendRoomChamberHeartbeat(roomChamber *models.RoomChamber) error {
+	// Skip backend heartbeat if not registered yet
+	if roomChamber.BackendID.IsZero() {
+		return fmt.Errorf("no backend ID set for room chamber %s - not registered", roomChamber.Name)
+	}
+
+	// Send heartbeat to backend
+	url := fmt.Sprintf("%s/room-chambers/%s/heartbeat", s.config.BackendURL, roomChamber.BackendID.Hex())
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create heartbeat request: %v", err)
+	}
+
+	if s.config.BackendAPIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send heartbeat: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("heartbeat failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("💓 Room chamber '%s' heartbeat sent successfully", roomChamber.Name)
+	return nil
+}
+
+// Enhanced heartbeat service to handle room chambers
+func (s *RegistrationService) StartEnhancedHeartbeat(ctx context.Context, chamberManager *ChamberManager) {
+	ticker := time.NewTicker(time.Duration(s.config.HeartbeatInterval) * time.Second)
+	defer ticker.Stop()
+
+	// Send initial heartbeat
+	s.sendEnhancedHeartbeat(chamberManager)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Enhanced heartbeat service stopped")
+			return
+		case <-ticker.C:
+			s.sendEnhancedHeartbeat(chamberManager)
+		}
+	}
+}
+
+func (s *RegistrationService) sendEnhancedHeartbeat(chamberManager *ChamberManager) {
+	// Send heartbeat for parent chamber
+	if err := s.sendHeartbeat(); err != nil {
+		if s.backendID.IsZero() {
+			log.Printf("⚠️  Parent chamber heartbeat skipped: Chamber not registered with backend yet")
+		} else {
+			log.Printf("❌ Failed to send parent chamber heartbeat: %v", err)
+		}
+	}
+
+	// Send heartbeats for all room chambers
+	roomChambers := chamberManager.GetRoomChambers()
+	for roomSuffix, roomChamber := range roomChambers {
+		if err := s.SendRoomChamberHeartbeat(roomChamber); err != nil {
+			if roomChamber.BackendID.IsZero() {
+				log.Printf("⚠️  Room chamber '%s' heartbeat skipped: Not registered with backend yet", roomSuffix)
+			} else {
+				log.Printf("❌ Failed to send room chamber '%s' heartbeat: %v", roomSuffix, err)
+			}
+		}
+	}
 }

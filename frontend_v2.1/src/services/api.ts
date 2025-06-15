@@ -252,6 +252,11 @@ class ApiService {
     return response.data
   }
 
+  async getMyRoomChambers(): Promise<ApiResponse<Chamber[]>> {
+    const response = await this.api.get('/me/room-chambers')
+    return response.data
+  }
+
   // Helper methods
   formatError(error: any): string {
     if (error.response?.data?.error) {

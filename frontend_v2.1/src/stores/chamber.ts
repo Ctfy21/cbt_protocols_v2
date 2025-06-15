@@ -1,3 +1,4 @@
+
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Chamber } from '@/types'
@@ -34,9 +35,9 @@ export const useChamberStore = defineStore('chamber', () => {
           chambers.value = response.data
         }
       } else {
-        // For regular users, fetch only chambers they have access to
+        // For regular users, fetch only room chambers they have access to
         if (authStore.user?.id) {
-          const response = await api.getMyChamberAccess()
+          const response = await api.getMyRoomChambers()
           if (response.success && response.data) {
             chambers.value = response.data
           }
@@ -120,4 +121,4 @@ export const useChamberStore = defineStore('chamber', () => {
     selectChamber,
     loadSelectedChamber
   }
-}) 
+})

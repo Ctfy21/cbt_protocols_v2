@@ -46,19 +46,22 @@ func main() {
 
 	log.Println("✅ Connected to MongoDB")
 
-	// Initialize services
 	chamberService := services.NewChamberService(db, cfg)
+	roomChamberService := services.NewRoomChamberService(db, cfg) // New service
 	experimentService := services.NewExperimentService(db)
 	authService := services.NewAuthService(db, cfg)
 	apiTokenService := services.NewAPITokenService(db)
 	userChamberAccessService := services.NewUserChamberAccessService(db)
+	userRoomChamberAccessService := services.NewUserRoomChamberAccessService(db) // New service
 
 	// Initialize handlers
 	chamberHandler := handlers.NewChamberHandler(chamberService)
+	roomChamberHandler := handlers.NewRoomChamberHandler(roomChamberService) // New handler
 	experimentHandler := handlers.NewExperimentHandler(experimentService)
 	authHandler := handlers.NewAuthHandler(authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenService)
 	userChamberAccessHandler := handlers.NewUserChamberAccessHandler(userChamberAccessService)
+	userRoomChamberAccessHandler := handlers.NewUserRoomChamberAccessHandler(userRoomChamberAccessService) // New handler
 	userHandler := handlers.NewUserManagementHandler(authService)
 
 	// Set Gin mode
@@ -80,7 +83,7 @@ func main() {
 	}))
 
 	// Setup API routes
-	setupAPIRoutes(router, chamberHandler, experimentHandler, authHandler, apiTokenHandler, userChamberAccessHandler, userHandler, apiTokenService, authService)
+	setupAPIRoutes(router, chamberHandler, roomChamberHandler, experimentHandler, authHandler, apiTokenHandler, userChamberAccessHandler, userRoomChamberAccessHandler, userHandler, apiTokenService, authService)
 
 	// Setup frontend routes
 	setupFrontendRoutes(router)
@@ -132,10 +135,12 @@ func main() {
 func setupAPIRoutes(
 	router *gin.Engine,
 	chamberHandler *handlers.ChamberHandler,
+	roomChamberHandler *handlers.RoomChamberHandler, // New parameter
 	experimentHandler *handlers.ExperimentHandler,
 	authHandler *handlers.AuthHandler,
 	apiTokenHandler *handlers.APITokenHandler,
 	userChamberAccessHandler *handlers.UserChamberAccessHandler,
+	userRoomChamberAccessHandler *handlers.UserRoomChamberAccessHandler, // New parameter
 	userHandler *handlers.UserManagementHandler,
 	apiTokenService *services.APITokenService,
 	authService *services.AuthService,
@@ -156,6 +161,13 @@ func setupAPIRoutes(
 
 	api.Use(middleware.AuthMiddleware(authService, apiTokenService))
 	{
+
+		// Room Chamber routes
+		api.POST("/room-chambers", roomChamberHandler.RegisterRoomChamber)
+		api.POST("/room-chambers/:id/heartbeat", roomChamberHandler.Heartbeat)
+		api.GET("/room-chambers/:id", roomChamberHandler.GetRoomChamber)
+		api.GET("/room-chambers", roomChamberHandler.GetRoomChambers)
+		api.GET("/room-chambers/:id/watering-zones", roomChamberHandler.GetRoomChamberWateringZones)
 		// Auth routes
 		api.POST("/auth/refresh", authHandler.RefreshToken)
 		api.POST("/auth/logout", authHandler.Logout)
@@ -201,10 +213,39 @@ func setupAPIRoutes(
 			adminRoutes.POST("/users/:id/chambers/:chamber_id", userChamberAccessHandler.GrantChamberAccess)
 			adminRoutes.DELETE("/users/:id/chambers/:chamber_id", userChamberAccessHandler.RevokeChamberAccess)
 			adminRoutes.GET("/users/:id/chambers/:chamber_id/check", userChamberAccessHandler.HasChamberAccess)
+
+			// User room chamber access management
+			adminRoutes.GET("/users/room-chambers", userRoomChamberAccessHandler.GetAllUsersWithRoomChamberAccess)
+			adminRoutes.PUT("/users/:id/room-chambers", userRoomChamberAccessHandler.SetUserRoomChamberAccess)
+			adminRoutes.GET("/users/:id/room-chambers", userRoomChamberAccessHandler.GetUserRoomChamberAccess)
+			adminRoutes.POST("/users/:id/room-chambers/:room_chamber_id", userRoomChamberAccessHandler.GrantRoomChamberAccess)
+			adminRoutes.DELETE("/users/:id/room-chambers/:room_chamber_id", userRoomChamberAccessHandler.RevokeRoomChamberAccess)
+			adminRoutes.GET("/users/:id/room-chambers/:room_chamber_id/check", userRoomChamberAccessHandler.HasRoomChamberAccess)
 		}
 
 		// User's own chamber access (non-admin users can check their own access)
+		// User's own chamber access (non-admin users can check their own access)
 		api.GET("/me/chambers", func(c *gin.Context) {
+			// Get user from context
+			userInterface, exists := c.Get("user")
+			if !exists {
+				c.JSON(http.StatusUnauthorized, models.ErrorResponse("User not found"))
+				return
+			}
+
+			user, ok := userInterface.(*models.User)
+			if !ok {
+				c.JSON(http.StatusInternalServerError, models.ErrorResponse("Invalid user data"))
+				return
+			}
+
+			// Use the user chamber access handler but with current user's ID
+			c.Params = gin.Params{{Key: "id", Value: user.ID.Hex()}}
+			userChamberAccessHandler.GetUserChamberAccess(c)
+		})
+
+		// User's own room chambers access
+		api.GET("/me/room-chambers", func(c *gin.Context) {
 			// Get user from context
 			userInterface, exists := c.Get("user")
 			if !exists {
