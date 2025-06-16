@@ -89,7 +89,7 @@ func (cm *ChamberManager) getOrCreateParentChamber(ctx context.Context) (*models
 
 	// Создаем новую chamber
 	log.Println("Creating new parent chamber...")
-	now := cm.ntpService.Now()
+	now := cm.ntpService.NowInMoscow()
 	chamber = models.Chamber{
 		ID:               primitive.NewObjectID(),
 		Name:             cm.config.ChamberName,
@@ -127,6 +127,8 @@ func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuf
 			roomChamberName = fmt.Sprintf("%s_Oreol", cm.config.ChamberName)
 		case "sb1":
 			roomChamberName = fmt.Sprintf("%s_SB1", cm.config.ChamberName)
+		case "midi":
+			roomChamberName = fmt.Sprintf("%s_MIDI", cm.config.ChamberName)
 		default:
 			roomChamberName = fmt.Sprintf("%s_%s", cm.config.ChamberName, strings.ToUpper(roomSuffix))
 		}
@@ -139,7 +141,7 @@ func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuf
 		"room_suffix":       roomSuffix,
 	}).Decode(&roomChamber)
 
-	now := cm.ntpService.Now()
+	now := cm.ntpService.NowInMoscow()
 
 	if err == mongo.ErrNoDocuments {
 		// Создаем новую room chamber
@@ -221,7 +223,7 @@ func (cm *ChamberManager) GetRoomChamber(roomSuffix string) *models.RoomChamber 
 
 // UpdateHeartbeat обновляет heartbeat для всех chambers
 func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
-	now := cm.ntpService.Now()
+	now := cm.ntpService.NowInMoscow()
 
 	// Обновляем parent chamber
 	if cm.parentChamber != nil {
@@ -263,12 +265,10 @@ func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
 // RegisterRoomChambersWithBackend регистрирует все room chambers с бэкендом
 func (cm *ChamberManager) RegisterRoomChambersWithBackend(registrationService *RegistrationService) error {
 	for roomSuffix, roomChamber := range cm.roomChambers {
-		if roomChamber.BackendID.IsZero() {
-			log.Printf("Registering room chamber '%s' with backend...", roomSuffix)
-			if err := registrationService.RegisterRoomChamberWithBackend(roomChamber); err != nil {
-				log.Printf("Warning: Failed to register room chamber '%s': %v", roomSuffix, err)
-				continue
-			}
+		log.Printf("Registering room chamber '%s' with backend...", roomSuffix)
+		if err := registrationService.RegisterRoomChamberWithBackend(roomChamber); err != nil {
+			log.Printf("Warning: Failed to register room chamber '%s': %v", roomSuffix, err)
+			continue
 		}
 	}
 	return nil

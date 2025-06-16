@@ -88,7 +88,7 @@ func (s *SyncService) syncExperiments() error {
 	}
 
 	// Add NTP timing information to request headers
-	req.Header.Set("X-Local-Time", s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"))
+	req.Header.Set("X-Local-Time", s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"))
 	req.Header.Set("X-NTP-Enabled", fmt.Sprintf("%t", s.ntpService.IsEnabled()))
 	req.Header.Set("X-NTP-Connected", fmt.Sprintf("%t", s.ntpService.IsConnected()))
 
@@ -127,7 +127,7 @@ func (s *SyncService) syncExperiments() error {
 	defer cancel()
 
 	syncedCount := 0
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 
 	for _, experiment := range response.Data {
 		// Store backend ID
@@ -217,7 +217,7 @@ func (s *SyncService) isExperimentActive(exp *models.Experiment) bool {
 		return false
 	}
 
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 
 	// Check if current time is within any schedule item
 	for _, scheduleItem := range exp.Schedule {
@@ -236,12 +236,13 @@ func (s *SyncService) isExperimentActive(exp *models.Experiment) bool {
 // GetSyncStatus returns sync service status information
 func (s *SyncService) GetSyncStatus() map[string]interface{} {
 	activeExperiments, _ := s.GetActiveExperiments()
+	now := s.ntpService.NowInMoscow()
 
 	return map[string]interface{}{
 		"backend_connected":  !s.backendID.IsZero(),
 		"backend_id":         s.backendID.Hex(),
 		"active_experiments": len(activeExperiments),
-		"last_sync_time":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"last_sync_time":     now.Format("2006-01-02T15:04:05Z07:00"),
 		"ntp_enabled":        s.ntpService.IsEnabled(),
 		"ntp_connected":      s.ntpService.IsConnected(),
 	}

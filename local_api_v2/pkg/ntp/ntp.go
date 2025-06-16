@@ -136,7 +136,7 @@ func (ts *TimeService) Sync() error {
 		ts.isConnected = true
 		ts.mu.Unlock()
 
-		log.Printf("✅ NTP synced with %s (offset: %v)", server, response.ClockOffset)
+		log.Printf("✅ NTP synced with %s (offset: %v) Local time: %v", server, response.ClockOffset, ts.localTime)
 		return nil
 	}
 
@@ -166,13 +166,7 @@ func (ts *TimeService) Now() time.Time {
 func (ts *TimeService) NowInMoscow() time.Time {
 	currentTime := ts.Now()
 
-	moscowTZ, err := time.LoadLocation("Europe/Moscow")
-	if err != nil {
-		log.Printf("Warning: Could not load Moscow timezone: %v", err)
-		return currentTime
-	}
-
-	return currentTime.In(moscowTZ)
+	return currentTime.Add(3 * time.Hour)
 }
 
 // Unix returns Unix timestamp using NTP time

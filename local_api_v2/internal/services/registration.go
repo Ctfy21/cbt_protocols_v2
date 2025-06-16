@@ -72,7 +72,7 @@ func (s *RegistrationService) RegisterWithBackend(chamber *models.Chamber) error
 		WateringZones: chamber.WateringZones,
 		NTPEnabled:    s.ntpService.IsEnabled(),
 		NTPConnected:  s.ntpService.IsConnected(),
-		CurrentTime:   s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		CurrentTime:   s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -138,7 +138,7 @@ func (s *RegistrationService) RegisterWithBackend(chamber *models.Chamber) error
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 	_, err = s.db.ChambersCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": chamber.ID},
@@ -190,7 +190,7 @@ func (s *RegistrationService) sendHeartbeat() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		now := s.ntpService.Now()
+		now := s.ntpService.NowInMoscow()
 		_, err := s.db.ChambersCollection.UpdateOne(
 			ctx,
 			bson.M{"_id": s.chamberID},
@@ -210,7 +210,7 @@ func (s *RegistrationService) sendHeartbeat() error {
 
 	// Prepare heartbeat payload with NTP status
 	heartbeatData := map[string]interface{}{
-		"timestamp":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"timestamp":     s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
 		"ntp_enabled":   s.ntpService.IsEnabled(),
 		"ntp_connected": s.ntpService.IsConnected(),
 		"ntp_offset":    s.ntpService.GetOffset().String(),
@@ -264,19 +264,15 @@ func (s *RegistrationService) SetBackendID(id primitive.ObjectID) {
 func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models.RoomChamber) error {
 	// Prepare registration request for room chamber
 	req := RegistrationRequest{
-		Name:            roomChamber.Name,
-		RoomSuffix:      roomChamber.RoomSuffix,
-		ParentChamberID: roomChamber.ParentChamberID.Hex(),
-		Location:        fmt.Sprintf("Room: %s", roomChamber.RoomSuffix),
-		HAUrl:           roomChamber.HomeAssistantURL,
-		AccessToken:     s.config.HomeAssistantToken,
-		LocalIP:         roomChamber.LocalIP,
-		InputNumbers:    roomChamber.InputNumbers,
-		Lamps:           roomChamber.Lamps,
-		WateringZones:   roomChamber.WateringZones,
-		NTPEnabled:      s.ntpService.IsEnabled(),
-		NTPConnected:    s.ntpService.IsConnected(),
-		CurrentTime:     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Name:          roomChamber.Name,
+		Location:      fmt.Sprintf("Room: %s", roomChamber.RoomSuffix),
+		HAUrl:         roomChamber.HomeAssistantURL,
+		AccessToken:   s.config.HomeAssistantToken,
+		LocalIP:       roomChamber.LocalIP,
+		InputNumbers:  roomChamber.InputNumbers,
+		Lamps:         roomChamber.Lamps,
+		WateringZones: roomChamber.WateringZones,
+		CurrentTime:   s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -285,7 +281,7 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 	}
 
 	// Send registration request to backend room-chambers endpoint
-	url := fmt.Sprintf("%s/room-chambers", s.config.BackendURL)
+	url := fmt.Sprintf("%s/chambers", s.config.BackendURL)
 	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -341,7 +337,7 @@ func (s *RegistrationService) RegisterRoomChamberWithBackend(roomChamber *models
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	now := s.ntpService.Now()
+	now := s.ntpService.NowInMoscow()
 	_, err = s.db.Database.Collection("room_chambers").UpdateOne(
 		ctx,
 		bson.M{"_id": roomChamber.ID},
@@ -367,7 +363,7 @@ func (s *RegistrationService) SendRoomChamberHeartbeat(roomChamber *models.RoomC
 
 	// Prepare heartbeat payload with NTP status
 	heartbeatData := map[string]interface{}{
-		"timestamp":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
+		"timestamp":     s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
 		"ntp_enabled":   s.ntpService.IsEnabled(),
 		"ntp_connected": s.ntpService.IsConnected(),
 		"ntp_offset":    s.ntpService.GetOffset().String(),
