@@ -296,3 +296,163 @@ type RegisterChamberRequest struct {
 	Lamps         []models.Lamp         `json:"lamps"`
 	WateringZones []models.WateringZone `json:"watering_zones"`
 }
+
+// UpdateChamberConfigRequest represents the request to update chamber configuration
+type UpdateChamberConfigRequest struct {
+	DayDuration    map[string]float64            `json:"day_duration"`
+	DayStart       map[string]float64            `json:"day_start"`
+	Temperature    map[string]map[string]float64 `json:"temperature"`
+	Humidity       map[string]map[string]float64 `json:"humidity"`
+	CO2            map[string]map[string]float64 `json:"co2"`
+	LightIntensity map[string]float64            `json:"light_intensity"`
+	WateringZones  map[string]map[string]float64 `json:"watering_zones"`
+}
+
+// UpdateChamberConfig updates the configuration for a chamber
+func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChamberConfigRequest) (*models.ChamberConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(chamberID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chamber ID: %v", err)
+	}
+
+	// Get the chamber to ensure it exists
+	var chamber models.Chamber
+	err = s.db.ChambersCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&chamber)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("chamber not found")
+		}
+		return nil, fmt.Errorf("failed to get chamber: %v", err)
+	}
+
+	// Initialize config if it doesn't exist
+	chamber.InitializeConfig()
+
+	// Update configuration fields
+	now := time.Now()
+	if req.DayDuration != nil {
+		chamber.Config.DayDuration = req.DayDuration
+	}
+	if req.DayStart != nil {
+		chamber.Config.DayStart = req.DayStart
+	}
+	if req.Temperature != nil {
+		chamber.Config.Temperature = req.Temperature
+	}
+	if req.Humidity != nil {
+		chamber.Config.Humidity = req.Humidity
+	}
+	if req.CO2 != nil {
+		chamber.Config.CO2 = req.CO2
+	}
+	if req.LightIntensity != nil {
+		chamber.Config.LightIntensity = req.LightIntensity
+	}
+	if req.WateringZones != nil {
+		chamber.Config.WateringZones = req.WateringZones
+	}
+	chamber.Config.UpdatedAt = now
+
+	// Update the chamber in database
+	update := bson.M{
+		"$set": bson.M{
+			"config":     chamber.Config,
+			"updated_at": now,
+		},
+	}
+
+	_, err = s.db.ChambersCollection.UpdateByID(ctx, objectID, update)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update chamber config: %v", err)
+	}
+
+	log.Printf("Chamber config updated: %s (%s)", chamber.Name, chamber.ID.Hex())
+
+	return chamber.Config, nil
+}
+
+// GetChamberConfig retrieves the configuration for a chamber
+func (s *ChamberService) GetChamberConfig(chamberID string) (*models.ChamberConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(chamberID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chamber ID: %v", err)
+	}
+
+	var chamber models.Chamber
+	err = s.db.ChambersCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&chamber)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("chamber not found")
+		}
+		return nil, fmt.Errorf("failed to get chamber: %v", err)
+	}
+
+	// Initialize config if it doesn't exist
+	if chamber.Config == nil {
+		chamber.InitializeConfig()
+
+		// Save the initialized config
+		update := bson.M{
+			"$set": bson.M{
+				"config":     chamber.Config,
+				"updated_at": time.Now(),
+			},
+		}
+		_, err = s.db.ChambersCollection.UpdateByID(ctx, objectID, update)
+		if err != nil {
+			log.Printf("Failed to save initialized config: %v", err)
+		}
+	}
+
+	return chamber.Config, nil
+}
+
+// GetChambersWithUpdatedConfigs retrieves all chambers that have updated configurations since the given timestamp
+func (s *ChamberService) GetChambersWithUpdatedConfigs(since time.Time) ([]models.Chamber, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"config.updated_at": bson.M{"$gt": since},
+	}
+
+	opts := options.Find().SetSort(bson.D{primitive.E{Key: "config.updated_at", Value: -1}})
+	cursor, err := s.db.ChambersCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chambers with updated configs: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var chambers []models.Chamber
+	if err = cursor.All(ctx, &chambers); err != nil {
+		return nil, fmt.Errorf("failed to decode chambers: %v", err)
+	}
+
+	return chambers, nil
+}
+
+// MarkConfigSynced marks the configuration as synced for a chamber
+func (s *ChamberService) MarkConfigSynced(chamberID primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	now := time.Now()
+	update := bson.M{
+		"$set": bson.M{
+			"config.synced_at": now,
+		},
+	}
+
+	_, err := s.db.ChambersCollection.UpdateByID(ctx, chamberID, update)
+	if err != nil {
+		return fmt.Errorf("failed to mark config as synced: %v", err)
+	}
+
+	return nil
+}

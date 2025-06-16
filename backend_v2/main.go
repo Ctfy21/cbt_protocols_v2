@@ -186,6 +186,8 @@ func setupAPIRoutes(
 		api.GET("/chambers/:id", chamberHandler.GetChamber)
 		api.GET("/chambers", chamberHandler.GetChambers)
 		api.GET("/chambers/:id/watering-zones", chamberHandler.GetChamberWateringZones)
+		api.PUT("/chambers/:id/config", chamberHandler.UpdateChamberConfig)
+		api.GET("/chambers/:id/config", chamberHandler.GetChamberConfig)
 
 		// Experiment routes
 		api.GET("/experiments/:id", experimentHandler.GetExperiment)

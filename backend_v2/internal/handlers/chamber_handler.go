@@ -105,3 +105,35 @@ func (h *ChamberHandler) GetChamberWateringZones(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.SuccessResponse(response))
 }
+
+// UpdateChamberConfig handles PUT /chambers/:id/config
+func (h *ChamberHandler) UpdateChamberConfig(c *gin.Context) {
+	chamberID := c.Param("id")
+
+	var req services.UpdateChamberConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	config, err := h.chamberService.UpdateChamberConfig(chamberID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(config))
+}
+
+// GetChamberConfig handles GET /chambers/:id/config
+func (h *ChamberHandler) GetChamberConfig(c *gin.Context) {
+	chamberID := c.Param("id")
+
+	config, err := h.chamberService.GetChamberConfig(chamberID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(config))
+}

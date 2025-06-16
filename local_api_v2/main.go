@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -285,19 +284,19 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 	})
 
 	// NTP status endpoint
-	mux.HandleFunc("/api/v1/ntp/status", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
+	// mux.HandleFunc("/api/v1/ntp/status", func(w http.ResponseWriter, r *http.Request) {
+	// 	if r.Method != http.MethodGet {
+	// 		w.WriteHeader(http.StatusMethodNotAllowed)
+	// 		return
+	// 	}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.WriteHeader(http.StatusOK)
 
-		status := ntpService.GetStatus()
-		statusJSON, _ := json.Marshal(status)
-		w.Write(statusJSON)
-	})
+	// 	status := ntpService.GetStatus()
+	// 	statusJSON, _ := json.Marshal(status)
+	// 	w.Write(statusJSON)
+	// })
 
 	// Time endpoint (returns current time from NTP or system)
 	mux.HandleFunc("/api/v1/time", func(w http.ResponseWriter, r *http.Request) {
