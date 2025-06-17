@@ -14,30 +14,30 @@ services:
     networks:
       - local_api_network
 
-  # local_api_v2:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: local_api_v2
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - mongodb
-  #   environment:
-  #     - PORT=8090
-  #     - HA_URL=${HA_URL}
-  #     - HA_TOKEN=${HA_TOKEN}
-  #     - MONGODB_URI=mongodb://mongodb:27017
-  #     - MONGODB_DATABASE=local_api_v2
-  #     - BACKEND_URL=${BACKEND_URL}
-  #     - BACKEND_API_KEY=${BACKEND_API_KEY}
-  #     - CHAMBER_NAME=${CHAMBER_NAME:-Climate Chamber}
-  #     - LOCAL_IP=${LOCAL_IP}
-  #     - HEARTBEAT_INTERVAL=30
-  #     - LOG_LEVEL=info
-  #   ports:
-  #     - "8090:8090"
-  #   networks:
-  #     - local_api_network
+  local_api_v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local_api_v2
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      - PORT=8090
+      - HA_URL=${HA_URL}
+      - HA_TOKEN=${HA_TOKEN}
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=local_api_v2
+      - BACKEND_URL=${BACKEND_URL}
+      - BACKEND_API_KEY=${BACKEND_API_KEY}
+      - CHAMBER_NAME=${CHAMBER_NAME:-Climate Chamber}
+      - LOCAL_IP=${LOCAL_IP}
+      - HEARTBEAT_INTERVAL=30
+      - LOG_LEVEL=info
+    ports:
+      - "8090:8090"
+    networks:
+      - local_api_network
 
 volumes:
   mongodb_data:

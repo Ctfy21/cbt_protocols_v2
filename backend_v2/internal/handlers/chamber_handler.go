@@ -66,9 +66,9 @@ func (h *ChamberHandler) GetChamberWateringZones(c *gin.Context) {
 		zoneSettings := make(map[string]float64)
 
 		// Get settings for this zone from WateringSettings map
-		if settings, exists := chamber.Config.WateringSettings[zone.Name]; exists {
-			zoneSettings = settings
-		}
+		// if settings, exists := chamber.Config.WateringSettings[zone.Name]; exists {
+		// 	zoneSettings = settings
+		// }
 
 		response = append(response, WateringZoneResponse{
 			Zone:     zone,

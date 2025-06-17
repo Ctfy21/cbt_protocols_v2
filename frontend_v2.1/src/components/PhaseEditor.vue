@@ -360,12 +360,12 @@
       </div>
 
       <!-- Lamp Intensity Charts -->
-      <div v-if="chamber.lamps && chamber.lamps.length > 0" class="space-y-4">
+      <div v-if="chamber.config?.lamps && chamber.config?.lamps.length > 0" class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <LightBulbIcon class="w-6 h-6 text-yellow-400" />
           <span>График интенсивности ламп</span>
         </div>
-        <div v-for="lamp in chamber.lamps" :key="lamp.entity_id" class="space-y-2">
+        <div v-for="lamp in chamber.config?.lamps" :key="lamp.entity_id" class="space-y-2">
           <div class="flex items-center justify-between">
             <h4 class="text-md font-medium text-gray-700">{{ lamp.name }} График интенсивности</h4>
             <button
@@ -407,13 +407,13 @@
       </div>
 
       <!-- Watering Zones -->
-      <div v-if="chamber.watering_zones && chamber.watering_zones.length > 0" class="space-y-4">
+      <div v-if="chamber.config?.watering_zones && chamber.config?.watering_zones.length > 0" class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <BeakerIcon class="w-6 h-6 text-blue-500" />
           <span>Зоны полива</span>
         </div>
         
-        <div v-for="(zone, index) in chamber.watering_zones" :key="`zone-${index}`" class="border border-gray-200 rounded-lg p-4 space-y-4">
+        <div v-for="(zone, index) in chamber.config?.watering_zones" :key="`zone-${index}`" class="border border-gray-200 rounded-lg p-4 space-y-4">
           <h5 class="text-lg font-medium text-gray-900">{{ zone.name }}</h5>
           
           <!-- Start Time Schedule -->
@@ -754,8 +754,8 @@ function initializeValues() {
   }
 
   // Initialize lamp intensity schedules
-  if(props.chamber.lamps && props.chamber.lamps.length > 0) {
-    props.chamber.lamps.forEach((lamp) => {
+  if(props.chamber.config?.lamps && props.chamber.config?.lamps.length > 0) {
+    props.chamber.config?.lamps.forEach((lamp) => {
       lampIntensitySchedules[lamp.entity_id] = props.phase.light_intensity_schedule?.[lamp.entity_id]?.schedule || defaultLampIntensitySchedule
       // Initialize form values and modes
       formValues.lampIntensity[lamp.entity_id] = 80
@@ -764,8 +764,8 @@ function initializeValues() {
   }
 
   // Initialize watering zones
-  if (props.chamber.watering_zones && props.chamber.watering_zones.length > 0) {
-    props.chamber.watering_zones.forEach((_, index) => {
+  if (props.chamber.config?.watering_zones && props.chamber.config?.watering_zones.length > 0) {
+    props.chamber.config?.watering_zones.forEach((_, index) => {
       const zoneKey = `zone_${index}`
       
       // Default schedules for watering zones
@@ -833,15 +833,15 @@ function initializeValues() {
   }
 
   // Update lamp intensity schedules
-  if(props.chamber.lamps && props.chamber.lamps.length > 0) {
-    props.chamber.lamps.forEach((lamp) => {
+  if(props.chamber.config?.lamps && props.chamber.config?.lamps.length > 0) {
+    props.chamber.config?.lamps.forEach((lamp) => {
       updateLampIntensitySchedule(lamp.entity_id, lampIntensitySchedules[lamp.entity_id])
     })
   }
 
   // Update watering zone schedules
-  if (props.chamber.watering_zones && props.chamber.watering_zones.length > 0) {
-    props.chamber.watering_zones.forEach((_, index) => {
+  if (props.chamber.config?.watering_zones && props.chamber.config?.watering_zones.length > 0) {
+    props.chamber.config?.watering_zones.forEach((_, index) => {
       const zoneKey = `zone_${index}`
       updateWateringZoneSchedule(zoneKey, 'start_time', wateringZoneSchedules[zoneKey].start_time_schedule)
       updateWateringZoneSchedule(zoneKey, 'period', wateringZoneSchedules[zoneKey].period_schedule)
@@ -852,7 +852,7 @@ function initializeValues() {
 }
 
 function findInputNumberByType(type: string): string | null {
-  const inputNumber = props.chamber.input_numbers.find((inputNum) => inputNum.type === type)
+  const inputNumber = props.chamber.config?.unrecognised_entities.find((inputNum) => inputNum.type === type)
   return inputNumber?.entity_id || null
 }
 
@@ -973,7 +973,7 @@ function updateStartDayTime() {
 
 function updateWateringZoneSchedule(zoneKey: string, scheduleType: 'start_time' | 'period' | 'pause_between' | 'duration', schedule: Record<number, number>) {
   const zoneIndex = parseInt(zoneKey.replace('zone_', ''))
-  const zone = props.chamber.watering_zones[zoneIndex]
+  const zone = props.chamber.config?.watering_zones[zoneIndex]
   if (!zone) return
   
   // Update local state

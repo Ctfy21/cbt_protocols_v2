@@ -287,15 +287,11 @@
                   <p class="text-sm text-gray-600">{{ chamberStore.selectedChamber.location || 'Местоположение не указано' }}</p>
                   <div class="grid grid-cols-3 gap-4 mt-3 text-sm">
                     <div class="text-center">
-                      <p class="font-medium text-gray-900">{{ chamberStore.selectedChamber.input_numbers?.length || 0 }}</p>
-                      <p class="text-gray-500">Датчики</p>
-                    </div>
-                    <div class="text-center">
-                      <p class="font-medium text-gray-900">{{ chamberStore.selectedChamber.lamps?.length || 0 }}</p>
+                      <p class="font-medium text-gray-900">{{ chamberStore.selectedChamber.config?.lamps?.length || 0 }}</p>
                       <p class="text-gray-500">Лампы</p>
                     </div>
                     <div class="text-center">
-                      <p class="font-medium text-gray-900">{{ chamberStore.selectedChamber.watering_zones?.length || 0 }}</p>
+                      <p class="font-medium text-gray-900">{{ chamberStore.selectedChamber.config?.watering_zones?.length || 0 }}</p>
                       <p class="text-gray-500">Полив</p>
                     </div>
                   </div>

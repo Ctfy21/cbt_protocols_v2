@@ -163,6 +163,10 @@ const props = defineProps<{
   experiment: Experiment
 }>()
 
+const startDate = computed(() => {
+  return props.experiment.schedule?.[0]?.start_timestamp * 1000
+})
+
 const emit = defineEmits(['edit', 'duplicate', 'export', 'delete', 'status-change'])
 
 const showMenu = ref(false)
@@ -189,10 +193,10 @@ const totalDuration = computed(() => {
 })
 
 const formatDateRange = computed(() => {
-  if (props.experiment.start_date) {
+  if (startDate.value) {
     try {
-      const start = new Date(props.experiment.start_date)
-      const endDate = props.experiment.end_date || calculateEndDate()
+      const start = new Date(startDate.value)
+      const endDate = calculateEndDate()
       const end = endDate ? new Date(endDate) : null
       
       if (end) {
@@ -207,13 +211,13 @@ const formatDateRange = computed(() => {
 })
 
 const progress = computed(() => {
-  if (props.experiment.status !== 'active' || !props.experiment.start_date) {
+  if (props.experiment.status !== 'active' || !startDate.value) {
     return -1
   }
   
   const now = new Date()
-  const start = new Date(props.experiment.start_date)
-  const endDate = props.experiment.end_date || calculateEndDate()
+  const start = new Date(startDate.value)
+  const endDate = calculateEndDate()
   
   if (!endDate) return -1
   
@@ -225,9 +229,9 @@ const progress = computed(() => {
 })
 
 function calculateEndDate(): string | null {
-  if (!props.experiment.start_date) return null
+  if (!startDate.value) return null
   
-  const start = new Date(props.experiment.start_date)
+  const start = new Date(startDate.value)
   const totalDays = props.experiment.phases?.reduce((sum, phase) => sum + (phase.duration_days || 0), 0) || 0
   
   if (totalDays === 0) return null

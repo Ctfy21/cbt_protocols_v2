@@ -70,8 +70,6 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 		chamber.Config.Temperature = req.Temperature
 		chamber.Config.Humidity = req.Humidity
 		chamber.Config.CO2 = req.CO2
-		chamber.Config.LightIntensity = req.LightIntensity
-		chamber.Config.WateringSettings = req.WateringSettings
 		chamber.Config.UpdatedAt = now
 
 		_, err = s.db.ChambersCollection.InsertOne(ctx, chamber)
@@ -103,8 +101,6 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 	existingChamber.Config.Temperature = req.Temperature
 	existingChamber.Config.Humidity = req.Humidity
 	existingChamber.Config.CO2 = req.CO2
-	existingChamber.Config.LightIntensity = req.LightIntensity
-	existingChamber.Config.WateringSettings = req.WateringSettings
 	existingChamber.Config.UpdatedAt = now
 
 	update := bson.M{
@@ -317,8 +313,6 @@ type RegisterChamberRequest struct {
 	Temperature          map[string]map[string]float64 `json:"temperature"`
 	Humidity             map[string]map[string]float64 `json:"humidity"`
 	CO2                  map[string]map[string]float64 `json:"co2"`
-	LightIntensity       map[string]float64            `json:"light_intensity"`
-	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
 }
 
 // UpdateChamberConfigRequest represents the request to update chamber configuration
@@ -331,8 +325,6 @@ type UpdateChamberConfigRequest struct {
 	Temperature          map[string]map[string]float64 `json:"temperature"`
 	Humidity             map[string]map[string]float64 `json:"humidity"`
 	CO2                  map[string]map[string]float64 `json:"co2"`
-	LightIntensity       map[string]float64            `json:"light_intensity"`
-	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
 }
 
 func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChamberConfigRequest) (*models.ChamberConfig, error) {
@@ -382,12 +374,6 @@ func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChambe
 	}
 	if req.CO2 != nil {
 		chamber.Config.CO2 = req.CO2
-	}
-	if req.LightIntensity != nil {
-		chamber.Config.LightIntensity = req.LightIntensity
-	}
-	if req.WateringSettings != nil {
-		chamber.Config.WateringSettings = req.WateringSettings
 	}
 	chamber.Config.UpdatedAt = now
 

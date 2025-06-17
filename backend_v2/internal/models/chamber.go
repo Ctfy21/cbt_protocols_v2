@@ -43,8 +43,6 @@ type ChamberConfig struct {
 	Temperature          map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
 	Humidity             map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
 	CO2                  map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
-	LightIntensity       map[string]float64            `bson:"light_intensity" json:"light_intensity"`
-	WateringSettings     map[string]map[string]float64 `bson:"watering_settings" json:"watering_settings"` // zone_name -> param_type -> value
 	UpdatedAt            time.Time                     `bson:"updated_at" json:"updated_at"`
 	SyncedAt             *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
@@ -130,8 +128,6 @@ func (c *Chamber) InitializeConfig() {
 			Temperature:          make(map[string]map[string]float64),
 			Humidity:             make(map[string]map[string]float64),
 			CO2:                  make(map[string]map[string]float64),
-			LightIntensity:       make(map[string]float64),
-			WateringSettings:     make(map[string]map[string]float64),
 			UpdatedAt:            time.Now(),
 		}
 

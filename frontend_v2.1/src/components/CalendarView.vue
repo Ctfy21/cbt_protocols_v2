@@ -59,7 +59,7 @@
             @click="$emit('edit-experiment', event.experiment)"
             :class="[
               'text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity',
-              getEventColorClass(event.type, event.experiment.status)
+              getEventColorClass(event.type, event.experiment.status as ExperimentStatus)
             ]"
           >
             <div class="font-medium truncate">{{ event.experiment.title }}</div>
@@ -145,6 +145,7 @@ interface CalendarDay {
   events: CalendarEvent[]
 }
 
+
 const calendarDays = computed((): CalendarDay[] => {
   const start = startOfWeek(startOfMonth(currentMonth.value))
   const end = endOfWeek(endOfMonth(currentMonth.value))
@@ -156,9 +157,12 @@ const calendarDays = computed((): CalendarDay[] => {
     
     // Check each experiment for events on this day
     props.experiments.forEach(experiment => {
-      if (!experiment.start_date) return
+      const ts = experiment.schedule?.[0]?.start_timestamp
+      if (!ts) return
       
-      const startDate = new Date(experiment.start_date)
+      const experimentStartDate = new Date(ts * 1000) // multiply by 1000 if timestamp is in seconds
+      
+      const startDate = new Date(experimentStartDate)
       const endDate = calculateEndDate(experiment)
       
       if (isSameDay(date, startDate)) {
@@ -203,12 +207,15 @@ const calendarDays = computed((): CalendarDay[] => {
 })
 
 function calculateEndDate(experiment: Experiment): Date | null {
-  if (!experiment.start_date) return null
+  const ts = experiment.schedule?.[0]?.start_timestamp
+  if (!ts) return null
+  
+  const experimentStartDate = new Date(ts * 1000) // multiply by 1000 if timestamp is in seconds
   
   const totalDays = experiment.phases?.reduce((sum, phase) => sum + (phase.duration_days || 0), 0) || 0
   if (totalDays === 0) return null
   
-  const start = new Date(experiment.start_date)
+  const start = new Date(experimentStartDate)
   const end = new Date(start)
   end.setDate(end.getDate() + totalDays - 1)
   

@@ -63,7 +63,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
               <span class="text-gray-500">Дата начала:</span>
-              <span class="ml-2 font-medium">{{ formatDate(experiment.start_date) }}</span>
+              <span class="ml-2 font-medium">{{ formatDate(startDate?.toString()) }}</span>
             </div>
             <div>
               <span class="text-gray-500">Дата окончания:</span>
@@ -219,13 +219,19 @@ const totalDuration = computed(() => {
   return experiment.value?.phases?.reduce((sum, phase) => sum + (phase.duration_days || 0), 0) || 0
 })
 
+const startDate = computed(() => {
+  const ts = experiment.value?.schedule?.[0]?.start_timestamp
+  return ts !== undefined ? new Date(ts * 1000).toISOString() : null
+})
+
+
 const progress = computed(() => {
-  if (!experiment.value || experiment.value.status !== 'active' || !experiment.value.start_date) {
+  if (!experiment.value || experiment.value.status !== 'active' || !startDate.value) {
     return -1
   }
   
   const now = new Date()
-  const start = new Date(experiment.value.start_date)
+  const start = new Date(startDate.value)
   const endDate = calculateEndDate()
   
   if (!endDate) return -1
@@ -247,10 +253,10 @@ function formatDate(date: string | null | undefined): string {
 }
 
 function calculateEndDate(): string | null {
-  if (!experiment.value?.start_date) return null
+  if (!startDate.value) return null
   
-  const start = new Date(experiment.value.start_date)
-  const totalDays = experiment.value.phases?.reduce((sum, phase) => sum + (phase.duration_days || 0), 0) || 0
+  const start = new Date(startDate.value)
+  const totalDays = experiment.value?.phases?.reduce((sum, phase) => sum + (phase.duration_days || 0), 0) || 0
   
   if (totalDays === 0) return null
   
@@ -261,7 +267,7 @@ function calculateEndDate(): string | null {
 }
 
 function getLampName(entityId: string): string {
-  const lamp = chamberStore.selectedChamber?.lamps.find(l => l.entity_id === entityId)
+  const lamp = chamberStore.selectedChamber?.config?.lamps?.find(l => l.entity_id === entityId)
   return lamp?.friendly_name || entityId
 }
 

@@ -39,9 +39,6 @@ export interface Chamber {
   local_ip: string;
   status: 'online' | 'offline';
   last_heartbeat: string;
-  input_numbers: InputNumber[];
-  lamps: Lamp[];
-  watering_zones: WateringZone[];
   config?: ChamberConfig;
   created_at: string;
   updated_at: string;
@@ -64,8 +61,9 @@ export interface ChamberConfig {
     day: Record<string, number>;
     night: Record<string, number>;
   };
-  light_intensity: Record<string, number>;
-  watering_zones: Record<string, Record<string, number>>;
+  watering_zones: WateringZone[];
+  unrecognised_entities: InputNumber[];
+  lamps: Lamp[];
   updated_at: string;
   synced_at?: string;
 }
@@ -79,7 +77,6 @@ export interface InputNumber {
   max: number;
   step: number;
   value: number;
-  current_value: number;
   unit: string;
 }
 
@@ -99,6 +96,8 @@ export interface WateringZone {
   pause_between_entity_id: string;
   duration_entity_id: string;
 }
+
+export type ExperimentStatus = 'active' | 'inactive' | 'draft' | 'completed' | 'paused'
 
 // Experiment types
 export interface Experiment {

@@ -264,12 +264,8 @@
                 <span>Обновлено: {{ formatDate(chamber.last_heartbeat) }}</span>
               </div>
               <div class="flex items-center">
-                <CpuChipIcon class="w-4 h-4 mr-2 text-gray-400" />
-                <span>{{ chamber.input_numbers?.length || 0 }} датчиков</span>
-              </div>
-              <div class="flex items-center">
                 <LightBulbIcon class="w-4 h-4 mr-2 text-gray-400" />
-                <span>{{ chamber.lamps?.length || 0 }} ламп</span>
+                <span>{{ chamber.config?.lamps?.length || 0 }} Нрстроек ламп</span>
               </div>
             </div>
 
@@ -277,7 +273,7 @@
             <div v-if="chamber.status === 'online'" class="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
               <div class="text-center">
                 <p class="text-xs text-gray-500">Зоны полива</p>
-                <p class="text-lg font-semibold text-gray-900">{{ chamber.watering_zones?.length || 0 }}</p>
+                <p class="text-lg font-semibold text-gray-900">{{ chamber.config?.watering_zones?.length || 0 }}</p>
               </div>
               <div class="text-center">
                 <p class="text-xs text-gray-500">Последнее обновление</p>
@@ -351,7 +347,6 @@ import {
   ExclamationCircleIcon,
   GlobeAltIcon,
   ClockIcon,
-  CpuChipIcon,
   LightBulbIcon,
   CheckCircleIcon,
   XCircleIcon,
