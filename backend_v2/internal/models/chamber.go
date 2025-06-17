@@ -27,8 +27,24 @@ type Chamber struct {
 	InputNumbers  []InputNumber      `bson:"input_numbers" json:"input_numbers"`
 	Lamps         []Lamp             `bson:"lamps" json:"lamps"`
 	WateringZones []WateringZone     `bson:"watering_zones" json:"watering_zones"`
+	Config        *ChamberConfig     `bson:"config,omitempty" json:"config,omitempty"`
 	CreatedAt     time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt     time.Time          `bson:"updated_at" json:"updated_at"`
+}
+
+// ChamberConfig represents chamber configuration parameters
+type ChamberConfig struct {
+	ID             primitive.ObjectID            `bson:"_id,omitempty" json:"id"`
+	ChamberID      primitive.ObjectID            `bson:"chamber_id" json:"chamber_id"`
+	DayDuration    map[string]float64            `bson:"day_duration" json:"day_duration"`
+	DayStart       map[string]float64            `bson:"day_start" json:"day_start"`
+	Temperature    map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
+	Humidity       map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
+	CO2            map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
+	LightIntensity map[string]float64            `bson:"light_intensity" json:"light_intensity"`
+	WateringZones  map[string]map[string]float64 `bson:"watering_zones" json:"watering_zones"` // zone_name -> param_type -> value
+	UpdatedAt      time.Time                     `bson:"updated_at" json:"updated_at"`
+	SyncedAt       *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
 // InputNumber represents a Home Assistant input number entity
@@ -120,4 +136,30 @@ func (c *Chamber) GetWateringInputNumbers() map[string]map[string]*InputNumber {
 	}
 
 	return wateringInputs
+}
+
+// InitializeConfig initializes the config for a chamber
+func (c *Chamber) InitializeConfig() {
+	if c.Config == nil {
+		c.Config = &ChamberConfig{
+			ID:             primitive.NewObjectID(),
+			ChamberID:      c.ID,
+			DayDuration:    make(map[string]float64),
+			DayStart:       make(map[string]float64),
+			Temperature:    make(map[string]map[string]float64),
+			Humidity:       make(map[string]map[string]float64),
+			CO2:            make(map[string]map[string]float64),
+			LightIntensity: make(map[string]float64),
+			WateringZones:  make(map[string]map[string]float64),
+			UpdatedAt:      time.Now(),
+		}
+
+		// Initialize sub-maps
+		c.Config.Temperature["day"] = make(map[string]float64)
+		c.Config.Temperature["night"] = make(map[string]float64)
+		c.Config.Humidity["day"] = make(map[string]float64)
+		c.Config.Humidity["night"] = make(map[string]float64)
+		c.Config.CO2["day"] = make(map[string]float64)
+		c.Config.CO2["night"] = make(map[string]float64)
+	}
 }

@@ -18,12 +18,12 @@ import (
 
 // ChamberManager управляет множественными chamber в зависимости от комнат
 type ChamberManager struct {
-	config        *config.Config
-	db            *database.MongoDB
-	discovery     *DiscoveryService
-	ntpService    *ntp.TimeService
-	parentChamber *models.Chamber
-	roomChambers  map[string]*models.RoomChamber
+	config     *config.Config
+	db         *database.MongoDB
+	discovery  *DiscoveryService
+	ntpService *ntp.TimeService
+	server     *models.Server
+	chambers   map[string]*models.Chamber
 }
 
 // NewChamberManager создает новый менеджер chamber
@@ -32,55 +32,55 @@ func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *Disc
 	discovery.SetChamberSuffixes(cfg.ChamberSuffixes)
 
 	return &ChamberManager{
-		config:       cfg,
-		db:           db,
-		discovery:    discovery,
-		ntpService:   ntpService,
-		roomChambers: make(map[string]*models.RoomChamber),
+		config:     cfg,
+		db:         db,
+		discovery:  discovery,
+		ntpService: ntpService,
+		chambers:   make(map[string]*models.Chamber),
 	}
 }
 
 // InitializeChambers инициализирует parent chamber и создает room chambers
 func (cm *ChamberManager) InitializeChambers(ctx context.Context) error {
 	// Сначала получаем или создаем родительскую chamber
-	parentChamber, err := cm.getOrCreateParentChamber(ctx)
+	server, err := cm.getOrCreateServer(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialize parent chamber: %w", err)
 	}
-	cm.parentChamber = parentChamber
+	cm.server = server
 
-	log.Printf("Parent chamber initialized: %s", parentChamber.Name)
+	log.Printf("Server initialized: %s", server.Name)
 
 	// Обнаруживаем entities, сгруппированные по комнатам
-	roomEntities, err := cm.discovery.DiscoverRoomEntities()
+	chamberEntities, err := cm.discovery.DiscoverChamberEntities()
 	if err != nil {
-		return fmt.Errorf("failed to discover room entities: %w", err)
+		return fmt.Errorf("failed to discover chamber entities: %w", err)
 	}
 
 	// Создаем или обновляем room chambers
-	for roomSuffix, entities := range roomEntities {
-		roomChamber, err := cm.createOrUpdateRoomChamber(ctx, roomSuffix, entities)
+	for roomSuffix, entities := range chamberEntities {
+		chamber, err := cm.createOrUpdateChamber(ctx, roomSuffix, entities)
 		if err != nil {
 			log.Printf("Warning: Failed to create/update room chamber for %s: %v", roomSuffix, err)
 			continue
 		}
-		cm.roomChambers[roomSuffix] = roomChamber
-		log.Printf("Room chamber created/updated: %s (%s)", roomChamber.Name, roomSuffix)
+		cm.chambers[roomSuffix] = chamber
+		log.Printf("Chamber created/updated: %s (%s)", chamber.Name, roomSuffix)
 	}
 
 	return nil
 }
 
-// getOrCreateParentChamber получает существующую или создает новую родительскую chamber
-func (cm *ChamberManager) getOrCreateParentChamber(ctx context.Context) (*models.Chamber, error) {
+// getOrCreateServer получает существующую или создает новую родительскую chamber
+func (cm *ChamberManager) getOrCreateServer(ctx context.Context) (*models.Server, error) {
 	// Пытаемся найти существующую chamber
-	var chamber models.Chamber
-	err := cm.db.ChambersCollection.FindOne(ctx, bson.M{}).Decode(&chamber)
+	var server models.Server
+	err := cm.db.ServersCollection.FindOne(ctx, bson.M{}).Decode(&server)
 
 	if err == nil {
 		// Chamber существует, возвращаем её
-		log.Printf("Found existing parent chamber: %s", chamber.Name)
-		return &chamber, nil
+		log.Printf("Found existing server: %s", server.Name)
+		return &server, nil
 	}
 
 	if err != mongo.ErrNoDocuments {
@@ -88,32 +88,62 @@ func (cm *ChamberManager) getOrCreateParentChamber(ctx context.Context) (*models
 	}
 
 	// Создаем новую chamber
-	log.Println("Creating new parent chamber...")
+	log.Println("Creating new server...")
 	now := cm.ntpService.NowInMoscow()
-	chamber = models.Chamber{
+	server = models.Server{
 		ID:               primitive.NewObjectID(),
 		Name:             cm.config.ChamberName,
 		LocalIP:          cm.config.LocalIP,
 		HomeAssistantURL: cm.config.HomeAssistantURL,
-		InputNumbers:     []models.InputNumber{},
-		Lamps:            []models.Lamp{},
-		WateringZones:    []models.WateringZone{},
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
 
 	// Вставляем chamber в базу
-	_, err = cm.db.ChambersCollection.InsertOne(ctx, chamber)
+	_, err = cm.db.ServersCollection.InsertOne(ctx, server)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create parent chamber: %w", err)
 	}
 
-	log.Printf("Created new parent chamber: %s", chamber.Name)
-	return &chamber, nil
+	log.Printf("Created new parent chamber: %s", server.Name)
+	return &server, nil
+}
+
+// UpdateChamberConfig updates chamber configuration from backend
+func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID primitive.ObjectID, config *models.ChamberConfig) error {
+
+	now := cm.ntpService.NowInMoscow()
+	update := bson.M{
+		"$set": bson.M{
+			"input_numbers":  config.InputNumbers,
+			"lamps":          config.Lamps,
+			"watering_zones": config.WateringZones,
+			"updated_at":     now,
+		},
+	}
+
+	_, err := cm.db.Database.Collection("chambers").UpdateByID(ctx, chamberID, update)
+	if err != nil {
+		return fmt.Errorf("failed to update chamber config: %w", err)
+	}
+
+	// Update local copy
+	for _, chamber := range cm.chambers {
+		if chamber.ID == chamberID {
+			chamber.Config.InputNumbers = config.InputNumbers
+			chamber.Config.Lamps = config.Lamps
+			chamber.Config.WateringZones = config.WateringZones
+			chamber.UpdatedAt = now
+			break
+		}
+	}
+
+	log.Printf("Updated chamber configuration from backend for chamber ID: %s", chamberID.Hex())
+	return nil
 }
 
 // createOrUpdateRoomChamber создает или обновляет room chamber
-func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuffix string, entities *RoomEntities) (*models.RoomChamber, error) {
+func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, roomSuffix string, entities *ChamberEntities) (*models.Chamber, error) {
 	// Определяем имя для room chamber
 	roomChamberName := cm.config.ChamberName
 	if roomSuffix != "default" {
@@ -134,91 +164,86 @@ func (cm *ChamberManager) createOrUpdateRoomChamber(ctx context.Context, roomSuf
 		}
 	}
 
-	// Пытаемся найти существующую room chamber
-	var roomChamber models.RoomChamber
-	err := cm.db.Database.Collection("room_chambers").FindOne(ctx, bson.M{
-		"parent_chamber_id": cm.parentChamber.ID,
-		"room_suffix":       roomSuffix,
-	}).Decode(&roomChamber)
+	// Пытаемся найти существующую chamber
+	var chamber models.Chamber
+	err := cm.db.Database.Collection("chambers").FindOne(ctx, bson.M{
+		"server_id":   cm.server.ID,
+		"room_suffix": roomSuffix,
+	}).Decode(&chamber)
 
 	now := cm.ntpService.NowInMoscow()
 
 	if err == mongo.ErrNoDocuments {
 		// Создаем новую room chamber
-		roomChamber = models.RoomChamber{
-			ID:               primitive.NewObjectID(),
-			Name:             roomChamberName,
-			RoomSuffix:       roomSuffix,
-			ParentChamberID:  cm.parentChamber.ID,
-			LocalIP:          cm.config.LocalIP,
-			HomeAssistantURL: cm.config.HomeAssistantURL,
-			LastHeartbeat:    now,
-			InputNumbers:     entities.InputNumbers,
-			Lamps:            entities.Lamps,
-			WateringZones:    entities.WateringZones,
-			CreatedAt:        now,
-			UpdatedAt:        now,
+		chamber = models.Chamber{
+			ID:         primitive.NewObjectID(),
+			Name:       roomChamberName,
+			RoomSuffix: roomSuffix,
+			ServerID:   cm.server.ID,
+			Config: models.ChamberConfig{
+				InputNumbers:  entities.Config.InputNumbers,
+				Lamps:         entities.Config.Lamps,
+				WateringZones: entities.Config.WateringZones,
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
 		}
 
-		_, err = cm.db.Database.Collection("room_chambers").InsertOne(ctx, roomChamber)
+		_, err = cm.db.Database.Collection("chambers").InsertOne(ctx, chamber)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create room chamber: %w", err)
 		}
 
-		log.Printf("New room chamber created: %s (%s)", roomChamber.Name, roomSuffix)
+		log.Printf("New chamber created: %s (%s)", chamber.Name, roomSuffix)
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to query room chamber: %w", err)
-	} else {
-		// Обновляем существующую room chamber
+		return nil, fmt.Errorf("failed to query chamber: %w", err)
+	} else if !chamber.DiscoveryCompleted {
+		// Обновляем существующую chamber
 		update := bson.M{
 			"$set": bson.M{
 				"name":           roomChamberName,
 				"last_heartbeat": now,
-				"input_numbers":  entities.InputNumbers,
-				"lamps":          entities.Lamps,
-				"watering_zones": entities.WateringZones,
-				"updated_at":     now,
+				"config": bson.M{
+					"input_numbers":  entities.Config.InputNumbers,
+					"lamps":          entities.Config.Lamps,
+					"watering_zones": entities.Config.WateringZones,
+				},
+				"updated_at": now,
 			},
 		}
 
-		_, err = cm.db.Database.Collection("room_chambers").UpdateByID(ctx, roomChamber.ID, update)
+		_, err = cm.db.Database.Collection("chambers").UpdateByID(ctx, chamber.ID, update)
 		if err != nil {
-			return nil, fmt.Errorf("failed to update room chamber: %w", err)
+			return nil, fmt.Errorf("failed to update chamber: %w", err)
 		}
 
 		// Обновляем локальные данные
-		roomChamber.Name = roomChamberName
-		roomChamber.LastHeartbeat = now
-		roomChamber.InputNumbers = entities.InputNumbers
-		roomChamber.Lamps = entities.Lamps
-		roomChamber.WateringZones = entities.WateringZones
-		roomChamber.UpdatedAt = now
+		chamber.Name = roomChamberName
+		chamber.Config = entities.Config
+		chamber.DiscoveryCompleted = true
+		chamber.UpdatedAt = now
 
-		log.Printf("Room chamber updated: %s (%s)", roomChamber.Name, roomSuffix)
+		log.Printf("Chamber updated: %s (%s)", chamber.Name, roomSuffix)
+	} else {
+		log.Printf("Chamber already registered: %s (%s)", chamber.Name, roomSuffix)
 	}
 
-	// Логируем обнаруженные entities
-	log.Printf("Room chamber %s entities:", roomChamber.Name)
-	log.Printf("  - %d input numbers", len(roomChamber.InputNumbers))
-	log.Printf("  - %d lamps", len(roomChamber.Lamps))
-	log.Printf("  - %d watering zones", len(roomChamber.WateringZones))
-
-	return &roomChamber, nil
+	return &chamber, nil
 }
 
-// GetParentChamber возвращает родительскую chamber
-func (cm *ChamberManager) GetParentChamber() *models.Chamber {
-	return cm.parentChamber
+// GetServer возвращает родительскую chamber
+func (cm *ChamberManager) GetServer() *models.Server {
+	return cm.server
 }
 
 // GetRoomChambers возвращает все room chambers
-func (cm *ChamberManager) GetRoomChambers() map[string]*models.RoomChamber {
-	return cm.roomChambers
+func (cm *ChamberManager) GetChambers() map[string]*models.Chamber {
+	return cm.chambers
 }
 
 // GetRoomChamber возвращает room chamber по суффиксу
-func (cm *ChamberManager) GetRoomChamber(roomSuffix string) *models.RoomChamber {
-	return cm.roomChambers[roomSuffix]
+func (cm *ChamberManager) GetChamber(roomSuffix string) *models.Chamber {
+	return cm.chambers[roomSuffix]
 }
 
 // UpdateHeartbeat обновляет heartbeat для всех chambers
@@ -226,36 +251,35 @@ func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
 	now := cm.ntpService.NowInMoscow()
 
 	// Обновляем parent chamber
-	if cm.parentChamber != nil {
+	if cm.server != nil {
 		update := bson.M{
 			"$set": bson.M{
 				"last_heartbeat": now,
 				"updated_at":     now,
 			},
 		}
-		_, err := cm.db.ChambersCollection.UpdateByID(ctx, cm.parentChamber.ID, update)
+		_, err := cm.db.ServersCollection.UpdateByID(ctx, cm.server.ID, update)
 		if err != nil {
 			log.Printf("Failed to update parent chamber heartbeat: %v", err)
 		} else {
-			cm.parentChamber.LastHeartbeat = now
-			cm.parentChamber.UpdatedAt = now
+			cm.server.LastHeartbeat = now
+			cm.server.UpdatedAt = now
 		}
 	}
 
 	// Обновляем room chambers
-	for roomSuffix, roomChamber := range cm.roomChambers {
+	for roomSuffix, chamber := range cm.chambers {
 		update := bson.M{
 			"$set": bson.M{
 				"last_heartbeat": now,
 				"updated_at":     now,
 			},
 		}
-		_, err := cm.db.Database.Collection("room_chambers").UpdateByID(ctx, roomChamber.ID, update)
+		_, err := cm.db.Database.Collection("chambers").UpdateByID(ctx, chamber.ID, update)
 		if err != nil {
 			log.Printf("Failed to update room chamber heartbeat for %s: %v", roomSuffix, err)
 		} else {
-			roomChamber.LastHeartbeat = now
-			roomChamber.UpdatedAt = now
+			chamber.UpdatedAt = now
 		}
 	}
 
@@ -263,11 +287,11 @@ func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
 }
 
 // RegisterRoomChambersWithBackend регистрирует все room chambers с бэкендом
-func (cm *ChamberManager) RegisterRoomChambersWithBackend(registrationService *RegistrationService) error {
-	for roomSuffix, roomChamber := range cm.roomChambers {
-		log.Printf("Registering room chamber '%s' with backend...", roomSuffix)
-		if err := registrationService.RegisterRoomChamberWithBackend(roomChamber); err != nil {
-			log.Printf("Warning: Failed to register room chamber '%s': %v", roomSuffix, err)
+func (cm *ChamberManager) RegisterChambersWithBackend(registrationService *RegistrationService) error {
+	for roomSuffix, chamber := range cm.chambers {
+		log.Printf("Registering chamber '%s' with backend...", roomSuffix)
+		if err := registrationService.RegisterChamberWithBackend(chamber); err != nil {
+			log.Printf("Warning: Failed to register chamber '%s': %v", roomSuffix, err)
 			continue
 		}
 	}

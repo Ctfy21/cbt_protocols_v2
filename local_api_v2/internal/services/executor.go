@@ -22,13 +22,13 @@ type ExecutorService struct {
 	haClient   *homeassistant.Client
 	ntpService *ntp.TimeService
 	cron       *cron.Cron
-	chamber    *models.Chamber
+	server     *models.Server
 	mu         sync.RWMutex
 	isRunning  bool
 }
 
 // NewExecutorService creates a new executor service
-func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, chamber *models.Chamber, ntpService *ntp.TimeService) *ExecutorService {
+func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, server *models.Server, ntpService *ntp.TimeService) *ExecutorService {
 	if db == nil {
 		log.Printf("Error: Database is nil - cannot create executor service")
 		return nil
@@ -37,8 +37,8 @@ func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, ch
 		log.Printf("Error: Home Assistant client is nil - cannot create executor service")
 		return nil
 	}
-	if chamber == nil {
-		log.Printf("Error: Chamber is nil - cannot create executor service")
+	if server == nil {
+		log.Printf("Error: Server is nil - cannot create executor service")
 		return nil
 	}
 	if ntpService == nil {
@@ -51,7 +51,7 @@ func NewExecutorService(db *database.MongoDB, haClient *homeassistant.Client, ch
 		haClient:   haClient,
 		ntpService: ntpService,
 		cron:       cron.New(cron.WithLocation(time.Local)),
-		chamber:    chamber,
+		server:     server,
 	}
 }
 
@@ -76,8 +76,8 @@ func (s *ExecutorService) Start(ctx context.Context) error {
 	if s.haClient == nil {
 		return fmt.Errorf("home assistant client is not initialized")
 	}
-	if s.chamber == nil {
-		return fmt.Errorf("chamber is not initialized")
+	if s.server == nil {
+		return fmt.Errorf("server is not initialized")
 	}
 	if s.cron == nil {
 		return fmt.Errorf("cron scheduler is not initialized")
@@ -177,19 +177,19 @@ func (s *ExecutorService) executeActivePhases(ctx context.Context) error {
 
 // getActiveExperiments retrieves all experiments with status "active"
 func (s *ExecutorService) getActiveExperiments(ctx context.Context) ([]models.Experiment, error) {
-	if s.chamber == nil {
-		return nil, fmt.Errorf("chamber is not initialized")
+	if s.server == nil {
+		return nil, fmt.Errorf("server is not initialized")
 	}
 
 	var filter bson.M
-	if s.chamber.BackendID.IsZero() {
+	if s.server.BackendServerID.IsZero() {
 		// If no backend ID, get all active experiments
 		filter = bson.M{"status": "active"}
 	} else {
 		// If backend ID is available, filter by chamber
 		filter = bson.M{
-			"status":     "active",
-			"chamber_id": s.chamber.BackendID,
+			"status":    "active",
+			"server_id": s.server.ID,
 		}
 	}
 
@@ -497,11 +497,12 @@ func (s *ExecutorService) GetStatus() map[string]interface{} {
 
 	now := s.ntpService.NowInMoscow()
 	return map[string]interface{}{
-		"running":       s.isRunning,
-		"chamber_id":    s.chamber.ID.Hex(),
-		"chamber_name":  s.chamber.Name,
-		"ntp_enabled":   s.ntpService.IsEnabled(),
-		"ntp_connected": s.ntpService.IsConnected(),
-		"current_time":  now.Format("2006-01-02T15:04:05Z07:00"),
+		"running":           s.isRunning,
+		"server_id":         s.server.ID.Hex(),
+		"backend_server_id": s.server.BackendServerID.Hex(),
+		"server_name":       s.server.Name,
+		"ntp_enabled":       s.ntpService.IsEnabled(),
+		"ntp_connected":     s.ntpService.IsConnected(),
+		"current_time":      now.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

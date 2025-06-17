@@ -16,6 +16,7 @@ type MongoDB struct {
 	Database              *mongo.Database
 	ChambersCollection    *mongo.Collection
 	ExperimentsCollection *mongo.Collection
+	ServersCollection     *mongo.Collection
 }
 
 // NewMongoDB creates a new MongoDB connection
@@ -54,6 +55,7 @@ func NewMongoDB(uri, dbName string) (*MongoDB, error) {
 		Client:                client,
 		Database:              database,
 		ChambersCollection:    database.Collection("chambers"),
+		ServersCollection:     database.Collection("servers"),
 		ExperimentsCollection: database.Collection("experiments"),
 	}
 

@@ -29,12 +29,10 @@ func (s *DiscoveryService) SetChamberSuffixes(suffixes []string) {
 	log.Printf("Discovery service configured with chamber suffixes: %v", suffixes)
 }
 
-// RoomEntities represents entities grouped by room suffix
-type RoomEntities struct {
-	RoomSuffix    string
-	InputNumbers  []models.InputNumber
-	Lamps         []models.Lamp
-	WateringZones []models.WateringZone
+// ChamberEntities represents entities grouped by room suffix
+type ChamberEntities struct {
+	RoomSuffix string
+	Config     models.ChamberConfig
 }
 
 // DiscoverInputNumbers discovers and categorizes input_number entities
@@ -340,35 +338,32 @@ func (s *DiscoveryService) extractRoomSuffix(entityID string) string {
 	return ""
 }
 
-// getRoomBaseName extracts base name by removing room suffix
-func getRoomBaseName(entityID, roomSuffix string) string {
-	if roomSuffix == "" {
-		return entityID
-	}
-
-	// Удаляем суффикс комнаты из entity ID
-	lowerID := strings.ToLower(entityID)
-	lowerSuffix := strings.ToLower(roomSuffix)
-
-	// Удаляем суффикс с возможным префиксом "_"
-	if strings.HasSuffix(lowerID, "_"+lowerSuffix) {
-		return entityID[:len(entityID)-len("_"+lowerSuffix)]
-	} else if strings.HasSuffix(lowerID, lowerSuffix) {
-		return entityID[:len(entityID)-len(lowerSuffix)]
-	}
-
-	return entityID
-}
-
-// DiscoverRoomEntities discovers entities grouped by room suffixes
-func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, error) {
+// DiscoverChamberEntities discovers entities grouped by room suffixes
+func (s *DiscoveryService) DiscoverChamberEntities() (map[string]*ChamberEntities, error) {
 	// Get all input numbers from Home Assistant
 	haEntities, err := s.haClient.GetInputNumbers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get input numbers: %v", err)
 	}
 
-	roomMap := make(map[string]*RoomEntities)
+	roomMap, err := s.AutomaticalyDiscoverChamberEntities(haEntities)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover chamber entities: %v", err)
+	}
+
+	log.Printf("Discovered entities grouped by rooms:")
+	for roomSuffix, room := range roomMap {
+		log.Printf("  Room '%s': %d input numbers, %d lamps, %d watering zones",
+			roomSuffix, len(room.Config.InputNumbers), len(room.Config.Lamps), len(room.Config.WateringZones))
+	}
+
+	return roomMap, nil
+}
+
+func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []homeassistant.InputNumberEntity) (map[string]*ChamberEntities, error) {
+
+	roomMap := make(map[string]*ChamberEntities)
 
 	log.Printf("Discovering room entities with configured suffixes: %v", s.chamberSuffixes)
 
@@ -389,15 +384,14 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 
 		// Создаем или получаем комнату
 		if _, exists := roomMap[roomSuffix]; !exists {
-			roomMap[roomSuffix] = &RoomEntities{
-				RoomSuffix:    roomSuffix,
-				InputNumbers:  []models.InputNumber{},
-				Lamps:         []models.Lamp{},
-				WateringZones: []models.WateringZone{},
+			roomMap[roomSuffix] = &ChamberEntities{
+				RoomSuffix: roomSuffix,
+				Config:     models.ChamberConfig{},
 			}
 		}
 
 		room := roomMap[roomSuffix]
+		entityProcessed := false
 
 		log.Printf("Processing entity for room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
 
@@ -411,8 +405,8 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 				IntensityMax: entity.Max,
 				CurrentValue: entity.Value,
 			}
-			room.Lamps = append(room.Lamps, lamp)
-			continue
+			room.Config.Lamps = append(room.Config.Lamps, lamp)
+			entityProcessed = true
 		}
 
 		// Обработка полива
@@ -420,9 +414,9 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 		if wateringType != "" {
 			// Ищем существующую зону полива для этой комнаты
 			var targetZone *models.WateringZone
-			for i := range room.WateringZones {
-				if room.WateringZones[i].Name == zoneName {
-					targetZone = &room.WateringZones[i]
+			for i := range room.Config.WateringZones {
+				if room.Config.WateringZones[i].Name == zoneName {
+					targetZone = &room.Config.WateringZones[i]
 					break
 				}
 			}
@@ -430,8 +424,8 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 			if targetZone == nil {
 				// Создаем новую зону
 				newZone := models.WateringZone{Name: zoneName}
-				room.WateringZones = append(room.WateringZones, newZone)
-				targetZone = &room.WateringZones[len(room.WateringZones)-1]
+				room.Config.WateringZones = append(room.Config.WateringZones, newZone)
+				targetZone = &room.Config.WateringZones[len(room.Config.WateringZones)-1]
 			}
 
 			// Устанавливаем соответствующий entity ID
@@ -445,6 +439,7 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 			case models.InputNumberWateringDuration:
 				targetZone.DurationEntityID = entityID
 			}
+			entityProcessed = true
 			continue
 		}
 
@@ -461,15 +456,25 @@ func (s *DiscoveryService) DiscoverRoomEntities() (map[string]*RoomEntities, err
 				CurrentValue: entity.Value,
 				Unit:         entity.Unit,
 			}
-			room.InputNumbers = append(room.InputNumbers, inputNumber)
+			room.Config.InputNumbers = append(room.Config.InputNumbers, inputNumber)
+			entityProcessed = true
+		}
+
+		// Если объект не был обработан, добавляем его как нераспознанный
+		if !entityProcessed {
+			inputNumber := models.InputNumber{
+				EntityID:     entityID,
+				Name:         friendlyName,
+				Type:         "unrecognised",
+				Min:          entity.Min,
+				Max:          entity.Max,
+				Step:         entity.Step,
+				CurrentValue: entity.Value,
+				Unit:         entity.Unit,
+			}
+			room.Config.InputNumbers = append(room.Config.InputNumbers, inputNumber)
+			log.Printf("Unrecognized entity added to room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
 		}
 	}
-
-	log.Printf("Discovered entities grouped by rooms:")
-	for roomSuffix, room := range roomMap {
-		log.Printf("  Room '%s': %d input numbers, %d lamps, %d watering zones",
-			roomSuffix, len(room.InputNumbers), len(room.Lamps), len(room.WateringZones))
-	}
-
 	return roomMap, nil
 }
