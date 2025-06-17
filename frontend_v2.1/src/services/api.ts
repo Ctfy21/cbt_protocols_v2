@@ -252,6 +252,20 @@ class ApiService {
     return response.data
   }
 
+  async getChamberConfig(id: string): Promise<ApiResponse<any>> {
+    const response = await this.api.get(`/chambers/${id}/config`)
+    return response.data
+  }
+
+  async updateChamberConfig(id: string, config: any): Promise<ApiResponse<any>> {
+    const response = await this.api.put(`/chambers/${id}/config`, config)
+    return response.data
+  }
+
+  async checkChamberConfigUpdate(id: string): Promise<ApiResponse<any>> {
+    const response = await this.api.get(`/chambers/${id}/config/check`)
+    return response.data
+  }
 
   // Helper methods
   formatError(error: any): string {

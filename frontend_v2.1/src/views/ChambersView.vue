@@ -306,6 +306,28 @@
                 }}
               </button>
             </div>
+            <div class="flex gap-2">
+              <button
+                @click.stop="selectAndNavigate(chamber)"
+                :disabled="chamber.status === 'offline'"
+                :class="[
+                  'flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium',
+                  // ... existing classes
+                ]"
+              >
+                <!-- ... existing button content -->
+              </button>
+              
+              <!-- Configuration button -->
+              <router-link
+                v-if="authStore.isAdmin && chamber.status === 'online'"
+                :to="`/chambers/${chamber.id}/config`"
+                @click.stop
+                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
+              >
+                <Cog6ToothIcon class="w-4 h-4" />
+              </router-link>
+            </div>
           </div>
         </div>
 
@@ -355,7 +377,8 @@ import {
   MagnifyingGlassIcon,
   InformationCircleIcon,
   LockClosedIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  Cog6ToothIcon
 } from '@heroicons/vue/24/outline'
 import { useChamberStore } from '@/stores/chamber'
 import { useExperimentStore } from '@/stores/experiment'

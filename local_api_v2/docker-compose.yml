@@ -31,6 +31,7 @@ services:
       - BACKEND_URL=${BACKEND_URL}
       - BACKEND_API_KEY=${BACKEND_API_KEY}
       - CHAMBER_NAME=${CHAMBER_NAME:-Climate Chamber}
+      - CHAMBER_SUFFIXES=${CHAMBER_SUFFIXES}
       - LOCAL_IP=${LOCAL_IP}
       - HEARTBEAT_INTERVAL=30
       - LOG_LEVEL=info

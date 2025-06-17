@@ -54,7 +54,13 @@ const routes: RouteRecordRaw[] = [
     name: 'admin-users',
     component: () => import('@/views/AdminUsersView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
-  }
+  },
+  {
+    path: '/chambers/:id/config',
+    name: 'chamber-config',
+    component: () => import('@/views/ChamberConfigView.vue'),
+    meta: { requiresAuth: true }
+  },
 ]
 
 export default routes
