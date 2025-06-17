@@ -11,7 +11,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"local_api_v2/internal/config"
 	"local_api_v2/internal/database"
@@ -21,11 +20,11 @@ import (
 
 // SyncService handles synchronization of experiments from backend
 type SyncService struct {
-	config     *config.Config
-	db         *database.MongoDB
-	ntpService *ntp.TimeService
-	httpClient *http.Client
-	backendID  primitive.ObjectID
+	config          *config.Config
+	db              *database.MongoDB
+	ntpService      *ntp.TimeService
+	httpClient      *http.Client
+	backendServerID primitive.ObjectID
 }
 
 // NewSyncService creates a new sync service
@@ -41,9 +40,9 @@ func NewSyncService(cfg *config.Config, db *database.MongoDB, ntpService *ntp.Ti
 }
 
 // SetBackendID sets the backend chamber ID for syncing experiments
-func (s *SyncService) SetBackendID(id primitive.ObjectID) {
-	s.backendID = id
-	log.Printf("Sync service: Backend ID set to %s", id.Hex())
+func (s *SyncService) SetBackendServerID(id primitive.ObjectID) {
+	s.backendServerID = id
+	log.Printf("Sync service: Backend Server ID set to %s", id.Hex())
 }
 
 // StartSync starts the periodic synchronization
@@ -51,11 +50,6 @@ func (s *SyncService) StartSync(ctx context.Context) {
 	// Initial sync
 	if err := s.syncExperiments(); err != nil {
 		log.Printf("❌ Initial sync failed: %v", err)
-	}
-
-	// Initial config sync
-	if err := s.syncConfiguration(); err != nil {
-		log.Printf("❌ Initial config sync failed: %v", err)
 	}
 
 	// Periodic sync every 60 seconds
@@ -68,22 +62,12 @@ func (s *SyncService) StartSync(ctx context.Context) {
 			log.Println("Sync service stopped")
 			return
 		case <-ticker.C:
-			// Sync experiments
 			if err := s.syncExperiments(); err != nil {
 				// Only log as warning if it's not the "no backend ID" error
-				if s.backendID.IsZero() {
+				if s.backendServerID.IsZero() {
 					log.Printf("⚠️  Sync skipped: Chamber not registered with backend yet")
 				} else {
 					log.Printf("❌ Sync failed: %v", err)
-				}
-			}
-
-			// Sync configuration
-			if err := s.syncConfiguration(); err != nil {
-				if s.backendID.IsZero() {
-					log.Printf("⚠️  Config sync skipped: Chamber not registered with backend yet")
-				} else {
-					log.Printf("❌ Config sync failed: %v", err)
 				}
 			}
 		}
@@ -92,12 +76,12 @@ func (s *SyncService) StartSync(ctx context.Context) {
 
 // syncExperiments fetches experiments from backend and updates local database
 func (s *SyncService) syncExperiments() error {
-	if s.backendID.IsZero() {
+	if s.backendServerID.IsZero() {
 		return fmt.Errorf("no backend ID set - chamber not registered")
 	}
 
 	// Fetch experiments from backend
-	url := fmt.Sprintf("%s/experiments?chamber_id=%s", s.config.BackendURL, s.backendID.Hex())
+	url := fmt.Sprintf("%s/experiments?chamber_id=%s", s.config.BackendURL, s.backendServerID.Hex())
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -205,108 +189,6 @@ func (s *SyncService) syncExperiments() error {
 	return nil
 }
 
-// syncConfiguration fetches configuration from backend and applies it to Home Assistant
-func (s *SyncService) syncConfiguration() error {
-	if s.backendID.IsZero() {
-		return fmt.Errorf("no backend ID set - chamber not registered")
-	}
-
-	// Fetch configuration from backend
-	url := fmt.Sprintf("%s/chambers/%s/config", s.config.BackendURL, s.backendID.Hex())
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create config request: %v", err)
-	}
-
-	// Add headers
-	req.Header.Set("X-Local-Time", s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"))
-	if s.config.BackendAPIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
-	}
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to fetch configuration: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		// No configuration found - this is normal for new chambers
-		return nil
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("backend returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	// Parse response
-	var response struct {
-		Success bool                  `json:"success"`
-		Data    *ChamberConfiguration `json:"data"`
-		Error   string                `json:"error"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return fmt.Errorf("failed to decode config response: %v", err)
-	}
-
-	if !response.Success {
-		return fmt.Errorf("config sync failed: %s", response.Error)
-	}
-
-	if response.Data == nil {
-		// No configuration data
-		return nil
-	}
-
-	// Apply configuration to local storage
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	now := s.ntpService.NowInMoscow()
-
-	// Store/update configuration in local database
-	config := &models.ChamberConfig{
-		ChamberID:      s.backendID,
-		DayDuration:    response.Data.DayDuration,
-		DayStart:       response.Data.DayStart,
-		Temperature:    response.Data.Temperature,
-		Humidity:       response.Data.Humidity,
-		CO2:            response.Data.CO2,
-		LightIntensity: response.Data.LightIntensity,
-		WateringZones:  response.Data.WateringZones,
-		UpdatedAt:      now,
-		SyncedAt:       &now,
-	}
-
-	// Try to update existing config or insert new one
-	filter := bson.M{"chamber_id": s.backendID}
-	update := bson.M{"$set": config}
-	opts := options.Update().SetUpsert(true)
-
-	_, err = s.db.ChamberConfigsCollection.UpdateOne(ctx, filter, update, opts)
-	if err != nil {
-		log.Printf("Failed to store configuration: %v", err)
-		// Continue with applying values even if storage fails
-	}
-
-	log.Printf("📊 Configuration synced from backend")
-
-	return nil
-}
-
-// ChamberConfiguration represents the configuration data from backend
-type ChamberConfiguration struct {
-	DayDuration    map[string]float64            `json:"day_duration"`
-	DayStart       map[string]float64            `json:"day_start"`
-	Temperature    map[string]map[string]float64 `json:"temperature"`
-	Humidity       map[string]map[string]float64 `json:"humidity"`
-	CO2            map[string]map[string]float64 `json:"co2"`
-	LightIntensity map[string]float64            `json:"light_intensity"`
-	WateringZones  map[string]map[string]float64 `json:"watering_zones"`
-}
-
 // GetActiveExperiments returns all active experiments
 func (s *SyncService) GetActiveExperiments() ([]models.Experiment, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -357,8 +239,8 @@ func (s *SyncService) GetSyncStatus() map[string]interface{} {
 	now := s.ntpService.NowInMoscow()
 
 	return map[string]interface{}{
-		"backend_connected":  !s.backendID.IsZero(),
-		"backend_id":         s.backendID.Hex(),
+		"backend_connected":  !s.backendServerID.IsZero(),
+		"backend_id":         s.backendServerID.Hex(),
 		"active_experiments": len(activeExperiments),
 		"last_sync_time":     now.Format("2006-01-02T15:04:05Z07:00"),
 		"ntp_enabled":        s.ntpService.IsEnabled(),

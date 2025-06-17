@@ -166,7 +166,7 @@ func (ts *TimeService) Now() time.Time {
 func (ts *TimeService) NowInMoscow() time.Time {
 	currentTime := ts.Now()
 
-	return currentTime.Add(3 * time.Hour)
+	return currentTime.In(ts.moscowTZ).Add(3 * time.Hour)
 }
 
 // Unix returns Unix timestamp using NTP time
