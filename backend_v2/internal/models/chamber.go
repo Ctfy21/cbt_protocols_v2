@@ -16,38 +16,40 @@ const (
 
 // Chamber represents a climate chamber
 type Chamber struct {
-	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name          string             `bson:"name" json:"name"`
-	Location      string             `bson:"location" json:"location"`
-	HAUrl         string             `bson:"ha_url" json:"ha_url"`
-	AccessToken   string             `bson:"access_token" json:"-"`
-	LocalIP       string             `bson:"local_ip" json:"local_ip"`
-	Status        ChamberStatus      `bson:"status" json:"status"`
-	LastHeartbeat time.Time          `bson:"last_heartbeat" json:"last_heartbeat"`
-	InputNumbers  []InputNumber      `bson:"input_numbers" json:"input_numbers"`
-	Lamps         []Lamp             `bson:"lamps" json:"lamps"`
-	WateringZones []WateringZone     `bson:"watering_zones" json:"watering_zones"`
-	Config        *ChamberConfig     `bson:"config,omitempty" json:"config,omitempty"`
-	CreatedAt     time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt     time.Time          `bson:"updated_at" json:"updated_at"`
+	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name               string             `bson:"name" json:"name"`
+	Suffix             string             `bson:"suffix" json:"suffix"` // e.g., "galo", "sb4", "room1", "default"
+	Location           string             `bson:"location" json:"location"`
+	HAUrl              string             `bson:"ha_url" json:"ha_url"`
+	AccessToken        string             `bson:"access_token" json:"-"`
+	LocalIP            string             `bson:"local_ip" json:"local_ip"`
+	Status             ChamberStatus      `bson:"status" json:"status"`
+	LastHeartbeat      time.Time          `bson:"last_heartbeat" json:"last_heartbeat"`
+	DiscoveryCompleted bool               `bson:"discovery_completed" json:"discovery_completed"`
+	Config             *ChamberConfig     `bson:"config,omitempty" json:"config,omitempty"`
+	CreatedAt          time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt          time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 // ChamberConfig represents chamber configuration parameters
 type ChamberConfig struct {
-	ID             primitive.ObjectID            `bson:"_id,omitempty" json:"id"`
-	ChamberID      primitive.ObjectID            `bson:"chamber_id" json:"chamber_id"`
-	DayDuration    map[string]float64            `bson:"day_duration" json:"day_duration"`
-	DayStart       map[string]float64            `bson:"day_start" json:"day_start"`
-	Temperature    map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
-	Humidity       map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
-	CO2            map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
-	LightIntensity map[string]float64            `bson:"light_intensity" json:"light_intensity"`
-	WateringZones  map[string]map[string]float64 `bson:"watering_zones" json:"watering_zones"` // zone_name -> param_type -> value
-	UpdatedAt      time.Time                     `bson:"updated_at" json:"updated_at"`
-	SyncedAt       *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
+	ID                   primitive.ObjectID            `bson:"_id,omitempty" json:"id"`
+	ChamberID            primitive.ObjectID            `bson:"chamber_id" json:"chamber_id"`
+	Lamps                []Lamp                        `bson:"lamps" json:"lamps"`
+	WateringZones        []WateringZone                `bson:"watering_zones" json:"watering_zones"`
+	UnrecognisedEntities []InputNumber                 `bson:"unrecognised_entities" json:"unrecognised_entities"`
+	DayDuration          map[string]float64            `bson:"day_duration" json:"day_duration"`
+	DayStart             map[string]float64            `bson:"day_start" json:"day_start"`
+	Temperature          map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
+	Humidity             map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
+	CO2                  map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
+	LightIntensity       map[string]float64            `bson:"light_intensity" json:"light_intensity"`
+	WateringSettings     map[string]map[string]float64 `bson:"watering_settings" json:"watering_settings"` // zone_name -> param_type -> value
+	UpdatedAt            time.Time                     `bson:"updated_at" json:"updated_at"`
+	SyncedAt             *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
-// InputNumber represents a Home Assistant input number entity
+// InputNumber represents a Home Assistant input_number entity
 type InputNumber struct {
 	EntityID     string  `bson:"entity_id" json:"entity_id"`
 	Name         string  `bson:"name" json:"name"`
@@ -94,64 +96,43 @@ const (
 	InputNumberWateringPeriod   = "watering_period"
 	InputNumberWateringPause    = "watering_pause"
 	InputNumberWateringDuration = "watering_duration"
+	InputNumberUnrecognised     = "unrecognised"
 )
 
-// GetInputNumbersByType returns all input numbers of a specific type
-func (c *Chamber) GetInputNumbersByType(inputType string) []InputNumber {
-	var result []InputNumber
-	for _, in := range c.InputNumbers {
-		if in.Type == inputType {
-			result = append(result, in)
-		}
-	}
-	return result
-}
-
-// GetWateringInputNumbers returns all watering-related input numbers grouped by zone
-func (c *Chamber) GetWateringInputNumbers() map[string]map[string]*InputNumber {
-	wateringInputs := make(map[string]map[string]*InputNumber)
-
-	// Process each watering zone
-	for _, zone := range c.WateringZones {
-		zoneInputs := make(map[string]*InputNumber)
-
-		// Find matching input numbers for this zone
-		for i := range c.InputNumbers {
-			in := &c.InputNumbers[i]
-			switch in.EntityID {
-			case zone.StartTimeEntityID:
-				zoneInputs["start_time"] = in
-			case zone.PeriodEntityID:
-				zoneInputs["period"] = in
-			case zone.PauseBetweenEntityID:
-				zoneInputs["pause"] = in
-			case zone.DurationEntityID:
-				zoneInputs["duration"] = in
-			}
-		}
-
-		if len(zoneInputs) > 0 {
-			wateringInputs[zone.Name] = zoneInputs
-		}
-	}
-
-	return wateringInputs
+// InputNumberSubstrings defines the substrings to search for each input number type
+// This is used by local_api_v2 for entity discovery
+var InputNumberSubstrings = map[string][]string{
+	InputNumberDayStart:         {"hours_day", "hour_day", "day_start"},
+	InputNumberDayDuration:      {"hours_work", "hour_work", "day_duration"},
+	InputNumberTempDay:          {"temp_day", "temp_set_day", "temp_day_set"},
+	InputNumberTempNight:        {"temp_night", "temp_set_night", "temp_night_set"},
+	InputNumberHumidityDay:      {"hum_day", "hum_set_day", "hum_day_set"},
+	InputNumberHumidityNight:    {"hum_night", "hum_set_night", "hum_night_set"},
+	InputNumberCO2Day:           {"co2_day", "co2_set_day", "co2_day_set"},
+	InputNumberCO2Night:         {"co2_night", "co2_set_night", "co2_night_set"},
+	InputNumberWateringStart:    {"day_watering", "watering_start", "start_watering"},
+	InputNumberWateringPeriod:   {"work_watering", "watering_period", "period_watering"},
+	InputNumberWateringPause:    {"wait_watering", "pause_between", "pause_between_watering"},
+	InputNumberWateringDuration: {"time_watering", "watering_seconds", "duration_watering"},
 }
 
 // InitializeConfig initializes the config for a chamber
 func (c *Chamber) InitializeConfig() {
 	if c.Config == nil {
 		c.Config = &ChamberConfig{
-			ID:             primitive.NewObjectID(),
-			ChamberID:      c.ID,
-			DayDuration:    make(map[string]float64),
-			DayStart:       make(map[string]float64),
-			Temperature:    make(map[string]map[string]float64),
-			Humidity:       make(map[string]map[string]float64),
-			CO2:            make(map[string]map[string]float64),
-			LightIntensity: make(map[string]float64),
-			WateringZones:  make(map[string]map[string]float64),
-			UpdatedAt:      time.Now(),
+			ID:                   primitive.NewObjectID(),
+			ChamberID:            c.ID,
+			Lamps:                []Lamp{},
+			WateringZones:        []WateringZone{},
+			UnrecognisedEntities: []InputNumber{},
+			DayDuration:          make(map[string]float64),
+			DayStart:             make(map[string]float64),
+			Temperature:          make(map[string]map[string]float64),
+			Humidity:             make(map[string]map[string]float64),
+			CO2:                  make(map[string]map[string]float64),
+			LightIntensity:       make(map[string]float64),
+			WateringSettings:     make(map[string]map[string]float64),
+			UpdatedAt:            time.Now(),
 		}
 
 		// Initialize sub-maps

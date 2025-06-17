@@ -214,9 +214,24 @@ func (s *SyncService) fetchChamberConfig(backendID primitive.ObjectID) (*models.
 
 	// Parse response
 	var response struct {
-		Success bool                 `json:"success"`
-		Data    models.ChamberConfig `json:"data"`
-		Error   string               `json:"error"`
+		Success bool `json:"success"`
+		Data    struct {
+			ID                   primitive.ObjectID            `json:"id"`
+			ChamberID            primitive.ObjectID            `json:"chamber_id"`
+			Lamps                []models.Lamp                 `json:"lamps"`
+			WateringZones        []models.WateringZone         `json:"watering_zones"`
+			UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
+			DayDuration          map[string]float64            `json:"day_duration"`
+			DayStart             map[string]float64            `json:"day_start"`
+			Temperature          map[string]map[string]float64 `json:"temperature"`
+			Humidity             map[string]map[string]float64 `json:"humidity"`
+			CO2                  map[string]map[string]float64 `json:"co2"`
+			LightIntensity       map[string]float64            `json:"light_intensity"`
+			WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
+			UpdatedAt            time.Time                     `json:"updated_at"`
+			SyncedAt             *time.Time                    `json:"synced_at,omitempty"`
+		} `json:"data"`
+		Error string `json:"error"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
@@ -227,7 +242,20 @@ func (s *SyncService) fetchChamberConfig(backendID primitive.ObjectID) (*models.
 		return nil, fmt.Errorf("config fetch failed: %s", response.Error)
 	}
 
-	return &response.Data, nil
+	return &models.ChamberConfig{
+		Lamps:                response.Data.Lamps,
+		WateringZones:        response.Data.WateringZones,
+		UnrecognisedEntities: response.Data.UnrecognisedEntities,
+		DayDuration:          response.Data.DayDuration,
+		DayStart:             response.Data.DayStart,
+		Temperature:          response.Data.Temperature,
+		Humidity:             response.Data.Humidity,
+		CO2:                  response.Data.CO2,
+		LightIntensity:       response.Data.LightIntensity,
+		WateringSettings:     response.Data.WateringSettings,
+		UpdatedAt:            response.Data.UpdatedAt,
+		SyncedAt:             response.Data.SyncedAt,
+	}, nil
 }
 
 // syncExperimentsForChamber fetches experiments for a specific chamber

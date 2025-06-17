@@ -41,19 +41,27 @@ func NewRegistrationService(cfg *config.Config, db *database.MongoDB, ntpService
 	}
 }
 
-// RegistrationRequest for chamber registration
+// Updated RegistrationRequest in registration.go
 type RegistrationRequest struct {
-	Name          string                `json:"name"`
-	Location      string                `json:"location"`
-	HAUrl         string                `json:"ha_url"`
-	AccessToken   string                `json:"access_token"`
-	LocalIP       string                `json:"local_ip"`
-	InputNumbers  []models.InputNumber  `json:"input_numbers"`
-	Lamps         []models.Lamp         `json:"lamps"`
-	WateringZones []models.WateringZone `json:"watering_zones"`
+	Name                 string                        `json:"name"`
+	Suffix               string                        `json:"suffix"`
+	Location             string                        `json:"location"`
+	HAUrl                string                        `json:"ha_url"`
+	AccessToken          string                        `json:"access_token"`
+	LocalIP              string                        `json:"local_ip"`
+	Lamps                []models.Lamp                 `json:"lamps"`
+	WateringZones        []models.WateringZone         `json:"watering_zones"`
+	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
+	DayDuration          map[string]float64            `json:"day_duration"`
+	DayStart             map[string]float64            `json:"day_start"`
+	Temperature          map[string]map[string]float64 `json:"temperature"`
+	Humidity             map[string]map[string]float64 `json:"humidity"`
+	CO2                  map[string]map[string]float64 `json:"co2"`
+	LightIntensity       map[string]float64            `json:"light_intensity"`
+	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
 }
 
-// RegisterChamberWithBackend registers a chamber with the backend
+// Updated RegisterChamberWithBackend method
 func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber) error {
 	// Skip if already registered
 	if !chamber.BackendID.IsZero() {
@@ -64,14 +72,22 @@ func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber
 
 	// Prepare registration request
 	req := RegistrationRequest{
-		Name:          chamber.Name,
-		Location:      fmt.Sprintf("Local API v2 - %s", chamber.Suffix),
-		HAUrl:         chamber.HomeAssistantURL,
-		AccessToken:   s.config.HomeAssistantToken,
-		LocalIP:       chamber.LocalIP,
-		InputNumbers:  chamber.Config.InputNumbers,
-		Lamps:         chamber.Config.Lamps,
-		WateringZones: chamber.Config.WateringZones,
+		Name:                 chamber.Name,
+		Suffix:               chamber.Suffix,
+		Location:             fmt.Sprintf("Local API v2 - %s", chamber.Suffix),
+		HAUrl:                chamber.HomeAssistantURL,
+		AccessToken:          s.config.HomeAssistantToken,
+		LocalIP:              chamber.LocalIP,
+		Lamps:                chamber.Config.Lamps,
+		WateringZones:        chamber.Config.WateringZones,
+		UnrecognisedEntities: chamber.Config.UnrecognisedEntities,
+		DayDuration:          chamber.Config.DayDuration,
+		DayStart:             chamber.Config.DayStart,
+		Temperature:          chamber.Config.Temperature,
+		Humidity:             chamber.Config.Humidity,
+		CO2:                  chamber.Config.CO2,
+		LightIntensity:       chamber.Config.LightIntensity,
+		WateringSettings:     chamber.Config.WateringSettings,
 	}
 
 	jsonData, err := json.Marshal(req)
@@ -151,6 +167,14 @@ func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber
 	}
 
 	log.Printf("✅ Successfully registered chamber %s with backend. Backend ID: %s", chamber.Name, backendID.Hex())
+	log.Printf("  - Sent %d lamps", len(req.Lamps))
+	log.Printf("  - Sent %d watering zones", len(req.WateringZones))
+	log.Printf("  - Sent %d unrecognised entities", len(req.UnrecognisedEntities))
+	log.Printf("  - Climate mappings: %d day_start, %d day_duration",
+		len(req.DayStart), len(req.DayDuration))
+	log.Printf("  - Temperature: %d day, %d night",
+		len(req.Temperature["day"]), len(req.Temperature["night"]))
+
 	return nil
 }
 

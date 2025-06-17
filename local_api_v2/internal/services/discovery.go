@@ -354,20 +354,19 @@ func (s *DiscoveryService) DiscoverChamberEntities() (map[string]*ChamberEntitie
 
 	log.Printf("Discovered entities grouped by rooms:")
 	for roomSuffix, room := range roomMap {
-		log.Printf("  Room '%s': %d input numbers, %d lamps, %d watering zones",
-			roomSuffix, len(room.Config.InputNumbers), len(room.Config.Lamps), len(room.Config.WateringZones))
+		log.Printf("  Room '%s': %d lamps, %d watering zones",
+			roomSuffix, len(room.Config.Lamps), len(room.Config.WateringZones))
 	}
 
 	return roomMap, nil
 }
 
 func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []homeassistant.InputNumberEntity) (map[string]*ChamberEntities, error) {
-
 	roomMap := make(map[string]*ChamberEntities)
 
 	log.Printf("Discovering room entities with configured suffixes: %v", s.chamberSuffixes)
 
-	// Сначала собираем все entity по комнатам
+	// First collect all entities by rooms
 	for _, entity := range haEntities {
 		entityID := entity.EntityID
 		lowerEntityID := strings.ToLower(entityID)
@@ -379,14 +378,25 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 
 		roomSuffix := s.extractRoomSuffix(entityID)
 		if roomSuffix == "" {
-			roomSuffix = "default" // Для entity без суффикса комнаты
+			roomSuffix = "default" // For entities without room suffix
 		}
 
-		// Создаем или получаем комнату
+		// Create or get room
 		if _, exists := roomMap[roomSuffix]; !exists {
 			roomMap[roomSuffix] = &ChamberEntities{
 				RoomSuffix: roomSuffix,
-				Config:     models.ChamberConfig{},
+				Config: models.ChamberConfig{
+					Lamps:                []models.Lamp{},
+					WateringZones:        []models.WateringZone{},
+					UnrecognisedEntities: []models.InputNumber{},
+					DayDuration:          make(map[string]float64),
+					DayStart:             make(map[string]float64),
+					Temperature:          map[string]map[string]float64{"day": {}, "night": {}},
+					Humidity:             map[string]map[string]float64{"day": {}, "night": {}},
+					CO2:                  map[string]map[string]float64{"day": {}, "night": {}},
+					LightIntensity:       make(map[string]float64),
+					WateringSettings:     make(map[string]map[string]float64),
+				},
 			}
 		}
 
@@ -395,7 +405,7 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 
 		log.Printf("Processing entity for room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
 
-		// Обработка ламп
+		// Process lamps
 		if isLampEntity(lowerEntityID, friendlyName) {
 			lampName := extractLampName(entityID, friendlyName)
 			lamp := models.Lamp{
@@ -406,75 +416,120 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 				CurrentValue: entity.Value,
 			}
 			room.Config.Lamps = append(room.Config.Lamps, lamp)
+			room.Config.LightIntensity[entityID] = entity.Value
 			entityProcessed = true
 		}
 
-		// Обработка полива
-		wateringType, zoneName := getWateringType(lowerEntityID, friendlyName)
-		if wateringType != "" {
-			// Ищем существующую зону полива для этой комнаты
-			var targetZone *models.WateringZone
-			for i := range room.Config.WateringZones {
-				if room.Config.WateringZones[i].Name == zoneName {
-					targetZone = &room.Config.WateringZones[i]
-					break
+		// Process watering
+		if !entityProcessed {
+			wateringType, zoneName := getWateringType(lowerEntityID, friendlyName)
+			if wateringType != "" {
+				// Find existing watering zone for this room
+				var targetZone *models.WateringZone
+				for i := range room.Config.WateringZones {
+					if room.Config.WateringZones[i].Name == zoneName {
+						targetZone = &room.Config.WateringZones[i]
+						break
+					}
 				}
-			}
 
-			if targetZone == nil {
-				// Создаем новую зону
-				newZone := models.WateringZone{Name: zoneName}
-				room.Config.WateringZones = append(room.Config.WateringZones, newZone)
-				targetZone = &room.Config.WateringZones[len(room.Config.WateringZones)-1]
-			}
+				if targetZone == nil {
+					// Create new zone
+					newZone := models.WateringZone{Name: zoneName}
+					room.Config.WateringZones = append(room.Config.WateringZones, newZone)
+					targetZone = &room.Config.WateringZones[len(room.Config.WateringZones)-1]
+				}
 
-			// Устанавливаем соответствующий entity ID
-			switch wateringType {
-			case models.InputNumberWateringStart:
-				targetZone.StartTimeEntityID = entityID
-			case models.InputNumberWateringPeriod:
-				targetZone.PeriodEntityID = entityID
-			case models.InputNumberWateringPause:
-				targetZone.PauseBetweenEntityID = entityID
-			case models.InputNumberWateringDuration:
-				targetZone.DurationEntityID = entityID
+				// Set corresponding entity ID
+				switch wateringType {
+				case models.InputNumberWateringStart:
+					targetZone.StartTimeEntityID = entityID
+				case models.InputNumberWateringPeriod:
+					targetZone.PeriodEntityID = entityID
+				case models.InputNumberWateringPause:
+					targetZone.PauseBetweenEntityID = entityID
+				case models.InputNumberWateringDuration:
+					targetZone.DurationEntityID = entityID
+				}
+
+				// Add to watering settings
+				if room.Config.WateringSettings[zoneName] == nil {
+					room.Config.WateringSettings[zoneName] = make(map[string]float64)
+				}
+
+				switch wateringType {
+				case models.InputNumberWateringStart:
+					room.Config.WateringSettings[zoneName]["start_time"] = entity.Value
+				case models.InputNumberWateringPeriod:
+					room.Config.WateringSettings[zoneName]["period"] = entity.Value
+				case models.InputNumberWateringPause:
+					room.Config.WateringSettings[zoneName]["pause"] = entity.Value
+				case models.InputNumberWateringDuration:
+					room.Config.WateringSettings[zoneName]["duration"] = entity.Value
+				}
+
+				entityProcessed = true
 			}
-			entityProcessed = true
-			continue
 		}
 
-		// Обработка обычных input numbers (климат контроль)
-		inputType := getInputNumberType(lowerEntityID, friendlyName)
-		if inputType != "" {
-			inputNumber := models.InputNumber{
-				EntityID:     entityID,
-				Name:         friendlyName,
-				Type:         inputType,
-				Min:          entity.Min,
-				Max:          entity.Max,
-				Step:         entity.Step,
-				CurrentValue: entity.Value,
-				Unit:         entity.Unit,
+		// Process regular input numbers (climate control)
+		if !entityProcessed {
+			inputType := getInputNumberType(lowerEntityID, friendlyName)
+			if inputType != "" {
+				switch inputType {
+				case models.InputNumberDayStart:
+					room.Config.DayStart[entityID] = entity.Value
+				case models.InputNumberDayDuration:
+					room.Config.DayDuration[entityID] = entity.Value
+				case models.InputNumberTempDay:
+					room.Config.Temperature["day"][entityID] = entity.Value
+				case models.InputNumberTempNight:
+					room.Config.Temperature["night"][entityID] = entity.Value
+				case models.InputNumberHumidityDay:
+					room.Config.Humidity["day"][entityID] = entity.Value
+				case models.InputNumberHumidityNight:
+					room.Config.Humidity["night"][entityID] = entity.Value
+				case models.InputNumberCO2Day:
+					room.Config.CO2["day"][entityID] = entity.Value
+				case models.InputNumberCO2Night:
+					room.Config.CO2["night"][entityID] = entity.Value
+				}
+				entityProcessed = true
 			}
-			room.Config.InputNumbers = append(room.Config.InputNumbers, inputNumber)
-			entityProcessed = true
 		}
 
-		// Если объект не был обработан, добавляем его как нераспознанный
+		// If entity was not processed, add it as unrecognised
 		if !entityProcessed {
 			inputNumber := models.InputNumber{
 				EntityID:     entityID,
 				Name:         friendlyName,
-				Type:         "unrecognised",
+				Type:         models.InputNumberUnrecognised,
 				Min:          entity.Min,
 				Max:          entity.Max,
 				Step:         entity.Step,
 				CurrentValue: entity.Value,
 				Unit:         entity.Unit,
 			}
-			room.Config.InputNumbers = append(room.Config.InputNumbers, inputNumber)
+			room.Config.UnrecognisedEntities = append(room.Config.UnrecognisedEntities, inputNumber)
 			log.Printf("Unrecognized entity added to room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
 		}
 	}
+
+	// Log summary for each room
+	for roomSuffix, room := range roomMap {
+		log.Printf("Room '%s' summary:", roomSuffix)
+		log.Printf("  - %d lamps", len(room.Config.Lamps))
+		log.Printf("  - %d watering zones", len(room.Config.WateringZones))
+		log.Printf("  - %d unrecognised entities", len(room.Config.UnrecognisedEntities))
+		log.Printf("  - Climate mappings: %d day_start, %d day_duration",
+			len(room.Config.DayStart), len(room.Config.DayDuration))
+		log.Printf("  - Temperature: %d day, %d night",
+			len(room.Config.Temperature["day"]), len(room.Config.Temperature["night"]))
+		log.Printf("  - Humidity: %d day, %d night",
+			len(room.Config.Humidity["day"]), len(room.Config.Humidity["night"]))
+		log.Printf("  - CO2: %d day, %d night",
+			len(room.Config.CO2["day"]), len(room.Config.CO2["night"]))
+	}
+
 	return roomMap, nil
 }

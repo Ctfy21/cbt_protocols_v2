@@ -30,7 +30,6 @@ func NewChamberService(db *database.MongoDB, config *config.Config) *ChamberServ
 	}
 }
 
-// RegisterChamber registers a new chamber or updates existing one
 func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.Chamber, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -47,20 +46,33 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 	if err == mongo.ErrNoDocuments {
 		// Create new chamber
 		chamber := models.Chamber{
-			ID:            primitive.NewObjectID(),
-			Name:          req.Name,
-			Location:      req.Location,
-			HAUrl:         req.HAUrl,
-			AccessToken:   req.AccessToken,
-			LocalIP:       req.LocalIP,
-			Status:        models.StatusOnline,
-			LastHeartbeat: now,
-			InputNumbers:  req.InputNumbers,
-			Lamps:         req.Lamps,
-			WateringZones: req.WateringZones,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:                 primitive.NewObjectID(),
+			Name:               req.Name,
+			Suffix:             req.Suffix,
+			Location:           req.Location,
+			HAUrl:              req.HAUrl,
+			AccessToken:        req.AccessToken,
+			LocalIP:            req.LocalIP,
+			Status:             models.StatusOnline,
+			LastHeartbeat:      now,
+			DiscoveryCompleted: true,
+			CreatedAt:          now,
+			UpdatedAt:          now,
 		}
+
+		// Initialize config
+		chamber.InitializeConfig()
+		chamber.Config.Lamps = req.Lamps
+		chamber.Config.WateringZones = req.WateringZones
+		chamber.Config.UnrecognisedEntities = req.UnrecognisedEntities
+		chamber.Config.DayDuration = req.DayDuration
+		chamber.Config.DayStart = req.DayStart
+		chamber.Config.Temperature = req.Temperature
+		chamber.Config.Humidity = req.Humidity
+		chamber.Config.CO2 = req.CO2
+		chamber.Config.LightIntensity = req.LightIntensity
+		chamber.Config.WateringSettings = req.WateringSettings
+		chamber.Config.UpdatedAt = now
 
 		_, err = s.db.ChambersCollection.InsertOne(ctx, chamber)
 		if err != nil {
@@ -68,43 +80,7 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 		}
 
 		log.Printf("New chamber registered: %s (%s)", chamber.Name, chamber.ID.Hex())
-
-		// Log discovered entities
-		log.Printf("Chamber %s entities:", chamber.Name)
-		log.Printf("  - %d input numbers", len(chamber.InputNumbers))
-		log.Printf("  - %d lamps", len(chamber.Lamps))
-		log.Printf("  - %d watering zones", len(chamber.WateringZones))
-
-		// Log watering zones details
-		if len(chamber.WateringZones) > 0 {
-			log.Println("  Watering zones:")
-			for _, zone := range chamber.WateringZones {
-				log.Printf("    - %s:", zone.Name)
-				log.Printf("      Start Time: %s", zone.StartTimeEntityID)
-				log.Printf("      Period: %s", zone.PeriodEntityID)
-				log.Printf("      Pause: %s", zone.PauseBetweenEntityID)
-				log.Printf("      Duration: %s", zone.DurationEntityID)
-			}
-		}
-
-		// Log watering-related input numbers
-		wateringTypes := []string{
-			models.InputNumberWateringStart,
-			models.InputNumberWateringPeriod,
-			models.InputNumberWateringPause,
-			models.InputNumberWateringDuration,
-		}
-
-		log.Println("  Watering input numbers by type:")
-		for _, wType := range wateringTypes {
-			inputs := chamber.GetInputNumbersByType(wType)
-			if len(inputs) > 0 {
-				log.Printf("    - %s: %d entities", wType, len(inputs))
-				for _, input := range inputs {
-					log.Printf("      %s (current: %.1f)", input.EntityID, input.CurrentValue)
-				}
-			}
-		}
+		s.logChamberEntities(&chamber)
 
 		return &chamber, nil
 	}
@@ -114,17 +90,34 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 	}
 
 	// Update existing chamber
+	if existingChamber.Config == nil {
+		existingChamber.InitializeConfig()
+	}
+
+	// Update config with new entities
+	existingChamber.Config.Lamps = req.Lamps
+	existingChamber.Config.WateringZones = req.WateringZones
+	existingChamber.Config.UnrecognisedEntities = req.UnrecognisedEntities
+	existingChamber.Config.DayDuration = req.DayDuration
+	existingChamber.Config.DayStart = req.DayStart
+	existingChamber.Config.Temperature = req.Temperature
+	existingChamber.Config.Humidity = req.Humidity
+	existingChamber.Config.CO2 = req.CO2
+	existingChamber.Config.LightIntensity = req.LightIntensity
+	existingChamber.Config.WateringSettings = req.WateringSettings
+	existingChamber.Config.UpdatedAt = now
+
 	update := bson.M{
 		"$set": bson.M{
-			"location":       req.Location,
-			"ha_url":         req.HAUrl,
-			"access_token":   req.AccessToken,
-			"status":         models.StatusOnline,
-			"last_heartbeat": now,
-			"input_numbers":  req.InputNumbers,
-			"lamps":          req.Lamps,
-			"watering_zones": req.WateringZones,
-			"updated_at":     now,
+			"suffix":              req.Suffix,
+			"location":            req.Location,
+			"ha_url":              req.HAUrl,
+			"access_token":        req.AccessToken,
+			"status":              models.StatusOnline,
+			"last_heartbeat":      now,
+			"discovery_completed": true,
+			"config":              existingChamber.Config,
+			"updated_at":          now,
 		},
 	}
 
@@ -138,17 +131,34 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 	existingChamber.UpdatedAt = now
 
 	log.Printf("Chamber updated: %s (%s)", existingChamber.Name, existingChamber.ID.Hex())
+	s.logChamberEntities(&existingChamber)
 
-	// Log discovered entities
-	log.Printf("Chamber %s entities:", existingChamber.Name)
-	log.Printf("  - %d input numbers", len(req.InputNumbers))
-	log.Printf("  - %d lamps", len(req.Lamps))
-	log.Printf("  - %d watering zones", len(req.WateringZones))
+	return &existingChamber, nil
+}
+
+// Helper method to log chamber entities
+func (s *ChamberService) logChamberEntities(chamber *models.Chamber) {
+	if chamber.Config == nil {
+		return
+	}
+
+	log.Printf("Chamber %s entities:", chamber.Name)
+	log.Printf("  - %d lamps", len(chamber.Config.Lamps))
+	log.Printf("  - %d watering zones", len(chamber.Config.WateringZones))
+	log.Printf("  - %d unrecognised entities", len(chamber.Config.UnrecognisedEntities))
+
+	// Log climate control mappings
+	log.Printf("  Climate control mappings:")
+	log.Printf("    - Day duration: %d entities", len(chamber.Config.DayDuration))
+	log.Printf("    - Day start: %d entities", len(chamber.Config.DayStart))
+	log.Printf("    - Temperature: %d day, %d night", len(chamber.Config.Temperature["day"]), len(chamber.Config.Temperature["night"]))
+	log.Printf("    - Humidity: %d day, %d night", len(chamber.Config.Humidity["day"]), len(chamber.Config.Humidity["night"]))
+	log.Printf("    - CO2: %d day, %d night", len(chamber.Config.CO2["day"]), len(chamber.Config.CO2["night"]))
 
 	// Log watering zones details
-	if len(req.WateringZones) > 0 {
+	if len(chamber.Config.WateringZones) > 0 {
 		log.Println("  Watering zones:")
-		for _, zone := range req.WateringZones {
+		for _, zone := range chamber.Config.WateringZones {
 			log.Printf("    - %s:", zone.Name)
 			log.Printf("      Start Time: %s", zone.StartTimeEntityID)
 			log.Printf("      Period: %s", zone.PeriodEntityID)
@@ -157,7 +167,13 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 		}
 	}
 
-	return &existingChamber, nil
+	// Log unrecognised entities
+	if len(chamber.Config.UnrecognisedEntities) > 0 {
+		log.Printf("  Unrecognised entities:")
+		for _, entity := range chamber.Config.UnrecognisedEntities {
+			log.Printf("    - %s (%s)", entity.EntityID, entity.FriendlyName)
+		}
+	}
 }
 
 // UpdateHeartbeat updates the chamber heartbeat
@@ -287,28 +303,38 @@ func (s *ChamberService) StartStatusMonitor(ctx context.Context) {
 
 // RegisterChamberRequest represents the request to register a chamber
 type RegisterChamberRequest struct {
-	Name          string                `json:"name" binding:"required"`
-	Location      string                `json:"location"`
-	HAUrl         string                `json:"ha_url" binding:"required"`
-	AccessToken   string                `json:"access_token" binding:"required"`
-	LocalIP       string                `json:"local_ip" binding:"required"`
-	InputNumbers  []models.InputNumber  `json:"input_numbers"`
-	Lamps         []models.Lamp         `json:"lamps"`
-	WateringZones []models.WateringZone `json:"watering_zones"`
+	Name                 string                        `json:"name" binding:"required"`
+	Suffix               string                        `json:"suffix"`
+	Location             string                        `json:"location"`
+	HAUrl                string                        `json:"ha_url" binding:"required"`
+	AccessToken          string                        `json:"access_token" binding:"required"`
+	LocalIP              string                        `json:"local_ip" binding:"required"`
+	Lamps                []models.Lamp                 `json:"lamps"`
+	WateringZones        []models.WateringZone         `json:"watering_zones"`
+	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
+	DayDuration          map[string]float64            `json:"day_duration"`
+	DayStart             map[string]float64            `json:"day_start"`
+	Temperature          map[string]map[string]float64 `json:"temperature"`
+	Humidity             map[string]map[string]float64 `json:"humidity"`
+	CO2                  map[string]map[string]float64 `json:"co2"`
+	LightIntensity       map[string]float64            `json:"light_intensity"`
+	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
 }
 
 // UpdateChamberConfigRequest represents the request to update chamber configuration
 type UpdateChamberConfigRequest struct {
-	DayDuration    map[string]float64            `json:"day_duration"`
-	DayStart       map[string]float64            `json:"day_start"`
-	Temperature    map[string]map[string]float64 `json:"temperature"`
-	Humidity       map[string]map[string]float64 `json:"humidity"`
-	CO2            map[string]map[string]float64 `json:"co2"`
-	LightIntensity map[string]float64            `json:"light_intensity"`
-	WateringZones  map[string]map[string]float64 `json:"watering_zones"`
+	Lamps                []models.Lamp                 `json:"lamps"`
+	WateringZones        []models.WateringZone         `json:"watering_zones"`
+	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
+	DayDuration          map[string]float64            `json:"day_duration"`
+	DayStart             map[string]float64            `json:"day_start"`
+	Temperature          map[string]map[string]float64 `json:"temperature"`
+	Humidity             map[string]map[string]float64 `json:"humidity"`
+	CO2                  map[string]map[string]float64 `json:"co2"`
+	LightIntensity       map[string]float64            `json:"light_intensity"`
+	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
 }
 
-// UpdateChamberConfig updates the configuration for a chamber
 func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChamberConfigRequest) (*models.ChamberConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -333,6 +359,15 @@ func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChambe
 
 	// Update configuration fields
 	now := time.Now()
+	if req.Lamps != nil {
+		chamber.Config.Lamps = req.Lamps
+	}
+	if req.WateringZones != nil {
+		chamber.Config.WateringZones = req.WateringZones
+	}
+	if req.UnrecognisedEntities != nil {
+		chamber.Config.UnrecognisedEntities = req.UnrecognisedEntities
+	}
 	if req.DayDuration != nil {
 		chamber.Config.DayDuration = req.DayDuration
 	}
@@ -351,8 +386,8 @@ func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChambe
 	if req.LightIntensity != nil {
 		chamber.Config.LightIntensity = req.LightIntensity
 	}
-	if req.WateringZones != nil {
-		chamber.Config.WateringZones = req.WateringZones
+	if req.WateringSettings != nil {
+		chamber.Config.WateringSettings = req.WateringSettings
 	}
 	chamber.Config.UpdatedAt = now
 

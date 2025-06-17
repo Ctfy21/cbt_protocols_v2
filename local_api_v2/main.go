@@ -98,11 +98,9 @@ func main() {
 				// Log discovered chambers
 				chambers := chamberManager.GetChambers()
 				log.Printf("Successfully discovered %d chambers:", len(chambers))
-
 				for suffix, chamber := range chambers {
-					log.Printf("  Chamber '%s': %s (%d inputs, %d lamps, %d zones)",
+					log.Printf("  Chamber '%s': %s (%d lamps, %d zones)",
 						suffix, chamber.Name,
-						len(chamber.Config.InputNumbers),
 						len(chamber.Config.Lamps),
 						len(chamber.Config.WateringZones))
 
@@ -282,15 +280,25 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 
 		for suffix, chamber := range chambers {
 			chamberList = append(chamberList, map[string]interface{}{
-				"id":          chamber.ID.Hex(),
-				"name":        chamber.Name,
-				"suffix":      suffix,
-				"backend_id":  chamber.BackendID.Hex(),
-				"status":      chamber.Status,
-				"registered":  !chamber.BackendID.IsZero(),
-				"input_count": len(chamber.Config.InputNumbers),
-				"lamp_count":  len(chamber.Config.Lamps),
-				"zone_count":  len(chamber.Config.WateringZones),
+				"id":                 chamber.ID.Hex(),
+				"name":               chamber.Name,
+				"suffix":             suffix,
+				"backend_id":         chamber.BackendID.Hex(),
+				"status":             chamber.Status,
+				"registered":         !chamber.BackendID.IsZero(),
+				"lamp_count":         len(chamber.Config.Lamps),
+				"zone_count":         len(chamber.Config.WateringZones),
+				"unrecognised_count": len(chamber.Config.UnrecognisedEntities),
+				"climate_mappings": map[string]interface{}{
+					"day_start":         len(chamber.Config.DayStart),
+					"day_duration":      len(chamber.Config.DayDuration),
+					"temperature_day":   len(chamber.Config.Temperature["day"]),
+					"temperature_night": len(chamber.Config.Temperature["night"]),
+					"humidity_day":      len(chamber.Config.Humidity["day"]),
+					"humidity_night":    len(chamber.Config.Humidity["night"]),
+					"co2_day":           len(chamber.Config.CO2["day"]),
+					"co2_night":         len(chamber.Config.CO2["night"]),
+				},
 			})
 		}
 

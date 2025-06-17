@@ -22,7 +22,7 @@ func NewChamberHandler(chamberService *services.ChamberService) *ChamberHandler 
 	}
 }
 
-// RegisterChamber handles POST /chambers
+// Updated RegisterChamber method in chamber_handler.go
 func (h *ChamberHandler) RegisterChamber(c *gin.Context) {
 	var req services.RegisterChamberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -37,6 +37,46 @@ func (h *ChamberHandler) RegisterChamber(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.SuccessResponse(gin.H{"id": chamber.ID.Hex()}))
+}
+
+// Updated GetChamberWateringZones method
+func (h *ChamberHandler) GetChamberWateringZones(c *gin.Context) {
+	chamberID := c.Param("id")
+
+	chamber, err := h.chamberService.GetChamber(chamberID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	if chamber.Config == nil {
+		c.JSON(http.StatusOK, models.SuccessResponse([]interface{}{}))
+		return
+	}
+
+	// Build response with watering zones and their settings
+	type WateringZoneResponse struct {
+		Zone     models.WateringZone `json:"zone"`
+		Settings map[string]float64  `json:"settings"`
+	}
+
+	var response []WateringZoneResponse
+
+	for _, zone := range chamber.Config.WateringZones {
+		zoneSettings := make(map[string]float64)
+
+		// Get settings for this zone from WateringSettings map
+		if settings, exists := chamber.Config.WateringSettings[zone.Name]; exists {
+			zoneSettings = settings
+		}
+
+		response = append(response, WateringZoneResponse{
+			Zone:     zone,
+			Settings: zoneSettings,
+		})
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(response))
 }
 
 // Heartbeat handles POST /chambers/:id/heartbeat
@@ -74,37 +114,6 @@ func (h *ChamberHandler) GetChambers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.SuccessResponse(chambers))
-}
-
-// GetChamberWateringZones handles GET /chambers/:id/watering-zones
-func (h *ChamberHandler) GetChamberWateringZones(c *gin.Context) {
-	chamberID := c.Param("id")
-
-	chamber, err := h.chamberService.GetChamber(chamberID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, models.ErrorResponse(err.Error()))
-		return
-	}
-
-	// Build response with watering zones and their associated input numbers
-	type WateringZoneResponse struct {
-		Zone         models.WateringZone            `json:"zone"`
-		InputNumbers map[string]*models.InputNumber `json:"input_numbers"`
-	}
-
-	var response []WateringZoneResponse
-	wateringInputs := chamber.GetWateringInputNumbers()
-
-	for _, zone := range chamber.WateringZones {
-		if inputs, ok := wateringInputs[zone.Name]; ok {
-			response = append(response, WateringZoneResponse{
-				Zone:         zone,
-				InputNumbers: inputs,
-			})
-		}
-	}
-
-	c.JSON(http.StatusOK, models.SuccessResponse(response))
 }
 
 // UpdateChamberConfig handles PUT /chambers/:id/config

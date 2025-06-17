@@ -32,11 +32,18 @@ type Chamber struct {
 
 // ChamberConfig represents chamber configuration
 type ChamberConfig struct {
-	InputNumbers  []InputNumber  `bson:"input_numbers" json:"input_numbers"`
-	Lamps         []Lamp         `bson:"lamps" json:"lamps"`
-	WateringZones []WateringZone `bson:"watering_zones" json:"watering_zones"`
-	UpdatedAt     time.Time      `bson:"updated_at" json:"updated_at"`
-	SyncedAt      *time.Time     `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
+	Lamps                []Lamp                        `bson:"lamps" json:"lamps"`
+	WateringZones        []WateringZone                `bson:"watering_zones" json:"watering_zones"`
+	UnrecognisedEntities []InputNumber                 `bson:"unrecognised_entities" json:"unrecognised_entities"`
+	DayDuration          map[string]float64            `bson:"day_duration" json:"day_duration"`
+	DayStart             map[string]float64            `bson:"day_start" json:"day_start"`
+	Temperature          map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
+	Humidity             map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
+	CO2                  map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
+	LightIntensity       map[string]float64            `bson:"light_intensity" json:"light_intensity"`
+	WateringSettings     map[string]map[string]float64 `bson:"watering_settings" json:"watering_settings"` // zone_name -> param_type -> value
+	UpdatedAt            time.Time                     `bson:"updated_at" json:"updated_at"`
+	SyncedAt             *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
 // InputNumber represents a Home Assistant input_number entity
@@ -83,6 +90,7 @@ const (
 	InputNumberWateringPeriod   = "watering_period"
 	InputNumberWateringPause    = "watering_pause"
 	InputNumberWateringDuration = "watering_duration"
+	InputNumberUnrecognised     = "unrecognised"
 )
 
 // InputNumberSubstrings defines the substrings to search for each input number type
@@ -99,46 +107,4 @@ var InputNumberSubstrings = map[string][]string{
 	InputNumberWateringPeriod:   {"work_watering", "watering_period", "period_watering"},
 	InputNumberWateringPause:    {"wait_watering", "pause_between", "pause_between_watering"},
 	InputNumberWateringDuration: {"time_watering", "watering_seconds", "duration_watering"},
-}
-
-// GetInputNumbersByType returns all input numbers of a specific type
-func (c *Chamber) GetInputNumbersByType(inputType string) []InputNumber {
-	var result []InputNumber
-	for _, in := range c.Config.InputNumbers {
-		if in.Type == inputType {
-			result = append(result, in)
-		}
-	}
-	return result
-}
-
-// GetWateringInputNumbers returns all watering-related input numbers grouped by zone
-func (c *Chamber) GetWateringInputNumbers() map[string]map[string]*InputNumber {
-	wateringInputs := make(map[string]map[string]*InputNumber)
-
-	// Process each watering zone
-	for _, zone := range c.Config.WateringZones {
-		zoneInputs := make(map[string]*InputNumber)
-
-		// Find matching input numbers for this zone
-		for i := range c.Config.InputNumbers {
-			in := &c.Config.InputNumbers[i]
-			switch in.EntityID {
-			case zone.StartTimeEntityID:
-				zoneInputs["start_time"] = in
-			case zone.PeriodEntityID:
-				zoneInputs["period"] = in
-			case zone.PauseBetweenEntityID:
-				zoneInputs["pause"] = in
-			case zone.DurationEntityID:
-				zoneInputs["duration"] = in
-			}
-		}
-
-		if len(zoneInputs) > 0 {
-			wateringInputs[zone.Name] = zoneInputs
-		}
-	}
-
-	return wateringInputs
 }

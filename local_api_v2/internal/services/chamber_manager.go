@@ -64,7 +64,7 @@ func (cm *ChamberManager) InitializeChambers(ctx context.Context) error {
 	return nil
 }
 
-// createOrUpdateChamber creates or updates a chamber
+// Updated createOrUpdateChamber method in chamber_manager.go
 func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix string, entities *ChamberEntities) (*models.Chamber, error) {
 	// Generate chamber name
 	chamberName := cm.generateChamberName(suffix)
@@ -88,10 +88,17 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 			Status:           "online",
 			LastHeartbeat:    now,
 			Config: models.ChamberConfig{
-				InputNumbers:  entities.Config.InputNumbers,
-				Lamps:         entities.Config.Lamps,
-				WateringZones: entities.Config.WateringZones,
-				UpdatedAt:     now,
+				Lamps:                entities.Config.Lamps,
+				WateringZones:        entities.Config.WateringZones,
+				UnrecognisedEntities: entities.Config.UnrecognisedEntities,
+				DayDuration:          entities.Config.DayDuration,
+				DayStart:             entities.Config.DayStart,
+				Temperature:          entities.Config.Temperature,
+				Humidity:             entities.Config.Humidity,
+				CO2:                  entities.Config.CO2,
+				LightIntensity:       entities.Config.LightIntensity,
+				WateringSettings:     entities.Config.WateringSettings,
+				UpdatedAt:            now,
 			},
 			DiscoveryCompleted: true,
 			CreatedAt:          now,
@@ -104,6 +111,7 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 		}
 
 		log.Printf("Created new chamber: %s", chamber.Name)
+		cm.logChamberSummary(&chamber)
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to query chamber: %w", err)
 	} else {
@@ -117,10 +125,17 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 				"last_heartbeat":      now,
 				"discovery_completed": true,
 				"config": bson.M{
-					"input_numbers":  entities.Config.InputNumbers,
-					"lamps":          entities.Config.Lamps,
-					"watering_zones": entities.Config.WateringZones,
-					"updated_at":     now,
+					"lamps":                 entities.Config.Lamps,
+					"watering_zones":        entities.Config.WateringZones,
+					"unrecognised_entities": entities.Config.UnrecognisedEntities,
+					"day_duration":          entities.Config.DayDuration,
+					"day_start":             entities.Config.DayStart,
+					"temperature":           entities.Config.Temperature,
+					"humidity":              entities.Config.Humidity,
+					"co2":                   entities.Config.CO2,
+					"light_intensity":       entities.Config.LightIntensity,
+					"watering_settings":     entities.Config.WateringSettings,
+					"updated_at":            now,
 				},
 				"updated_at": now,
 			},
@@ -138,18 +153,54 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 		chamber.Status = "online"
 		chamber.LastHeartbeat = now
 		chamber.Config = models.ChamberConfig{
-			InputNumbers:  entities.Config.InputNumbers,
-			Lamps:         entities.Config.Lamps,
-			WateringZones: entities.Config.WateringZones,
-			UpdatedAt:     now,
+			Lamps:                entities.Config.Lamps,
+			WateringZones:        entities.Config.WateringZones,
+			UnrecognisedEntities: entities.Config.UnrecognisedEntities,
+			DayDuration:          entities.Config.DayDuration,
+			DayStart:             entities.Config.DayStart,
+			Temperature:          entities.Config.Temperature,
+			Humidity:             entities.Config.Humidity,
+			CO2:                  entities.Config.CO2,
+			LightIntensity:       entities.Config.LightIntensity,
+			WateringSettings:     entities.Config.WateringSettings,
+			UpdatedAt:            now,
 		}
 		chamber.DiscoveryCompleted = true
 		chamber.UpdatedAt = now
 
 		log.Printf("Updated chamber: %s", chamber.Name)
+		cm.logChamberSummary(&chamber)
 	}
 
 	return &chamber, nil
+}
+
+// Helper method to log chamber summary
+func (cm *ChamberManager) logChamberSummary(chamber *models.Chamber) {
+	log.Printf("Chamber %s (suffix: %s) summary:", chamber.Name, chamber.Suffix)
+	log.Printf("  - %d lamps", len(chamber.Config.Lamps))
+	log.Printf("  - %d watering zones", len(chamber.Config.WateringZones))
+	log.Printf("  - %d unrecognised entities", len(chamber.Config.UnrecognisedEntities))
+	log.Printf("  - Climate mappings: %d day_start, %d day_duration",
+		len(chamber.Config.DayStart), len(chamber.Config.DayDuration))
+	log.Printf("  - Temperature: %d day, %d night",
+		len(chamber.Config.Temperature["day"]), len(chamber.Config.Temperature["night"]))
+	log.Printf("  - Humidity: %d day, %d night",
+		len(chamber.Config.Humidity["day"]), len(chamber.Config.Humidity["night"]))
+	log.Printf("  - CO2: %d day, %d night",
+		len(chamber.Config.CO2["day"]), len(chamber.Config.CO2["night"]))
+
+	// Log some examples of unrecognised entities if any
+	if len(chamber.Config.UnrecognisedEntities) > 0 {
+		log.Printf("  Examples of unrecognised entities:")
+		for i, entity := range chamber.Config.UnrecognisedEntities {
+			if i >= 3 { // Only show first 3 examples
+				log.Printf("    ... and %d more", len(chamber.Config.UnrecognisedEntities)-3)
+				break
+			}
+			log.Printf("    - %s (%s)", entity.EntityID, entity.Name)
+		}
+	}
 }
 
 // generateChamberName generates a descriptive name for the chamber
