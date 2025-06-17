@@ -18,14 +18,14 @@ import (
 	"local_api_v2/pkg/ntp"
 )
 
-// SyncService handles synchronization of experiments from backend
+// SyncService handles synchronization with backend
 type SyncService struct {
-	config          *config.Config
-	db              *database.MongoDB
-	ntpService      *ntp.TimeService
-	httpClient      *http.Client
-	backendServerID primitive.ObjectID
-	chamberManager  *ChamberManager
+	config              *config.Config
+	db                  *database.MongoDB
+	ntpService          *ntp.TimeService
+	httpClient          *http.Client
+	chamberManager      *ChamberManager
+	registrationService *RegistrationService
 }
 
 // NewSyncService creates a new sync service
@@ -40,15 +40,14 @@ func NewSyncService(cfg *config.Config, db *database.MongoDB, ntpService *ntp.Ti
 	}
 }
 
-// SetBackendID sets the backend chamber ID for syncing experiments
-func (s *SyncService) SetBackendServerID(id primitive.ObjectID) {
-	s.backendServerID = id
-	log.Printf("Sync service: Backend Server ID set to %s", id.Hex())
-}
-
 // SetChamberManager sets the chamber manager for config updates
 func (s *SyncService) SetChamberManager(cm *ChamberManager) {
 	s.chamberManager = cm
+}
+
+// SetRegistrationService sets the registration service for chamber ID mapping
+func (s *SyncService) SetRegistrationService(rs *RegistrationService) {
+	s.registrationService = rs
 }
 
 // StartSync starts the periodic synchronization
@@ -69,12 +68,7 @@ func (s *SyncService) StartSync(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := s.syncAll(); err != nil {
-				// Only log as warning if it's not the "no backend ID" error
-				if s.backendServerID.IsZero() {
-					log.Printf("⚠️  Sync skipped: Chamber not registered with backend yet")
-				} else {
-					log.Printf("❌ Sync failed: %v", err)
-				}
+				log.Printf("❌ Sync failed: %v", err)
 			}
 		}
 	}
@@ -82,32 +76,92 @@ func (s *SyncService) StartSync(ctx context.Context) {
 
 // syncAll performs all synchronization tasks
 func (s *SyncService) syncAll() error {
-	// Sync experiments
-	if err := s.syncExperiments(); err != nil {
-		log.Printf("Failed to sync experiments: %v", err)
+	// Get registered chambers
+	registeredChambers := s.chamberManager.GetRegisteredChambers()
+	if len(registeredChambers) == 0 {
+		log.Printf("⚠️  No chambers registered with backend yet")
+		return nil
 	}
 
-	// Sync chamber configuration if chamber manager is available
-	if s.chamberManager != nil {
-		if err := s.syncChamberConfig(); err != nil {
-			log.Printf("Failed to sync chamber config: %v", err)
+	// Sync experiments for each chamber
+	for _, chamber := range registeredChambers {
+		if err := s.syncExperimentsForChamber(chamber); err != nil {
+			log.Printf("Failed to sync experiments for chamber %s: %v", chamber.Name, err)
 		}
+	}
+
+	// Sync chamber configurations
+	if err := s.syncChamberConfigs(); err != nil {
+		log.Printf("Failed to sync chamber configs: %v", err)
 	}
 
 	return nil
 }
 
-// syncChamberConfig fetches chamber configuration updates from backend
-func (s *SyncService) syncChamberConfig() error {
-	if s.backendServerID.IsZero() {
-		return fmt.Errorf("no backend ID set - chamber not registered")
+// syncChamberConfigs fetches and updates chamber configurations from backend
+func (s *SyncService) syncChamberConfigs() error {
+	if s.chamberManager == nil {
+		return fmt.Errorf("chamber manager not set")
 	}
 
-	// Fetch chamber config from backend
-	url := fmt.Sprintf("%s/chambers/%s/config", s.config.BackendURL, s.backendServerID.Hex())
+	successCount := 0
+	chambers := s.chamberManager.GetChambers()
+
+	for _, chamber := range chambers {
+		if chamber.BackendID.IsZero() {
+			continue // Skip unregistered chambers
+		}
+
+		// Check if config needs update
+		needsUpdate, err := s.checkConfigNeedsUpdate(chamber)
+		if err != nil {
+			log.Printf("Failed to check config update for chamber %s: %v", chamber.Name, err)
+			continue
+		}
+
+		if !needsUpdate {
+			continue
+		}
+
+		// Fetch updated config from backend
+		config, err := s.fetchChamberConfig(chamber.BackendID)
+		if err != nil {
+			log.Printf("Failed to fetch config for chamber %s: %v", chamber.Name, err)
+			continue
+		}
+
+		// Update local chamber config
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := s.chamberManager.UpdateChamberConfig(ctx, chamber.ID, config); err != nil {
+			cancel()
+			log.Printf("Failed to update config for chamber %s: %v", chamber.Name, err)
+			continue
+		}
+		cancel()
+
+		successCount++
+		log.Printf("📊 Synced configuration for chamber: %s", chamber.Name)
+	}
+
+	if successCount > 0 {
+		log.Printf("✅ Successfully synced configs for %d chambers", successCount)
+	}
+
+	return nil
+}
+
+// checkConfigNeedsUpdate checks if chamber config needs to be updated
+func (s *SyncService) checkConfigNeedsUpdate(chamber *models.Chamber) (bool, error) {
+	url := fmt.Sprintf("%s/chambers/%s/config/check", s.config.BackendURL, chamber.BackendID.Hex())
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
+		return false, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Add last sync timestamp if available
+	if chamber.Config.SyncedAt != nil {
+		req.Header.Set("If-Modified-Since", chamber.Config.SyncedAt.Format(http.TimeFormat))
 	}
 
 	if s.config.BackendAPIKey != "" {
@@ -116,17 +170,46 @@ func (s *SyncService) syncChamberConfig() error {
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to fetch chamber config: %v", err)
+		return false, fmt.Errorf("failed to check config: %v", err)
 	}
 	defer resp.Body.Close()
 
+	// 304 Not Modified means config hasn't changed
 	if resp.StatusCode == http.StatusNotModified {
-		return nil
+		return false, nil
 	}
+
+	// 200 OK means config has been updated
+	if resp.StatusCode == http.StatusOK {
+		return true, nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	return false, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+}
+
+// fetchChamberConfig fetches chamber configuration from backend
+func (s *SyncService) fetchChamberConfig(backendID primitive.ObjectID) (*models.ChamberConfig, error) {
+	url := fmt.Sprintf("%s/chambers/%s/config", s.config.BackendURL, backendID.Hex())
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	if s.config.BackendAPIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch config: %v", err)
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("backend returned status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("backend returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Parse response
@@ -137,66 +220,20 @@ func (s *SyncService) syncChamberConfig() error {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return fmt.Errorf("failed to decode response: %v", err)
+		return nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
 	if !response.Success {
-		return fmt.Errorf("config sync failed: %s", response.Error)
+		return nil, fmt.Errorf("config fetch failed: %s", response.Error)
 	}
 
-	// Update chamber configuration
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Also sync room chamber configs if they have backend IDs
-	for _, chamber := range s.chamberManager.GetChambers() {
-		// Fetch room chamber specific config
-		roomUrl := fmt.Sprintf("%s/chambers/%s/config", s.config.BackendURL, chamber.BackendID.Hex())
-		roomReq, err := http.NewRequest("GET", roomUrl, nil)
-		if err != nil {
-			log.Printf("Failed to create request for room chamber %s: %v", chamber.Name, err)
-			continue
-		}
-
-		if s.config.BackendAPIKey != "" {
-			roomReq.Header.Set("Authorization", "Bearer "+s.config.BackendAPIKey)
-		}
-
-		roomResp, err := s.httpClient.Do(roomReq)
-		if err != nil {
-			log.Printf("Failed to fetch config for room chamber %s: %v", chamber.Name, err)
-			continue
-		}
-		defer roomResp.Body.Close()
-
-		if roomResp.StatusCode == http.StatusOK {
-			var roomResponse struct {
-				Success bool                 `json:"success"`
-				Data    models.ChamberConfig `json:"data"`
-				Error   string               `json:"error"`
-			}
-
-			if err := json.NewDecoder(roomResp.Body).Decode(&roomResponse); err == nil && roomResponse.Success {
-				if err := s.chamberManager.UpdateChamberConfig(ctx, chamber.ID, &roomResponse.Data); err != nil {
-					log.Printf("Failed to update room chamber %s config: %v", chamber.Name, err)
-				} else {
-					log.Printf("📊 Room chamber %s configuration synced from backend", chamber.Name)
-				}
-			}
-		}
-	}
-
-	return nil
+	return &response.Data, nil
 }
 
-// syncExperiments fetches experiments from backend and updates local database
-func (s *SyncService) syncExperiments() error {
-	if s.backendServerID.IsZero() {
-		return fmt.Errorf("no backend ID set - chamber not registered")
-	}
-
+// syncExperimentsForChamber fetches experiments for a specific chamber
+func (s *SyncService) syncExperimentsForChamber(chamber *models.Chamber) error {
 	// Fetch experiments from backend
-	url := fmt.Sprintf("%s/experiments?chamber_id=%s", s.config.BackendURL, s.backendServerID.Hex())
+	url := fmt.Sprintf("%s/experiments?chamber_id=%s", s.config.BackendURL, chamber.BackendID.Hex())
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -245,17 +282,22 @@ func (s *SyncService) syncExperiments() error {
 	now := s.ntpService.NowInMoscow()
 
 	for _, experiment := range response.Data {
-		// Store backend ID
+		// Store backend ID and chamber info
 		backendID := experiment.ID
 		experiment.BackendID = backendID
 		experiment.ID = primitive.ObjectID{} // Clear ID for local storage
+		experiment.ChamberID = chamber.ID
+		experiment.ChamberName = chamber.Name
 		experiment.SyncedAt = now
 
 		// Check if experiment already exists
 		var existingExperiment models.Experiment
 		err := s.db.ExperimentsCollection.FindOne(
 			ctx,
-			bson.M{"backend_id": backendID},
+			bson.M{
+				"backend_id": backendID,
+				"chamber_id": chamber.ID,
+			},
 		).Decode(&existingExperiment)
 
 		if err == nil {
@@ -276,7 +318,6 @@ func (s *SyncService) syncExperiments() error {
 			experiment.ID = primitive.NewObjectID()
 			experiment.CreatedAt = now
 			experiment.UpdatedAt = now
-			log.Printf("Inserting new experiment: %s", experiment.Title)
 			_, err = s.db.ExperimentsCollection.InsertOne(ctx, experiment)
 			if err != nil {
 				log.Printf("Failed to insert experiment %s: %v", experiment.Title, err)
@@ -286,21 +327,13 @@ func (s *SyncService) syncExperiments() error {
 
 		syncedCount++
 
-		// If experiment is active, ensure executor knows about it
+		// Log active experiments
 		if experiment.Status == models.StatusActive {
-			log.Printf("🔄 Active experiment detected: %s", experiment.Title)
-			// The executor service will pick this up automatically
+			log.Printf("🔄 Active experiment for chamber %s: %s", chamber.Name, experiment.Title)
 		}
 	}
 
-	log.Printf("📊 Synced %d experiments from backend (using %s time)",
-		syncedCount,
-		func() string {
-			if s.ntpService.IsConnected() {
-				return "NTP"
-			}
-			return "system"
-		}())
+	log.Printf("📊 Synced %d experiments for chamber %s", syncedCount, chamber.Name)
 	return nil
 }
 
@@ -329,14 +362,14 @@ func (s *SyncService) GetActiveExperiments() ([]models.Experiment, error) {
 // GetSyncStatus returns sync service status information
 func (s *SyncService) GetSyncStatus() map[string]interface{} {
 	activeExperiments, _ := s.GetActiveExperiments()
+	registeredChambers := s.chamberManager.GetRegisteredChambers()
 	now := s.ntpService.NowInMoscow()
 
 	return map[string]interface{}{
-		"backend_connected":  !s.backendServerID.IsZero(),
-		"backend_id":         s.backendServerID.Hex(),
-		"active_experiments": len(activeExperiments),
-		"last_sync_time":     now.Format("2006-01-02T15:04:05Z07:00"),
-		"ntp_enabled":        s.ntpService.IsEnabled(),
-		"ntp_connected":      s.ntpService.IsConnected(),
+		"registered_chambers": len(registeredChambers),
+		"active_experiments":  len(activeExperiments),
+		"last_sync_time":      now.Format("2006-01-02T15:04:05Z07:00"),
+		"ntp_enabled":         s.ntpService.IsEnabled(),
+		"ntp_connected":       s.ntpService.IsConnected(),
 	}
 }

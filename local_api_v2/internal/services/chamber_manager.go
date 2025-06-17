@@ -16,19 +16,18 @@ import (
 	"local_api_v2/pkg/ntp"
 )
 
-// ChamberManager управляет множественными chamber в зависимости от комнат
+// ChamberManager manages multiple chambers based on room suffixes
 type ChamberManager struct {
 	config     *config.Config
 	db         *database.MongoDB
 	discovery  *DiscoveryService
 	ntpService *ntp.TimeService
-	server     *models.Server
-	chambers   map[string]*models.Chamber
+	chambers   map[string]*models.Chamber // key is suffix
 }
 
-// NewChamberManager создает новый менеджер chamber
+// NewChamberManager creates a new chamber manager
 func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *DiscoveryService, ntpService *ntp.TimeService) *ChamberManager {
-	// Устанавливаем chamber суффиксы в discovery service
+	// Set chamber suffixes in discovery service
 	discovery.SetChamberSuffixes(cfg.ChamberSuffixes)
 
 	return &ChamberManager{
@@ -40,89 +39,165 @@ func NewChamberManager(cfg *config.Config, db *database.MongoDB, discovery *Disc
 	}
 }
 
-// InitializeChambers инициализирует parent chamber и создает room chambers
+// InitializeChambers discovers and initializes all chambers
 func (cm *ChamberManager) InitializeChambers(ctx context.Context) error {
-	// Сначала получаем или создаем родительскую chamber
-	server, err := cm.getOrCreateServer(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to initialize parent chamber: %w", err)
-	}
-	cm.server = server
+	log.Printf("Initializing chambers with suffixes: %v", cm.config.ChamberSuffixes)
 
-	log.Printf("Server initialized: %s", server.Name)
-
-	// Обнаруживаем entities, сгруппированные по комнатам
+	// Discover entities grouped by rooms
 	chamberEntities, err := cm.discovery.DiscoverChamberEntities()
 	if err != nil {
 		return fmt.Errorf("failed to discover chamber entities: %w", err)
 	}
 
-	// Создаем или обновляем room chambers
-	for roomSuffix, entities := range chamberEntities {
-		chamber, err := cm.createOrUpdateChamber(ctx, roomSuffix, entities)
+	// Create or update chambers
+	for suffix, entities := range chamberEntities {
+		chamber, err := cm.createOrUpdateChamber(ctx, suffix, entities)
 		if err != nil {
-			log.Printf("Warning: Failed to create/update room chamber for %s: %v", roomSuffix, err)
+			log.Printf("Warning: Failed to create/update chamber for %s: %v", suffix, err)
 			continue
 		}
-		cm.chambers[roomSuffix] = chamber
-		log.Printf("Chamber created/updated: %s (%s)", chamber.Name, roomSuffix)
+		cm.chambers[suffix] = chamber
+		log.Printf("Chamber initialized: %s (suffix: %s)", chamber.Name, suffix)
 	}
 
+	log.Printf("Initialized %d chambers", len(cm.chambers))
 	return nil
 }
 
-// getOrCreateServer получает существующую или создает новую родительскую chamber
-func (cm *ChamberManager) getOrCreateServer(ctx context.Context) (*models.Server, error) {
-	// Пытаемся найти существующую chamber
-	var server models.Server
-	err := cm.db.ServersCollection.FindOne(ctx, bson.M{}).Decode(&server)
+// createOrUpdateChamber creates or updates a chamber
+func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix string, entities *ChamberEntities) (*models.Chamber, error) {
+	// Generate chamber name
+	chamberName := cm.generateChamberName(suffix)
 
-	if err == nil {
-		// Chamber существует, возвращаем её
-		log.Printf("Found existing server: %s", server.Name)
-		return &server, nil
-	}
+	// Try to find existing chamber
+	var chamber models.Chamber
+	err := cm.db.ChambersCollection.FindOne(ctx, bson.M{
+		"suffix": suffix,
+	}).Decode(&chamber)
 
-	if err != mongo.ErrNoDocuments {
-		return nil, fmt.Errorf("failed to query chambers: %w", err)
-	}
-
-	// Создаем новую chamber
-	log.Println("Creating new server...")
 	now := cm.ntpService.NowInMoscow()
-	server = models.Server{
-		ID:               primitive.NewObjectID(),
-		Name:             cm.config.ChamberName,
-		LocalIP:          cm.config.LocalIP,
-		HomeAssistantURL: cm.config.HomeAssistantURL,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+
+	if err == mongo.ErrNoDocuments {
+		// Create new chamber
+		chamber = models.Chamber{
+			ID:               primitive.NewObjectID(),
+			Name:             chamberName,
+			Suffix:           suffix,
+			LocalIP:          cm.config.LocalIP,
+			HomeAssistantURL: cm.config.HomeAssistantURL,
+			Status:           "online",
+			LastHeartbeat:    now,
+			Config: models.ChamberConfig{
+				InputNumbers:  entities.Config.InputNumbers,
+				Lamps:         entities.Config.Lamps,
+				WateringZones: entities.Config.WateringZones,
+				UpdatedAt:     now,
+			},
+			DiscoveryCompleted: true,
+			CreatedAt:          now,
+			UpdatedAt:          now,
+		}
+
+		_, err = cm.db.ChambersCollection.InsertOne(ctx, chamber)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create chamber: %w", err)
+		}
+
+		log.Printf("Created new chamber: %s", chamber.Name)
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to query chamber: %w", err)
+	} else {
+		// Update existing chamber
+		update := bson.M{
+			"$set": bson.M{
+				"name":                chamberName,
+				"local_ip":            cm.config.LocalIP,
+				"ha_url":              cm.config.HomeAssistantURL,
+				"status":              "online",
+				"last_heartbeat":      now,
+				"discovery_completed": true,
+				"config": bson.M{
+					"input_numbers":  entities.Config.InputNumbers,
+					"lamps":          entities.Config.Lamps,
+					"watering_zones": entities.Config.WateringZones,
+					"updated_at":     now,
+				},
+				"updated_at": now,
+			},
+		}
+
+		_, err = cm.db.ChambersCollection.UpdateByID(ctx, chamber.ID, update)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update chamber: %w", err)
+		}
+
+		// Update local data
+		chamber.Name = chamberName
+		chamber.LocalIP = cm.config.LocalIP
+		chamber.HomeAssistantURL = cm.config.HomeAssistantURL
+		chamber.Status = "online"
+		chamber.LastHeartbeat = now
+		chamber.Config = models.ChamberConfig{
+			InputNumbers:  entities.Config.InputNumbers,
+			Lamps:         entities.Config.Lamps,
+			WateringZones: entities.Config.WateringZones,
+			UpdatedAt:     now,
+		}
+		chamber.DiscoveryCompleted = true
+		chamber.UpdatedAt = now
+
+		log.Printf("Updated chamber: %s", chamber.Name)
 	}
 
-	// Вставляем chamber в базу
-	_, err = cm.db.ServersCollection.InsertOne(ctx, server)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create parent chamber: %w", err)
-	}
-
-	log.Printf("Created new parent chamber: %s", server.Name)
-	return &server, nil
+	return &chamber, nil
 }
 
-// UpdateChamberConfig updates chamber configuration from backend
-func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID primitive.ObjectID, config *models.ChamberConfig) error {
+// generateChamberName generates a descriptive name for the chamber
+func (cm *ChamberManager) generateChamberName(suffix string) string {
+	baseName := cm.config.ChamberName
 
+	if suffix == "default" {
+		return baseName
+	}
+
+	return fmt.Sprintf("%s_%s", baseName, strings.ToUpper(suffix))
+
+}
+
+// GetChambers returns all chambers
+func (cm *ChamberManager) GetChambers() map[string]*models.Chamber {
+	return cm.chambers
+}
+
+// GetChamber returns a chamber by suffix
+func (cm *ChamberManager) GetChamber(suffix string) *models.Chamber {
+	return cm.chambers[suffix]
+}
+
+// GetChamberByID returns a chamber by its MongoDB ID
+func (cm *ChamberManager) GetChamberByID(id primitive.ObjectID) *models.Chamber {
+	for _, chamber := range cm.chambers {
+		if chamber.ID == id {
+			return chamber
+		}
+	}
+	return nil
+}
+
+// UpdateChamberConfig updates chamber configuration
+func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID primitive.ObjectID, config *models.ChamberConfig) error {
 	now := cm.ntpService.NowInMoscow()
+	config.UpdatedAt = now
+	config.SyncedAt = &now
+
 	update := bson.M{
 		"$set": bson.M{
-			"input_numbers":  config.InputNumbers,
-			"lamps":          config.Lamps,
-			"watering_zones": config.WateringZones,
-			"updated_at":     now,
+			"config":     config,
+			"updated_at": now,
 		},
 	}
 
-	_, err := cm.db.Database.Collection("chambers").UpdateByID(ctx, chamberID, update)
+	_, err := cm.db.ChambersCollection.UpdateByID(ctx, chamberID, update)
 	if err != nil {
 		return fmt.Errorf("failed to update chamber config: %w", err)
 	}
@@ -130,155 +205,35 @@ func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID pri
 	// Update local copy
 	for _, chamber := range cm.chambers {
 		if chamber.ID == chamberID {
-			chamber.Config.InputNumbers = config.InputNumbers
-			chamber.Config.Lamps = config.Lamps
-			chamber.Config.WateringZones = config.WateringZones
+			chamber.Config = *config
 			chamber.UpdatedAt = now
+			log.Printf("Updated configuration for chamber: %s", chamber.Name)
 			break
 		}
 	}
 
-	log.Printf("Updated chamber configuration from backend for chamber ID: %s", chamberID.Hex())
 	return nil
 }
 
-// createOrUpdateRoomChamber создает или обновляет room chamber
-func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, roomSuffix string, entities *ChamberEntities) (*models.Chamber, error) {
-	// Определяем имя для room chamber
-	roomChamberName := cm.config.ChamberName
-	if roomSuffix != "default" {
-		// Для известных суффиксов создаем более описательные имена
-		switch roomSuffix {
-		case "galo":
-			roomChamberName = fmt.Sprintf("%s_Galo", cm.config.ChamberName)
-		case "sb4":
-			roomChamberName = fmt.Sprintf("%s_SB4", cm.config.ChamberName)
-		case "oreol":
-			roomChamberName = fmt.Sprintf("%s_Oreol", cm.config.ChamberName)
-		case "sb1":
-			roomChamberName = fmt.Sprintf("%s_SB1", cm.config.ChamberName)
-		case "midi":
-			roomChamberName = fmt.Sprintf("%s_MIDI", cm.config.ChamberName)
-		default:
-			roomChamberName = fmt.Sprintf("%s_%s", cm.config.ChamberName, strings.ToUpper(roomSuffix))
-		}
-	}
-
-	// Пытаемся найти существующую chamber
-	var chamber models.Chamber
-	err := cm.db.Database.Collection("chambers").FindOne(ctx, bson.M{
-		"server_id":   cm.server.ID,
-		"room_suffix": roomSuffix,
-	}).Decode(&chamber)
-
-	now := cm.ntpService.NowInMoscow()
-
-	if err == mongo.ErrNoDocuments {
-		// Создаем новую room chamber
-		chamber = models.Chamber{
-			ID:         primitive.NewObjectID(),
-			Name:       roomChamberName,
-			RoomSuffix: roomSuffix,
-			ServerID:   cm.server.ID,
-			Config: models.ChamberConfig{
-				InputNumbers:  entities.Config.InputNumbers,
-				Lamps:         entities.Config.Lamps,
-				WateringZones: entities.Config.WateringZones,
-			},
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-
-		_, err = cm.db.Database.Collection("chambers").InsertOne(ctx, chamber)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create room chamber: %w", err)
-		}
-
-		log.Printf("New chamber created: %s (%s)", chamber.Name, roomSuffix)
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to query chamber: %w", err)
-	} else if !chamber.DiscoveryCompleted {
-		// Обновляем существующую chamber
-		update := bson.M{
-			"$set": bson.M{
-				"name":           roomChamberName,
-				"last_heartbeat": now,
-				"config": bson.M{
-					"input_numbers":  entities.Config.InputNumbers,
-					"lamps":          entities.Config.Lamps,
-					"watering_zones": entities.Config.WateringZones,
-				},
-				"updated_at": now,
-			},
-		}
-
-		_, err = cm.db.Database.Collection("chambers").UpdateByID(ctx, chamber.ID, update)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update chamber: %w", err)
-		}
-
-		// Обновляем локальные данные
-		chamber.Name = roomChamberName
-		chamber.Config = entities.Config
-		chamber.DiscoveryCompleted = true
-		chamber.UpdatedAt = now
-
-		log.Printf("Chamber updated: %s (%s)", chamber.Name, roomSuffix)
-	} else {
-		log.Printf("Chamber already registered: %s (%s)", chamber.Name, roomSuffix)
-	}
-
-	return &chamber, nil
-}
-
-// GetServer возвращает родительскую chamber
-func (cm *ChamberManager) GetServer() *models.Server {
-	return cm.server
-}
-
-// GetRoomChambers возвращает все room chambers
-func (cm *ChamberManager) GetChambers() map[string]*models.Chamber {
-	return cm.chambers
-}
-
-// GetRoomChamber возвращает room chamber по суффиксу
-func (cm *ChamberManager) GetChamber(roomSuffix string) *models.Chamber {
-	return cm.chambers[roomSuffix]
-}
-
-// UpdateHeartbeat обновляет heartbeat для всех chambers
+// UpdateHeartbeat updates heartbeat for all chambers
 func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
 	now := cm.ntpService.NowInMoscow()
 
-	// Обновляем parent chamber
-	if cm.server != nil {
+	for suffix, chamber := range cm.chambers {
 		update := bson.M{
 			"$set": bson.M{
 				"last_heartbeat": now,
+				"status":         "online",
 				"updated_at":     now,
 			},
 		}
-		_, err := cm.db.ServersCollection.UpdateByID(ctx, cm.server.ID, update)
-		if err != nil {
-			log.Printf("Failed to update parent chamber heartbeat: %v", err)
-		} else {
-			cm.server.LastHeartbeat = now
-			cm.server.UpdatedAt = now
-		}
-	}
 
-	// Обновляем room chambers
-	for roomSuffix, chamber := range cm.chambers {
-		update := bson.M{
-			"$set": bson.M{
-				"last_heartbeat": now,
-				"updated_at":     now,
-			},
-		}
-		_, err := cm.db.Database.Collection("chambers").UpdateByID(ctx, chamber.ID, update)
+		_, err := cm.db.ChambersCollection.UpdateByID(ctx, chamber.ID, update)
 		if err != nil {
-			log.Printf("Failed to update room chamber heartbeat for %s: %v", roomSuffix, err)
+			log.Printf("Failed to update heartbeat for chamber %s: %v", suffix, err)
 		} else {
+			chamber.LastHeartbeat = now
+			chamber.Status = "online"
 			chamber.UpdatedAt = now
 		}
 	}
@@ -286,14 +241,36 @@ func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
 	return nil
 }
 
-// RegisterRoomChambersWithBackend регистрирует все room chambers с бэкендом
+// RegisterChambersWithBackend registers all chambers with the backend
 func (cm *ChamberManager) RegisterChambersWithBackend(registrationService *RegistrationService) error {
-	for roomSuffix, chamber := range cm.chambers {
-		log.Printf("Registering chamber '%s' with backend...", roomSuffix)
+	successCount := 0
+
+	for suffix, chamber := range cm.chambers {
+		log.Printf("Registering chamber '%s' with backend...", suffix)
 		if err := registrationService.RegisterChamberWithBackend(chamber); err != nil {
-			log.Printf("Warning: Failed to register chamber '%s': %v", roomSuffix, err)
+			log.Printf("Warning: Failed to register chamber '%s': %v", suffix, err)
 			continue
 		}
+		successCount++
 	}
+
+	if successCount == 0 {
+		return fmt.Errorf("failed to register any chambers")
+	}
+
+	log.Printf("Successfully registered %d/%d chambers", successCount, len(cm.chambers))
 	return nil
+}
+
+// GetRegisteredChambers returns only chambers that are registered with backend
+func (cm *ChamberManager) GetRegisteredChambers() []*models.Chamber {
+	var registered []*models.Chamber
+
+	for _, chamber := range cm.chambers {
+		if !chamber.BackendID.IsZero() {
+			registered = append(registered, chamber)
+		}
+	}
+
+	return registered
 }

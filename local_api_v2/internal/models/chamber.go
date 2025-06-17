@@ -6,36 +6,37 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Chamber represents a climate chamber registration in the system
-type Server struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name             string             `bson:"name" json:"name"`
-	BackendServerID  primitive.ObjectID `bson:"backend_server_id" json:"backend_server_id"`
-	LocalIP          string             `bson:"local_ip" json:"local_ip"`
-	HomeAssistantURL string             `bson:"ha_url" json:"ha_url"`
-	LastHeartbeat    time.Time          `bson:"last_heartbeat" json:"last_heartbeat"`
-	CreatedAt        time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt        time.Time          `bson:"updated_at" json:"updated_at"`
-}
+// ChamberStatus represents the status of a chamber
+type ChamberStatus string
 
-// Chamber represents a virtual chamber for a specific room
+const (
+	StatusOnline  ChamberStatus = "online"
+	StatusOffline ChamberStatus = "offline"
+)
+
+// Chamber represents a climate chamber in the system
 type Chamber struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name               string             `bson:"name" json:"name"`
-	RoomSuffix         string             `bson:"room_suffix" json:"room_suffix"`
-	ServerID           primitive.ObjectID `bson:"server_id" json:"server_id"`
-	Config             ChamberConfig      `bson:"config" json:"config"`
-	DiscoveryCompleted bool               `bson:"discovery_completed" json:"discovery_completed"`
+	Suffix             string             `bson:"suffix" json:"suffix"` // e.g., "galo", "sb4", "default"
 	BackendID          primitive.ObjectID `bson:"backend_id,omitempty" json:"backend_id,omitempty"`
+	LocalIP            string             `bson:"local_ip" json:"local_ip"`
+	HomeAssistantURL   string             `bson:"ha_url" json:"ha_url"`
+	Status             ChamberStatus      `bson:"status" json:"status"`
+	LastHeartbeat      time.Time          `bson:"last_heartbeat" json:"last_heartbeat"`
+	DiscoveryCompleted bool               `bson:"discovery_completed" json:"discovery_completed"`
+	Config             ChamberConfig      `bson:"config" json:"config"`
 	CreatedAt          time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt          time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
+// ChamberConfig represents chamber configuration
 type ChamberConfig struct {
 	InputNumbers  []InputNumber  `bson:"input_numbers" json:"input_numbers"`
 	Lamps         []Lamp         `bson:"lamps" json:"lamps"`
 	WateringZones []WateringZone `bson:"watering_zones" json:"watering_zones"`
 	UpdatedAt     time.Time      `bson:"updated_at" json:"updated_at"`
+	SyncedAt      *time.Time     `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
 // InputNumber represents a Home Assistant input_number entity
@@ -98,4 +99,46 @@ var InputNumberSubstrings = map[string][]string{
 	InputNumberWateringPeriod:   {"work_watering", "watering_period", "period_watering"},
 	InputNumberWateringPause:    {"wait_watering", "pause_between", "pause_between_watering"},
 	InputNumberWateringDuration: {"time_watering", "watering_seconds", "duration_watering"},
+}
+
+// GetInputNumbersByType returns all input numbers of a specific type
+func (c *Chamber) GetInputNumbersByType(inputType string) []InputNumber {
+	var result []InputNumber
+	for _, in := range c.Config.InputNumbers {
+		if in.Type == inputType {
+			result = append(result, in)
+		}
+	}
+	return result
+}
+
+// GetWateringInputNumbers returns all watering-related input numbers grouped by zone
+func (c *Chamber) GetWateringInputNumbers() map[string]map[string]*InputNumber {
+	wateringInputs := make(map[string]map[string]*InputNumber)
+
+	// Process each watering zone
+	for _, zone := range c.Config.WateringZones {
+		zoneInputs := make(map[string]*InputNumber)
+
+		// Find matching input numbers for this zone
+		for i := range c.Config.InputNumbers {
+			in := &c.Config.InputNumbers[i]
+			switch in.EntityID {
+			case zone.StartTimeEntityID:
+				zoneInputs["start_time"] = in
+			case zone.PeriodEntityID:
+				zoneInputs["period"] = in
+			case zone.PauseBetweenEntityID:
+				zoneInputs["pause"] = in
+			case zone.DurationEntityID:
+				zoneInputs["duration"] = in
+			}
+		}
+
+		if len(zoneInputs) > 0 {
+			wateringInputs[zone.Name] = zoneInputs
+		}
+	}
+
+	return wateringInputs
 }

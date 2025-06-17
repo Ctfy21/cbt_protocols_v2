@@ -11,16 +11,14 @@ import (
 
 // MongoDB holds the database connection
 type MongoDB struct {
-	Client                          *mongo.Client
-	Database                        *mongo.Database
-	ChambersCollection              *mongo.Collection
-	RoomChambersCollection          *mongo.Collection // New collection for room chambers
-	ExperimentsCollection           *mongo.Collection
-	UsersCollection                 *mongo.Collection
-	SessionsCollection              *mongo.Collection
-	APITokensCollection             *mongo.Collection
-	UserChamberAccessCollection     *mongo.Collection
-	UserRoomChamberAccessCollection *mongo.Collection // New collection for room chamber access
+	Client                      *mongo.Client
+	Database                    *mongo.Database
+	ChambersCollection          *mongo.Collection
+	ExperimentsCollection       *mongo.Collection
+	UsersCollection             *mongo.Collection
+	SessionsCollection          *mongo.Collection
+	APITokensCollection         *mongo.Collection
+	UserChamberAccessCollection *mongo.Collection
 }
 
 // Connect establishes a connection to MongoDB
@@ -46,16 +44,14 @@ func Connect(uri, databaseName string) (*MongoDB, error) {
 	db := client.Database(databaseName)
 
 	return &MongoDB{
-		Client:                          client,
-		Database:                        db,
-		ChambersCollection:              db.Collection("chambers"),
-		RoomChambersCollection:          db.Collection("room_chambers"),
-		ExperimentsCollection:           db.Collection("experiments"),
-		UsersCollection:                 db.Collection("users"),
-		SessionsCollection:              db.Collection("sessions"),
-		APITokensCollection:             db.Collection("api_tokens"),
-		UserChamberAccessCollection:     db.Collection("user_chamber_access"),
-		UserRoomChamberAccessCollection: db.Collection("user_room_chamber_access"),
+		Client:                      client,
+		Database:                    db,
+		ChambersCollection:          db.Collection("chambers"),
+		ExperimentsCollection:       db.Collection("experiments"),
+		UsersCollection:             db.Collection("users"),
+		SessionsCollection:          db.Collection("sessions"),
+		APITokensCollection:         db.Collection("api_tokens"),
+		UserChamberAccessCollection: db.Collection("user_chamber_access"),
 	}, nil
 }
 

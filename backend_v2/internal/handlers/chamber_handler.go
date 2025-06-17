@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -136,4 +137,48 @@ func (h *ChamberHandler) GetChamberConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.SuccessResponse(config))
+}
+
+func (h *ChamberHandler) CheckChamberConfigUpdate(c *gin.Context) {
+	chamberID := c.Param("id")
+
+	// Get If-Modified-Since header
+	ifModifiedSince := c.GetHeader("If-Modified-Since")
+
+	// Get chamber to check config timestamp
+	chamber, err := h.chamberService.GetChamber(chamberID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	// Initialize config if it doesn't exist
+	if chamber.Config == nil {
+		chamber.InitializeConfig()
+		// Return 200 to indicate config needs to be fetched
+		c.JSON(http.StatusOK, models.SuccessResponse(gin.H{
+			"needs_update": true,
+			"reason":       "no_config",
+		}))
+		return
+	}
+
+	// Parse If-Modified-Since header
+	if ifModifiedSince != "" {
+		lastSyncTime, err := time.Parse(http.TimeFormat, ifModifiedSince)
+		if err == nil {
+			// Compare with config update time
+			if !chamber.Config.UpdatedAt.After(lastSyncTime) {
+				// Config hasn't changed
+				c.Status(http.StatusNotModified)
+				return
+			}
+		}
+	}
+
+	// Config has been updated or no sync time provided
+	c.JSON(http.StatusOK, models.SuccessResponse(gin.H{
+		"needs_update": true,
+		"updated_at":   chamber.Config.UpdatedAt,
+	}))
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -58,19 +59,23 @@ func main() {
 	// Initialize Home Assistant client
 	haClient := homeassistant.NewClient(cfg.HomeAssistantURL, cfg.HomeAssistantToken)
 
-	// Initialize services with NTP time service
+	// Initialize services
 	discoveryService := services.NewDiscoveryService(haClient)
 	chamberManager := services.NewChamberManager(cfg, db, discoveryService, ntpService)
 	registrationService := services.NewRegistrationService(cfg, db, ntpService)
 	syncService := services.NewSyncService(cfg, db, ntpService)
+
+	// Set cross-references
+	syncService.SetChamberManager(chamberManager)
+	syncService.SetRegistrationService(registrationService)
 
 	// Use WaitGroups and channels for proper synchronization
 	var (
 		wg                    sync.WaitGroup
 		chamberInitialized    = make(chan struct{})
 		registrationCompleted = make(chan struct{})
-		executorService       *services.ExecutorService
-		executorStarted       = make(chan struct{})
+		executorServices      []*services.ExecutorService
+		mu                    sync.Mutex
 	)
 
 	// Step 1: Wait for Home Assistant connection and initialize chambers
@@ -81,9 +86,9 @@ func main() {
 
 		for {
 			if haClient.IsConnected() {
-				log.Printf("Home Assistant connected. Initializing chambers with suffixes: %v", cfg.ChamberSuffixes)
+				log.Printf("Home Assistant connected. Discovering chambers...")
 
-				// Initialize chambers with room separation
+				// Initialize chambers
 				if err := chamberManager.InitializeChambers(ctx); err != nil {
 					log.Printf("Warning: Chamber initialization failed: %v", err)
 					time.Sleep(10 * time.Second)
@@ -91,27 +96,24 @@ func main() {
 				}
 
 				// Log discovered chambers
-				server := chamberManager.GetServer()
 				chambers := chamberManager.GetChambers()
+				log.Printf("Successfully discovered %d chambers:", len(chambers))
 
-				log.Printf("Successfully discovered chambers:")
-				log.Printf("  Server: %s (ID: %s)", server.Name, server.ID.Hex())
-				for roomSuffix, chamber := range chambers {
+				for suffix, chamber := range chambers {
 					log.Printf("  Chamber '%s': %s (%d inputs, %d lamps, %d zones)",
-						roomSuffix, chamber.Name,
-						len(chamber.Config.InputNumbers), len(chamber.Config.Lamps), len(chamber.Config.WateringZones))
+						suffix, chamber.Name,
+						len(chamber.Config.InputNumbers),
+						len(chamber.Config.Lamps),
+						len(chamber.Config.WateringZones))
+
+					// Create executor service for each chamber
+					executor := services.NewExecutorService(db, haClient, chamber.ID, ntpService)
+					mu.Lock()
+					executorServices = append(executorServices, executor)
+					mu.Unlock()
 				}
 
 				haClient.Status = true
-
-				// Set chamber ID for services immediately after initialization
-				registrationService.SetBackendServerID(server.BackendServerID)
-				log.Printf("Services configured with server: %s", server.Name)
-
-				// Create executor service now that chamber is ready
-				executorService = services.NewExecutorService(db, haClient, server, ntpService)
-				log.Println("Executor service created")
-
 				break
 			}
 			log.Println("Waiting for Home Assistant connection...")
@@ -119,7 +121,7 @@ func main() {
 		}
 	}()
 
-	// Step 2: Register with backend after chamber initialization
+	// Step 2: Register chambers with backend
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -128,28 +130,16 @@ func main() {
 		// Wait for chamber initialization
 		<-chamberInitialized
 
-		server := chamberManager.GetServer()
-		if server == nil {
-			log.Printf("Server is nil after initialization")
+		chambers := chamberManager.GetChambers()
+		if len(chambers) == 0 {
+			log.Printf("No chambers discovered")
 			return
 		}
 
-		log.Println("Registering parent chamber with backend...")
-		if err := registrationService.RegisterWithBackend(server); err != nil {
-			log.Printf("Warning: Server registration failed: %v", err)
-			// Don't return here - we can still function without backend registration
-		} else {
-			// Update sync service with backend ID only if registration was successful
-			syncService.SetBackendServerID(server.BackendServerID)
-			registrationService.SetBackendServerID(server.BackendServerID)
-
-			// Register room chambers with backend
-			log.Println("Registering room chambers with backend...")
-			if err := chamberManager.RegisterChambersWithBackend(registrationService); err != nil {
-				log.Printf("Warning: Chambers registration failed: %v", err)
-			} else {
-				log.Println("✅ All chambers registered successfully with backend")
-			}
+		log.Println("Registering chambers with backend...")
+		if err := chamberManager.RegisterChambersWithBackend(registrationService); err != nil {
+			log.Printf("Warning: Chamber registration failed: %v", err)
+			// Don't return - we can still function without backend registration
 		}
 	}()
 
@@ -161,10 +151,10 @@ func main() {
 		// Wait for registration to complete (or fail)
 		<-registrationCompleted
 
-		// Start heartbeat service (it will handle the case where backend ID is not set)
+		// Start heartbeat service
 		go func() {
 			log.Println("Starting heartbeat service...")
-			registrationService.StartHeartbeat(ctx)
+			registrationService.StartHeartbeat(ctx, chamberManager)
 		}()
 
 		// Start sync service
@@ -172,44 +162,26 @@ func main() {
 			log.Println("Starting sync service...")
 			syncService.StartSync(ctx)
 		}()
-	}()
 
-	// Step 4: Start executor service after all prerequisites are met
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer close(executorStarted)
+		// Start executor services for each chamber
+		time.Sleep(2 * time.Second) // Give sync service time to fetch experiments
 
-		// Wait for chamber initialization
-		<-chamberInitialized
+		mu.Lock()
+		defer mu.Unlock()
 
-		// Wait a bit more to ensure executor service is created
-		time.Sleep(2 * time.Second)
-
-		if executorService == nil {
-			log.Printf("Executor service is nil - cannot start")
-			return
-		}
-
-		for {
-			if haClient.Status {
-				log.Println("Starting executor service...")
-				if err := executorService.Start(ctx); err != nil {
-					log.Printf("Warning: Failed to start executor service: %v", err)
-					time.Sleep(5 * time.Second)
-					continue
-				} else {
-					log.Println("✅ Executor service started successfully")
-					break
+		for i, executor := range executorServices {
+			if executor != nil {
+				log.Printf("Starting executor service %d...", i+1)
+				if err := executor.Start(ctx); err != nil {
+					log.Printf("Warning: Failed to start executor service %d: %v", i+1, err)
 				}
 			}
-			time.Sleep(10 * time.Second)
 		}
 	}()
 
 	// Start simple HTTP server for health checks
 	mux := http.NewServeMux()
-	setupRoutes(mux, db, chamberManager, ntpService)
+	setupRoutes(mux, db, chamberManager, ntpService, syncService)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
@@ -237,11 +209,15 @@ func main() {
 	// Stop NTP service
 	ntpService.Stop()
 
-	// Stop executor service first
-	if executorService != nil {
-		log.Println("Stopping executor service...")
-		executorService.Stop()
+	// Stop executor services
+	mu.Lock()
+	for i, executor := range executorServices {
+		if executor != nil {
+			log.Printf("Stopping executor service %d...", i+1)
+			executor.Stop()
+		}
 	}
+	mu.Unlock()
 
 	// Cancel context to stop background services
 	cancel()
@@ -258,39 +234,72 @@ func main() {
 }
 
 // setupRoutes configures HTTP routes
-func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager, ntpService *ntp.TimeService) {
+func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager, ntpService *ntp.TimeService, syncService *services.SyncService) {
 	// Health check endpoint
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		server := chamberManager.GetServer()
 		chambers := chamberManager.GetChambers()
-
-		if server != nil {
-
-			fmt.Fprintf(w, `{"status":"healthy","server_id":"%s","backend_server_id":"%s","name":"%s","chambers":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
-				server.ID.Hex(), server.BackendServerID.Hex(), server.Name, len(chambers), ntpService.IsEnabled(), ntpService.IsConnected())
-		} else {
-			fmt.Fprintf(w, `{"status":"initializing","ntp_enabled":%t,"ntp_connected":%t}`,
-				ntpService.IsEnabled(), ntpService.IsConnected())
+		registeredCount := 0
+		for _, chamber := range chambers {
+			if !chamber.BackendID.IsZero() {
+				registeredCount++
+			}
 		}
+
+		fmt.Fprintf(w, `{"status":"healthy","total_chambers":%d,"registered_chambers":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
+			len(chambers), registeredCount, ntpService.IsEnabled(), ntpService.IsConnected())
 	})
 
-	// NTP status endpoint
-	// mux.HandleFunc("/api/v1/ntp/status", func(w http.ResponseWriter, r *http.Request) {
-	// 	if r.Method != http.MethodGet {
-	// 		w.WriteHeader(http.StatusMethodNotAllowed)
-	// 		return
-	// 	}
+	// Sync status endpoint
+	mux.HandleFunc("/api/v1/sync/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 
-	// 	status := ntpService.GetStatus()
-	// 	statusJSON, _ := json.Marshal(status)
-	// 	w.Write(statusJSON)
-	// })
+		status := syncService.GetSyncStatus()
+		statusJSON, _ := json.Marshal(status)
+		w.Write(statusJSON)
+	})
+
+	// Chambers endpoint
+	mux.HandleFunc("/api/v1/chambers", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		chambers := chamberManager.GetChambers()
+		var chamberList []map[string]interface{}
+
+		for suffix, chamber := range chambers {
+			chamberList = append(chamberList, map[string]interface{}{
+				"id":          chamber.ID.Hex(),
+				"name":        chamber.Name,
+				"suffix":      suffix,
+				"backend_id":  chamber.BackendID.Hex(),
+				"status":      chamber.Status,
+				"registered":  !chamber.BackendID.IsZero(),
+				"input_count": len(chamber.Config.InputNumbers),
+				"lamp_count":  len(chamber.Config.Lamps),
+				"zone_count":  len(chamber.Config.WateringZones),
+			})
+		}
+
+		response, _ := json.Marshal(map[string]interface{}{
+			"success": true,
+			"data":    chamberList,
+		})
+		w.Write(response)
+	})
 
 	// Time endpoint (returns current time from NTP or system)
 	mux.HandleFunc("/api/v1/time", func(w http.ResponseWriter, r *http.Request) {
@@ -312,5 +321,4 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 			ntpService.IsEnabled(),
 			ntpService.IsConnected())
 	})
-
 }

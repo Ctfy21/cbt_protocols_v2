@@ -1,8 +1,7 @@
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Chamber } from '@/types'
-import api from '@/services/api'
+import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 export const useChamberStore = defineStore('chamber', () => {
@@ -30,23 +29,14 @@ export const useChamberStore = defineStore('chamber', () => {
       
       // If user is admin, fetch all chambers
       if (authStore.isAdmin) {
-        const response = await api.getChambers()
-        if (response.success && response.data) {
-          chambers.value = response.data
-        }
+        chambers.value = await api.getChambers()
       } else {
-        // For regular users, fetch only room chambers they have access to
-        if (authStore.user?.id) {
-          const response = await api.getMyRoomChambers()
-          if (response.success && response.data) {
-            chambers.value = response.data
-          }
-        } else {
-          chambers.value = []
-        }
+        // For regular users, fetch only chambers they have access to
+        const userAccess = await api.getMyChambersAccess()
+        chambers.value = userAccess.chambers || []
       }
     } catch (err) {
-      error.value = api.formatError(err)
+      error.value = err instanceof Error ? err.message : String(err)
     } finally {
       loading.value = false
     }
@@ -56,29 +46,9 @@ export const useChamberStore = defineStore('chamber', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.getChamber(id)
-      if (response.success && response.data) {
-        return response.data
-      }
+      return await api.getChamber(id)
     } catch (err) {
-      error.value = api.formatError(err)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function registerChamber(data: Partial<Chamber>) {
-    loading.value = true
-    error.value = null
-    try {
-      const response = await api.registerChamber(data)
-      if (response.success && response.data) {
-        chambers.value.push(response.data)
-        return response.data
-      }
-    } catch (err) {
-      error.value = api.formatError(err)
-      throw err
+      error.value = err instanceof Error ? err.message : String(err)
     } finally {
       loading.value = false
     }
@@ -117,7 +87,6 @@ export const useChamberStore = defineStore('chamber', () => {
     // Actions
     fetchChambers,
     fetchChamber,
-    registerChamber,
     selectChamber,
     loadSelectedChamber
   }
