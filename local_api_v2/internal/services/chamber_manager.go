@@ -109,6 +109,39 @@ func (cm *ChamberManager) getOrCreateServer(ctx context.Context) (*models.Server
 	return &server, nil
 }
 
+// UpdateChamberConfig updates chamber configuration from backend
+func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID primitive.ObjectID, config *models.ChamberConfig) error {
+
+	now := cm.ntpService.NowInMoscow()
+	update := bson.M{
+		"$set": bson.M{
+			"input_numbers":  config.InputNumbers,
+			"lamps":          config.Lamps,
+			"watering_zones": config.WateringZones,
+			"updated_at":     now,
+		},
+	}
+
+	_, err := cm.db.Database.Collection("chambers").UpdateByID(ctx, chamberID, update)
+	if err != nil {
+		return fmt.Errorf("failed to update chamber config: %w", err)
+	}
+
+	// Update local copy
+	for _, chamber := range cm.chambers {
+		if chamber.ID == chamberID {
+			chamber.Config.InputNumbers = config.InputNumbers
+			chamber.Config.Lamps = config.Lamps
+			chamber.Config.WateringZones = config.WateringZones
+			chamber.UpdatedAt = now
+			break
+		}
+	}
+
+	log.Printf("Updated chamber configuration from backend for chamber ID: %s", chamberID.Hex())
+	return nil
+}
+
 // createOrUpdateRoomChamber создает или обновляет room chamber
 func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, roomSuffix string, entities *ChamberEntities) (*models.Chamber, error) {
 	// Определяем имя для room chamber
@@ -164,7 +197,7 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, roomSuffix 
 		log.Printf("New chamber created: %s (%s)", chamber.Name, roomSuffix)
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to query chamber: %w", err)
-	} else {
+	} else if !chamber.DiscoveryCompleted {
 		// Обновляем существующую chamber
 		update := bson.M{
 			"$set": bson.M{
@@ -187,16 +220,13 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, roomSuffix 
 		// Обновляем локальные данные
 		chamber.Name = roomChamberName
 		chamber.Config = entities.Config
+		chamber.DiscoveryCompleted = true
 		chamber.UpdatedAt = now
 
 		log.Printf("Chamber updated: %s (%s)", chamber.Name, roomSuffix)
+	} else {
+		log.Printf("Chamber already registered: %s (%s)", chamber.Name, roomSuffix)
 	}
-
-	// Логируем обнаруженные entities
-	log.Printf("Chamber %s entities:", chamber.Name)
-	log.Printf("  - %d input numbers", len(chamber.Config.InputNumbers))
-	log.Printf("  - %d lamps", len(chamber.Config.Lamps))
-	log.Printf("  - %d watering zones", len(chamber.Config.WateringZones))
 
 	return &chamber, nil
 }

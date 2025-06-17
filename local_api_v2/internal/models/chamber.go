@@ -20,20 +20,22 @@ type Server struct {
 
 // Chamber represents a virtual chamber for a specific room
 type Chamber struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name       string             `bson:"name" json:"name"`
-	RoomSuffix string             `bson:"room_suffix" json:"room_suffix"`
-	ServerID   primitive.ObjectID `bson:"server_id" json:"server_id"`
-	Config     ChamberConfig      `bson:"config" json:"config"`
-	BackendID  primitive.ObjectID `bson:"backend_id,omitempty" json:"backend_id,omitempty"`
-	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
+	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name               string             `bson:"name" json:"name"`
+	RoomSuffix         string             `bson:"room_suffix" json:"room_suffix"`
+	ServerID           primitive.ObjectID `bson:"server_id" json:"server_id"`
+	Config             ChamberConfig      `bson:"config" json:"config"`
+	DiscoveryCompleted bool               `bson:"discovery_completed" json:"discovery_completed"`
+	BackendID          primitive.ObjectID `bson:"backend_id,omitempty" json:"backend_id,omitempty"`
+	CreatedAt          time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt          time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 type ChamberConfig struct {
 	InputNumbers  []InputNumber  `bson:"input_numbers" json:"input_numbers"`
 	Lamps         []Lamp         `bson:"lamps" json:"lamps"`
 	WateringZones []WateringZone `bson:"watering_zones" json:"watering_zones"`
+	UpdatedAt     time.Time      `bson:"updated_at" json:"updated_at"`
 }
 
 // InputNumber represents a Home Assistant input_number entity
