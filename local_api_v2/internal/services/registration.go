@@ -48,6 +48,7 @@ type RegistrationRequest struct {
 	Location             string                                   `json:"location"`
 	HAUrl                string                                   `json:"ha_url"`
 	AccessToken          string                                   `json:"access_token"`
+	LocalAPIversion      int                                      `json:"local_api_version"`
 	LocalIP              string                                   `json:"local_ip"`
 	Lamps                map[string]models.InputNumber            `json:"lamps"`
 	WateringZones        []models.WateringZone                    `json:"watering_zones"`
@@ -75,6 +76,7 @@ func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber
 		Location:             fmt.Sprintf("Local API v2 - %s", chamber.Suffix),
 		HAUrl:                chamber.HomeAssistantURL,
 		AccessToken:          s.config.HomeAssistantToken,
+		LocalAPIversion:      s.config.LocalAPIversion,
 		LocalIP:              chamber.LocalIP,
 		Lamps:                chamber.Config.Lamps,
 		WateringZones:        chamber.Config.WateringZones,

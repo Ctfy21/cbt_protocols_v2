@@ -36,6 +36,9 @@ type Config struct {
 	// Heartbeat configuration
 	HeartbeatInterval int
 
+	// Local API version
+	LocalAPIversion int
+
 	// NTP configuration
 	NTPEnabled      bool
 	NTPServers      []string
@@ -64,6 +67,7 @@ func Load() (*Config, error) {
 		BackendAPIKey:      getEnv("BACKEND_API_KEY", ""),
 		ChamberName:        getEnv("CHAMBER_NAME", "Climate Chamber"),
 		LocalIP:            getEnv("LOCAL_IP", ""),
+		LocalAPIversion:    getEnvAsInt("LOCAL_API_VERSION", 1),
 		ChamberSuffixes:    parseChamberSuffixes(getEnv("CHAMBER_SUFFIXES", "room1,room2,room3,galo,sb4,oreol,sb1")),
 		HeartbeatInterval:  getEnvAsInt("HEARTBEAT_INTERVAL", 30),
 
