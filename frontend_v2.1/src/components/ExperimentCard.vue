@@ -19,11 +19,18 @@
       </div>
       <div class="flex items-center text-sm text-gray-600">
         <ChartBarIcon class="w-4 h-4 mr-2" />
-        <span>{{ experiment.phases?.length || 0 }} фаз</span>
+        <span>Всего: {{ experiment.phases?.length || 0 }} фаз</span>
       </div>
       <div class="flex items-center text-sm text-gray-600">
         <ClockIcon class="w-4 h-4 mr-2" />
-        <span>{{ totalDuration }} дней</span>
+        <span v-if="experiment.status === 'active' && experimentProgress.timeRemaining">
+          {{ formatTimeRemaining(experimentProgress.timeRemaining) }} осталось
+        </span>
+        <span v-else>{{ totalDuration }} дней</span>
+      </div>
+      <div v-if="experiment.status === 'active' && experimentProgress.currentPhase !== null" class="flex items-center text-sm text-gray-600">
+        <ChartBarIcon class="w-4 h-4 mr-2" />
+        <span>Фаза {{ experimentProgress.currentPhase + 1 }}</span>
       </div>
     </div>
 
@@ -124,6 +131,13 @@
                 <ArrowDownTrayIcon class="w-4 h-4 mr-3" />
                 Экспорт
               </button>
+              <button
+                @click="handleAction('save-template')"
+                class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <BookmarkIcon class="w-4 h-4 mr-3" />
+                Сохранить как шаблон
+              </button>
             </div>
             <div class="py-1">
               <button
@@ -142,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { format } from 'date-fns'
 import {
   CalendarIcon,
@@ -155,9 +169,11 @@ import {
   PencilIcon,
   DocumentDuplicateIcon,
   ArrowDownTrayIcon,
-  TrashIcon
+  TrashIcon,
+  BookmarkIcon
 } from '@heroicons/vue/24/outline'
 import type { Experiment } from '@/types'
+import experimentTracker from '@/services/experimentTracker'
 
 const props = defineProps<{
   experiment: Experiment
@@ -167,9 +183,17 @@ const startDate = computed(() => {
   return props.experiment.schedule?.[0]?.start_timestamp * 1000
 })
 
-const emit = defineEmits(['edit', 'duplicate', 'export', 'delete', 'status-change'])
+const emit = defineEmits(['edit', 'duplicate', 'export', 'delete', 'status-change', 'save-template'])
 
 const showMenu = ref(false)
+const experimentProgress = ref({
+  currentPhase: null as number | null,
+  progressPercent: 0,
+  timeRemaining: null as number | null,
+  isCompleted: false
+})
+
+let updateInterval: number | null = null
 
 const statusClasses = computed(() => {
   const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full'
@@ -211,21 +235,11 @@ const formatDateRange = computed(() => {
 })
 
 const progress = computed(() => {
-  if (props.experiment.status !== 'active' || !startDate.value) {
+  if (props.experiment.status !== 'active') {
     return -1
   }
   
-  const now = new Date()
-  const start = new Date(startDate.value)
-  const endDate = calculateEndDate()
-  
-  if (!endDate) return -1
-  
-  const end = new Date(endDate)
-  const total = end.getTime() - start.getTime()
-  const elapsed = now.getTime() - start.getTime()
-  
-  return Math.min(100, Math.max(0, (elapsed / total) * 100))
+  return experimentProgress.value.progressPercent
 })
 
 function calculateEndDate(): string | null {
@@ -242,10 +256,46 @@ function calculateEndDate(): string | null {
   return end.toISOString()
 }
 
-function handleAction(action: 'edit' | 'duplicate' | 'export' | 'delete') {
+function updateProgress() {
+  experimentProgress.value = experimentTracker.getExperimentProgress(props.experiment)
+}
+
+function formatTimeRemaining(timeMs: number | null): string {
+  if (timeMs === null || timeMs <= 0) {
+    return 'Завершен'
+  }
+  
+  const days = Math.floor(timeMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((timeMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((timeMs % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (days > 0) {
+    return `${days}д ${hours}ч`
+  } else if (hours > 0) {
+    return `${hours}ч ${minutes}м`
+  } else {
+    return `${minutes}м`
+  }
+}
+
+function handleAction(action: 'edit' | 'duplicate' | 'export' | 'delete' | 'save-template') {
   showMenu.value = false
   emit(action, props.experiment)
 }
+
+onMounted(() => {
+  updateProgress()
+  // Обновляем прогресс каждые 30 секунд для активных экспериментов
+  if (props.experiment.status === 'active') {
+    updateInterval = window.setInterval(updateProgress, 30000)
+  }
+})
+
+onUnmounted(() => {
+  if (updateInterval) {
+    clearInterval(updateInterval)
+  }
+})
 
 // Click outside directive
 interface ClickOutsideElement extends HTMLElement {

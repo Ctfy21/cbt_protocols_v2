@@ -469,7 +469,6 @@
                 
                 <div class="space-y-3">
                   <div>
-                    <label class="block text-sm text-gray-600 mb-1">Entity для управления</label>
                     <EntitySelector
                       :model-value="entityId.toString()"
                       :available-entities="availableEntitiesForType('lamp', entityId.toString())"
@@ -528,47 +527,147 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Entity время начала
-                    </label>
-                    <EntitySelector
-                      :model-value="String(Object.keys(zone.start_time_entity_id)[0])"
-                      :available-entities="availableEntitiesForWateringZone('start_time', String(Object.keys(zone.start_time_entity_id)[0]))"
-                      @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'start_time_entity_id', newId)"
-                    />
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-sm font-medium text-gray-700">
+                        Entity время начала
+                      </label>
+                      <button
+                        @click="addWateringZoneEntity(index, 'start_time_entity_id')"
+                        class="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        + Добавить
+                      </button>
+                    </div>
+                    <div v-if="!zone.start_time_entity_id || Object.keys(zone.start_time_entity_id).length === 0" 
+                         class="text-center py-2 text-gray-500 text-xs border border-dashed border-gray-300 rounded">
+                      Нет назначенных сущностей
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div v-for="(value, entityId) in zone.start_time_entity_id" :key="entityId" 
+                           class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <EntitySelector
+                            :model-value="entityId"
+                            :available-entities="availableEntitiesForWateringZone('start_time', entityId)"
+                            @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'start_time_entity_id', newId, entityId)"
+                          />
+                        </div>
+                        <button
+                          @click="removeWateringZoneEntity(index, 'start_time_entity_id', entityId)"
+                          class="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon class="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Entity период
-                    </label>
-                    <EntitySelector
-                      :model-value="String(Object.keys(zone.period_entity_id)[0])"
-                      :available-entities="availableEntitiesForWateringZone('period', String(Object.keys(zone.period_entity_id)[0]))"
-                      @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'period_entity_id', newId)"
-                    />
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-sm font-medium text-gray-700">
+                        Entity период
+                      </label>
+                      <button
+                        @click="addWateringZoneEntity(index, 'period_entity_id')"
+                        class="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        + Добавить
+                      </button>
+                    </div>
+                    <div v-if="!zone.period_entity_id || Object.keys(zone.period_entity_id).length === 0" 
+                         class="text-center py-2 text-gray-500 text-xs border border-dashed border-gray-300 rounded">
+                      Нет назначенных сущностей
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div v-for="(value, entityId) in zone.period_entity_id" :key="entityId" 
+                           class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <EntitySelector
+                            :model-value="entityId"
+                            :available-entities="availableEntitiesForWateringZone('period', entityId)"
+                            @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'period_entity_id', newId, entityId)"
+                          />
+                        </div>
+                        <button
+                          @click="removeWateringZoneEntity(index, 'period_entity_id', entityId)"
+                          class="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon class="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Entity пауза между циклами
-                    </label>
-                    <EntitySelector
-                      :model-value="String(Object.keys(zone.pause_between_entity_id)[0])"
-                      :available-entities="availableEntitiesForWateringZone('pause_between', String(Object.keys(zone.pause_between_entity_id)[0]))"
-                      @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'pause_between_entity_id', newId)"
-                    />
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-sm font-medium text-gray-700">
+                        Entity пауза между циклами
+                      </label>
+                      <button
+                        @click="addWateringZoneEntity(index, 'pause_between_entity_id')"
+                        class="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        + Добавить
+                      </button>
+                    </div>
+                    <div v-if="!zone.pause_between_entity_id || Object.keys(zone.pause_between_entity_id).length === 0" 
+                         class="text-center py-2 text-gray-500 text-xs border border-dashed border-gray-300 rounded">
+                      Нет назначенных сущностей
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div v-for="(value, entityId) in zone.pause_between_entity_id" :key="entityId" 
+                           class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <EntitySelector
+                            :model-value="entityId"
+                            :available-entities="availableEntitiesForWateringZone('pause_between', entityId)"
+                            @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'pause_between_entity_id', newId, entityId)"
+                          />
+                        </div>
+                        <button
+                          @click="removeWateringZoneEntity(index, 'pause_between_entity_id', entityId)"
+                          class="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon class="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Entity продолжительность
-                    </label>
-                    <EntitySelector
-                      :model-value="String(Object.keys(zone.duration_entity_id)[0])"
-                      :available-entities="availableEntitiesForWateringZone('duration', String(Object.keys(zone.duration_entity_id)[0]))"
-                      @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'duration_entity_id', newId)"
-                    />
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="block text-sm font-medium text-gray-700">
+                        Entity продолжительность
+                      </label>
+                      <button
+                        @click="addWateringZoneEntity(index, 'duration_entity_id')"
+                        class="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        + Добавить
+                      </button>
+                    </div>
+                    <div v-if="!zone.duration_entity_id || Object.keys(zone.duration_entity_id).length === 0" 
+                         class="text-center py-2 text-gray-500 text-xs border border-dashed border-gray-300 rounded">
+                      Нет назначенных сущностей
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div v-for="(value, entityId) in zone.duration_entity_id" :key="entityId" 
+                           class="flex items-center gap-2">
+                        <div class="flex-1">
+                          <EntitySelector
+                            :model-value="entityId"
+                            :available-entities="availableEntitiesForWateringZone('duration', entityId)"
+                            @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'duration_entity_id', newId, entityId)"
+                          />
+                        </div>
+                        <button
+                          @click="removeWateringZoneEntity(index, 'duration_entity_id', entityId)"
+                          class="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon class="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -669,19 +768,6 @@
   import api from '@/services/api'
   import EntitySelector from '@/components/EntitySelector.vue'
   import { InputNumber, WateringZone } from '@/types'
-  // Entity interfaces
-  interface Entity {
-    entity_id: string
-    friendly_name: string
-    name: string
-    min: number
-    max: number
-    step: number
-    value: number
-    unit: string
-    type: string
-  }
-  
   
   const route = useRoute()
   const chamberStore = useChamberStore()
@@ -708,7 +794,7 @@
   
   // Entity assignment modal
   const showEntityModal = ref(false)
-  const pendingAssignment = ref({ type: '', entityId: '' })
+  const pendingAssignment = ref({ type: '', entityId: '', zoneIndex: -1 })
   
   const hasChanges = computed(() => {
     if (!config.value) return false
@@ -1020,7 +1106,7 @@
   }
   
   function addEntityMapping(type: string): void {
-    pendingAssignment.value = { type, entityId: '' }
+    pendingAssignment.value = { type, entityId: '', zoneIndex: -1 }
     showEntityModal.value = true
   }
   
@@ -1106,6 +1192,27 @@
         value: entity.value || 0,
         unit: entity.unit || ''
       }
+    } else if (type.startsWith('watering_zone_')) {
+      // Handle watering zone entity assignment
+      const zoneIndex = pendingAssignment.value.zoneIndex;
+      const field = type.replace('watering_zone_', '') as 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
+      
+      if (zoneIndex >= 0 && configState.watering_zones[zoneIndex]) {
+        if (!configState.watering_zones[zoneIndex][field]) {
+          configState.watering_zones[zoneIndex][field] = {};
+        }
+        
+        configState.watering_zones[zoneIndex][field][entity.entity_id] = {
+          entity_id: entity.entity_id,
+          name: entity.name,
+          type: 'watering_zone',
+          min: entity.min || 0,
+          max: entity.max || 100,
+          step: entity.step || 1,
+          value: entity.value || 0,
+          unit: entity.unit || ''
+        };
+      }
     }
     
     closeEntityModal()
@@ -1113,7 +1220,7 @@
   
   function closeEntityModal(): void {
     showEntityModal.value = false
-    pendingAssignment.value = { type: '', entityId: '' }
+    pendingAssignment.value = { type: '', entityId: '', zoneIndex: -1 }
   }
   
   function deleteUnrecognisedEntity(entityId: string): void {
@@ -1227,10 +1334,10 @@
   function addWateringZone(): void {
     configState.watering_zones.push({
       name: `Зона ${configState.watering_zones.length + 1}`,
-      start_time_entity_id: {} as Record<string, InputNumber>,
-      period_entity_id: {} as Record<string, InputNumber>,
-      pause_between_entity_id: {} as Record<string, InputNumber>,
-      duration_entity_id: {} as Record<string, InputNumber>
+      start_time_entity_id: {},
+      period_entity_id: {},
+      pause_between_entity_id: {},
+      duration_entity_id: {}
     })
   }
   
@@ -1238,22 +1345,46 @@
     configState.watering_zones.splice(index, 1)
   }
   
-  function updateWateringZoneEntity(zoneIndex: number, field: string, newEntityId: string): void {
+  function updateWateringZoneEntity(zoneIndex: number, field: string, newEntityId: string, oldEntityId: string = ''): void {
     type WateringZoneField = 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
 
     if (configState.watering_zones[zoneIndex] && (['start_time_entity_id', 'period_entity_id', 'pause_between_entity_id', 'duration_entity_id'] as string[]).includes(field)) {
-      configState.watering_zones[zoneIndex][field as WateringZoneField] = {
-        [newEntityId]: {
+      // If oldEntityId is provided and different from newEntityId, remove the old entity
+      if (oldEntityId && oldEntityId !== newEntityId && configState.watering_zones[zoneIndex][field as WateringZoneField][oldEntityId]) {
+        addUnrecognisedEntity(configState.watering_zones[zoneIndex][field as WateringZoneField][oldEntityId])
+        delete configState.watering_zones[zoneIndex][field as WateringZoneField][oldEntityId];
+      }
+      
+      // Add the new entity if it's not empty
+      deleteUnrecognisedEntity(newEntityId)
+      if (newEntityId) {
+        configState.watering_zones[zoneIndex][field as WateringZoneField][newEntityId] = {
           entity_id: newEntityId,
-          name: 'Не выбрано',
+          name: getEntityName(newEntityId),
           type: 'watering_zone',
           min: 0,
           max: 0,
           step: 0,
           value: 0,
           unit: ''
-        }
+        };
       }
+    }
+  }
+  
+  function addWateringZoneEntity(zoneIndex: number, field: string): void {
+    pendingAssignment.value = { type: `watering_zone_${field}`, entityId: '', zoneIndex: zoneIndex };
+    showEntityModal.value = true;
+  }
+  
+  function removeWateringZoneEntity(zoneIndex: number, field: string, entityId: string): void {
+    type WateringZoneField = 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
+    
+    if (configState.watering_zones[zoneIndex] && 
+        configState.watering_zones[zoneIndex][field as WateringZoneField] && 
+        configState.watering_zones[zoneIndex][field as WateringZoneField][entityId]) {
+      addUnrecognisedEntity(configState.watering_zones[zoneIndex][field as WateringZoneField][entityId])
+      delete configState.watering_zones[zoneIndex][field as WateringZoneField][entityId];
     }
   }
   

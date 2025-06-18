@@ -15,9 +15,9 @@ export const useExperimentStore = defineStore('experiment', () => {
     const grouped: Record<ExperimentStatus, Experiment[]> = {
       draft: [],
       active: [],
-      inactive: [],
       completed: [],
-      paused: []
+      paused: [],
+      archived: []
     }
     
     experiments.value.forEach(exp => {
@@ -80,7 +80,7 @@ export const useExperimentStore = defineStore('experiment', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.createExperiment(data)
+      const response = await api.createExperiment(data as Experiment)
       if (response.success && response.data) {
         experiments.value.unshift(response.data)
         return response.data
@@ -97,7 +97,7 @@ export const useExperimentStore = defineStore('experiment', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.updateExperiment(id, data)
+      const response = await api.updateExperiment(id, data as Partial<Experiment>)
       if (response.success && response.data) {
         const index = experiments.value.findIndex(e => e.id === id)
         if (index !== -1) {
@@ -139,10 +139,10 @@ export const useExperimentStore = defineStore('experiment', () => {
     return {
       title: `${experiment.title} (Copy)`,
       description: experiment.description,
-      status: 'draft',
+      status: 'draft' as ExperimentStatus,
       chamber_id: experiment.chamber_id,
       phases: experiment.phases.map(p => ({ ...p })),
-      start_date: new Date().toISOString()
+      schedule: experiment.schedule,
     }
   }
 

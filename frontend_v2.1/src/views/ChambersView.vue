@@ -20,6 +20,16 @@
           </div>
           
           <div class="flex items-center space-x-3">
+
+            <button
+              @click="router.push('/')"
+              :disabled="chamberStore.loading"
+              class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+            >
+              <HomeIcon class="w-4 h-4 mr-2" :class="{ 'animate-spin': chamberStore.loading }" />
+              На главную
+            </button>
+
             <!-- Refresh Button -->
             <button
               @click="refreshChambers"
@@ -29,17 +39,6 @@
               <ArrowPathIcon class="w-4 h-4 mr-2" :class="{ 'animate-spin': chamberStore.loading }" />
               Обновить
             </button>
-
-            <!-- Current Selection -->
-            <div v-if="chamberStore.selectedChamber" class="flex items-center px-3 py-2 bg-blue-100 text-blue-800 rounded-lg">
-              <div class="flex items-center space-x-2">
-                <div :class="[
-                  'w-2 h-2 rounded-full',
-                  chamberStore.selectedChamber.status === 'online' ? 'bg-green-500' : 'bg-red-500'
-                ]"></div>
-                <span class="text-sm font-medium">{{ chamberStore.selectedChamber.name }}</span>
-              </div>
-            </div>
 
             <!-- Admin Button -->
             <div v-if="authStore.isAdmin" class="flex space-x-3">
@@ -270,11 +269,7 @@
             </div>
 
             <!-- Chamber Details -->
-            <div v-if="chamber.status === 'online'" class="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-              <div class="text-center">
-                <p class="text-xs text-gray-500">Зоны полива</p>
-                <p class="text-lg font-semibold text-gray-900">{{ chamber.config?.watering_zones?.length || 0 }}</p>
-              </div>
+            <div v-if="chamber.status === 'online'" class="grid grid-cols-1 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
               <div class="text-center">
                 <p class="text-xs text-gray-500">Последнее обновление</p>
                 <p class="text-lg font-semibold text-gray-900">
@@ -312,10 +307,8 @@
                 :disabled="chamber.status === 'offline'"
                 :class="[
                   'flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium',
-                  // ... existing classes
                 ]"
-              >
-                <!-- ... existing button content -->
+                >
               </button>
               
               <!-- Configuration button -->
@@ -323,7 +316,7 @@
                 v-if="authStore.isAdmin && chamber.status === 'online'"
                 :to="`/chambers/${chamber.id}/config`"
                 @click.stop
-                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
+                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium mt-5"
               >
                 <Cog6ToothIcon class="w-4 h-4" />
               </router-link>

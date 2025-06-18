@@ -555,8 +555,8 @@
               v-if="((scheduleMode.wateringZones[`zone_${index}`]?.duration) || 'chart') === 'chart'"
               v-model="wateringZoneSchedules[`zone_${index}`].duration_schedule"
               :duration="localPhase.duration_days"
-              :min="0"
-              :max="300"
+              :min="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.min"
+              :max="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.max"
               :step="10"
               :unit="' sec'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'duration', schedule)"
@@ -690,73 +690,73 @@ function initializeValues() {
     startDayTime.value = `${startHour.toString().padStart(2, '0')}:00`
   }
 
-  // Create default schedules for the entire duration
-  const defaultTemperatureDaySchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 25])
-  )
-  const defaultHumidityDaySchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 60])
-  )
-  const defaultCO2DaySchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 800])
-  )
-  const defaultTemperatureNightSchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 20])
-  )
-  const defaultHumidityNightSchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 70])
-  )
-  const defaultCO2NightSchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 400])
-  )
-  const defaultDayDurationSchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 12])
-  )
-  const defaultLampIntensitySchedule = Object.fromEntries(
-    Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 80])
-  )
+  // // Create default schedules for the entire duration
+  // const defaultTemperatureDaySchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 25])
+  // )
+  // const defaultHumidityDaySchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 60])
+  // )
+  // const defaultCO2DaySchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 800])
+  // )
+  // const defaultTemperatureNightSchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 20])
+  // )
+  // const defaultHumidityNightSchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 70])
+  // )
+  // const defaultCO2NightSchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 400])
+  // )
+  // const defaultDayDurationSchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 12])
+  // )
+  // const defaultLampIntensitySchedule = Object.fromEntries(
+  //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 80])
+  // )
 
 
   // Initialize schedules from phase data if exists, otherwise use defaults
   const dayDurationEntity = findInputNumberByType('day_duration')
   if (dayDurationEntity) {
-    dayDurationSchedule.value = props.phase.work_day_schedule?.[dayDurationEntity]?.schedule || defaultDayDurationSchedule
+    dayDurationSchedule.value = props.phase.work_day_schedule?.[dayDurationEntity]?.schedule || {}
   }
 
   // Initialize temperature schedules
   const tempDayEntity = findInputNumberByType('temp_day')
   const tempNightEntity = findInputNumberByType('temp_night')
   if (tempDayEntity) {
-    temperatureDaySchedule.value = props.phase.temperature_day_schedule?.[tempDayEntity]?.schedule || defaultTemperatureDaySchedule
+    temperatureDaySchedule.value = props.phase.temperature_day_schedule?.[tempDayEntity]?.schedule || {}
   }
   if (tempNightEntity) {
-    temperatureNightSchedule.value = props.phase.temperature_night_schedule?.[tempNightEntity]?.schedule || defaultTemperatureNightSchedule
+    temperatureNightSchedule.value = props.phase.temperature_night_schedule?.[tempNightEntity]?.schedule || {}
   }
 
   // Initialize humidity schedules
   const humidityDayEntity = findInputNumberByType('humidity_day')
   const humidityNightEntity = findInputNumberByType('humidity_night')
   if (humidityDayEntity) {
-    humidityDaySchedule.value = props.phase.humidity_day_schedule?.[humidityDayEntity]?.schedule || defaultHumidityDaySchedule
+    humidityDaySchedule.value = props.phase.humidity_day_schedule?.[humidityDayEntity]?.schedule || {}
   }
   if (humidityNightEntity) {
-    humidityNightSchedule.value = props.phase.humidity_night_schedule?.[humidityNightEntity]?.schedule || defaultHumidityNightSchedule
+    humidityNightSchedule.value = props.phase.humidity_night_schedule?.[humidityNightEntity]?.schedule || {}
   }
 
   // Initialize CO2 schedules
   const co2DayEntity = findInputNumberByType('co2_day')
   const co2NightEntity = findInputNumberByType('co2_night')
   if (co2DayEntity) {
-    co2DaySchedule.value = props.phase.co2_day_schedule?.[co2DayEntity]?.schedule || defaultCO2DaySchedule
+    co2DaySchedule.value = props.phase.co2_day_schedule?.[co2DayEntity]?.schedule || {}
   }
   if (co2NightEntity) {
-    co2NightSchedule.value = props.phase.co2_night_schedule?.[co2NightEntity]?.schedule || defaultCO2NightSchedule
+    co2NightSchedule.value = props.phase.co2_night_schedule?.[co2NightEntity]?.schedule || {}
   }
 
   // Initialize lamp intensity schedules
   if(props.chamber.config?.lamps && Object.keys(props.chamber.config?.lamps).length > 0) {
     Object.values(props.chamber.config?.lamps).forEach((lamp) => {
-      lampIntensitySchedules[lamp.entity_id] = props.phase.light_intensity_schedule?.[lamp.entity_id]?.schedule || defaultLampIntensitySchedule
+      lampIntensitySchedules[lamp.entity_id] = props.phase.light_intensity_schedule?.[lamp.entity_id]?.schedule || {}
       // Initialize form values and modes
       formValues.lampIntensity[lamp.entity_id] = 80
       scheduleMode.lampIntensity[lamp.entity_id] = 'chart'
@@ -768,26 +768,26 @@ function initializeValues() {
     props.chamber.config?.watering_zones.forEach((_, index) => {
       const zoneKey = `zone_${index}`
       
-      // Default schedules for watering zones
-      const defaultStartTimeSchedule = Object.fromEntries(
-        Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 8]) // Default 8:00
-      )
-      const defaultPeriodSchedule = Object.fromEntries(
-        Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 12]) // Default 12 hours
-      )
-      const defaultPauseBetweenSchedule = Object.fromEntries(
-        Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 2]) // Default 2 hours
-      )
-      const defaultDurationSchedule = Object.fromEntries(
-        Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 60]) // Default 60 sec
-      )
+      // // Default schedules for watering zones
+      // const defaultStartTimeSchedule = Object.fromEntries(
+      //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 8]) // Default 8:00
+      // )
+      // const defaultPeriodSchedule = Object.fromEntries(
+      //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 12]) // Default 12 hours
+      // )
+      // const defaultPauseBetweenSchedule = Object.fromEntries(
+      //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 2]) // Default 2 hours
+      // )
+      // const defaultDurationSchedule = Object.fromEntries(
+      //   Array.from({ length: localPhase.duration_days }, (_, i) => [i+1, 60]) // Default 60 sec
+      // )
       
       // Initialize from phase data or use defaults
       wateringZoneSchedules[zoneKey] = {
-        start_time_schedule: props.phase.watering_zones?.[zoneKey]?.start_time_schedule || defaultStartTimeSchedule,
-        period_schedule: props.phase.watering_zones?.[zoneKey]?.period_schedule || defaultPeriodSchedule,
-        pause_between_schedule: props.phase.watering_zones?.[zoneKey]?.pause_between_schedule || defaultPauseBetweenSchedule,
-        duration_schedule: props.phase.watering_zones?.[zoneKey]?.duration_schedule || defaultDurationSchedule
+        start_time_schedule: props.phase.watering_zones?.[zoneKey]?.start_time_schedule || {},
+        period_schedule: props.phase.watering_zones?.[zoneKey]?.period_schedule || {},
+        pause_between_schedule: props.phase.watering_zones?.[zoneKey]?.pause_between_schedule || {},
+        duration_schedule: props.phase.watering_zones?.[zoneKey]?.duration_schedule || {}
       }
       
       // Initialize form values and modes
@@ -852,8 +852,54 @@ function initializeValues() {
 }
 
 function findInputNumberByType(type: string): string | null {
-  const inputNumber = Object.values(props.chamber.config?.unrecognised_entities || {}).find((inputNum) => inputNum.type === type)
-  return inputNumber?.entity_id || null
+  const config = props.chamber.config
+  if (!config) return null
+
+  // Search in direct properties
+  if (config.day_duration && Object.keys(config.day_duration).length > 0 && type === 'day_duration') {
+    return Object.keys(config.day_duration)[0]
+  }
+  
+  if (config.day_start && Object.keys(config.day_start).length > 0 && type === 'day_start') {
+    return Object.keys(config.day_start)[0]
+  }
+
+  // Search in nested temperature objects
+  if (type === 'temperature_day' && config.temperature?.day && Object.keys(config.temperature.day).length > 0) {
+    return Object.keys(config.temperature.day)[0]
+  }
+  
+  if (type === 'temp_day' && config.temperature?.day && Object.keys(config.temperature.day).length > 0) {
+    return Object.keys(config.temperature.day)[0]
+  }
+  
+  if (type === 'temperature_night' && config.temperature?.night && Object.keys(config.temperature.night).length > 0) {
+    return Object.keys(config.temperature.night)[0]
+  }
+  
+  if (type === 'temp_night' && config.temperature?.night && Object.keys(config.temperature.night).length > 0) {
+    return Object.keys(config.temperature.night)[0]
+  }
+
+  // Search in nested humidity objects
+  if (type === 'humidity_day' && config.humidity?.day && Object.keys(config.humidity.day).length > 0) {
+    return Object.keys(config.humidity.day)[0]
+  }
+  
+  if (type === 'humidity_night' && config.humidity?.night && Object.keys(config.humidity.night).length > 0) {
+    return Object.keys(config.humidity.night)[0]
+  }
+
+  // Search in nested CO2 objects
+  if (type === 'co2_day' && config.co2?.day && Object.keys(config.co2.day).length > 0) {
+    return Object.keys(config.co2.day)[0]
+  }
+  
+  if (type === 'co2_night' && config.co2?.night && Object.keys(config.co2.night).length > 0) {
+    return Object.keys(config.co2.night)[0]
+  }
+
+  return null
 }
 
 function updatePhase() {

@@ -14,9 +14,13 @@ import (
 
 	"local_api_v2/internal/config"
 	"local_api_v2/internal/database"
+	"local_api_v2/internal/models"
 	"local_api_v2/internal/services"
 	"local_api_v2/pkg/homeassistant"
 	"local_api_v2/pkg/ntp"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func main() {
@@ -64,6 +68,7 @@ func main() {
 	chamberManager := services.NewChamberManager(cfg, db, discoveryService, ntpService)
 	registrationService := services.NewRegistrationService(cfg, db, ntpService)
 	syncService := services.NewSyncService(cfg, db, ntpService)
+	experimentTracker := services.NewExperimentTracker(cfg, db, ntpService)
 
 	// Set cross-references
 	syncService.SetChamberManager(chamberManager)
@@ -161,6 +166,12 @@ func main() {
 			syncService.StartSync(ctx)
 		}()
 
+		// Start experiment tracking service
+		go func() {
+			log.Println("Starting experiment tracking service...")
+			experimentTracker.StartTracking(ctx)
+		}()
+
 		// Start executor services for each chamber
 		time.Sleep(2 * time.Second) // Give sync service time to fetch experiments
 
@@ -179,7 +190,7 @@ func main() {
 
 	// Start simple HTTP server for health checks
 	mux := http.NewServeMux()
-	setupRoutes(mux, db, chamberManager, ntpService, syncService)
+	setupRoutes(mux, db, chamberManager, ntpService, syncService, experimentTracker)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
@@ -232,7 +243,7 @@ func main() {
 }
 
 // setupRoutes configures HTTP routes
-func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager, ntpService *ntp.TimeService, syncService *services.SyncService) {
+func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *services.ChamberManager, ntpService *ntp.TimeService, syncService *services.SyncService, experimentTracker *services.ExperimentTracker) {
 	// Health check endpoint
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -328,5 +339,118 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 			ntpService.Unix(),
 			ntpService.IsEnabled(),
 			ntpService.IsConnected())
+	})
+
+	// Experiment tracking status endpoint
+	mux.HandleFunc("/api/v1/experiments/tracking/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		status := experimentTracker.GetTrackingStatus()
+		statusJSON, _ := json.Marshal(map[string]interface{}{
+			"success": true,
+			"data":    status,
+		})
+		w.Write(statusJSON)
+	})
+
+	// Active experiments with progress endpoint
+	mux.HandleFunc("/api/v1/experiments/active", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		experiments, err := experimentTracker.GetActiveExperimentsWithProgress()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			response, _ := json.Marshal(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+			w.Write(response)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		response, _ := json.Marshal(map[string]interface{}{
+			"success": true,
+			"data":    experiments,
+		})
+		w.Write(response)
+	})
+
+	// Individual experiment progress endpoint
+	mux.HandleFunc("/api/v1/experiments/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Extract experiment ID from URL path
+		path := r.URL.Path
+		if len(path) < len("/api/v1/experiments/") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		experimentID := path[len("/api/v1/experiments/"):]
+		if experimentID == "" || experimentID == "active" || experimentID == "tracking" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		// Remove any trailing path segments
+		if idx := len(experimentID); idx > 24 { // MongoDB ObjectID length
+			experimentID = experimentID[:24]
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		// Find experiment by ID
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		objectID, err := primitive.ObjectIDFromHex(experimentID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response, _ := json.Marshal(map[string]interface{}{
+				"success": false,
+				"error":   "Invalid experiment ID format",
+			})
+			w.Write(response)
+			return
+		}
+
+		var experiment models.Experiment
+		err = db.ExperimentsCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&experiment)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			response, _ := json.Marshal(map[string]interface{}{
+				"success": false,
+				"error":   "Experiment not found",
+			})
+			w.Write(response)
+			return
+		}
+
+		progress := experimentTracker.GetExperimentProgress(experiment)
+
+		w.WriteHeader(http.StatusOK)
+		response, _ := json.Marshal(map[string]interface{}{
+			"success": true,
+			"data": map[string]interface{}{
+				"experiment": experiment,
+				"progress":   progress,
+			},
+		})
+		w.Write(response)
 	})
 }

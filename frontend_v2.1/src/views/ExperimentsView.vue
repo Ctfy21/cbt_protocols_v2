@@ -38,13 +38,22 @@
           </button>
         </div>
 
-        <button
-          @click="showCreateForm = true"
-          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <PlusIcon class="w-5 h-5 mr-2" />
-          Новый эксперимент
-        </button>
+        <div class="flex gap-3">
+          <button
+            @click="showTemplates = true"
+            class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
+          >
+            <DocumentIcon class="w-5 h-5 mr-2" />
+            Сохраненные шаблоны
+          </button>
+          <button
+            @click="showCreateForm = true"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <PlusIcon class="w-5 h-5 mr-2" />
+            Новый эксперимент
+          </button>
+        </div>
       </div>
 
       <!-- Stats Overview -->
@@ -196,6 +205,7 @@
             @export="handleExport"
             @delete="handleDelete"
             @status-change="handleStatusChange"
+            @save-template="saveAsTemplate"
           />
         </div>
       </div>
@@ -209,6 +219,13 @@
         />
       </div>
     </main>
+
+    <!-- Experiment Templates Modal -->
+    <ExperimentTemplates
+      :is-open="showTemplates"
+      @close="showTemplates = false"
+      @use-template="handleUseTemplate"
+    />
 
     <!-- Experiment Form Modal -->
     <ExperimentForm
@@ -254,6 +271,7 @@ import ExperimentCard from '@/components/ExperimentCard.vue'
 import ExperimentForm from '@/components/ExperimentForm.vue'
 import CalendarView from '@/components/CalendarView.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ExperimentTemplates from '@/components/ExperimentTemplates.vue'
 import type { Experiment, ExperimentStatus } from '@/types'
 
 const chamberStore = useChamberStore()
@@ -264,6 +282,7 @@ const viewMode = ref<'list' | 'calendar'>('list')
 const searchQuery = ref('')
 const statusFilter = ref<ExperimentStatus | ''>('')
 const showCreateForm = ref(false)
+const showTemplates = ref(false)
 const editingExperiment = ref<Experiment | null>(null)
 const deletingExperiment = ref<Experiment | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -309,7 +328,7 @@ function handleEdit(experiment: Experiment) {
 
 function handleDuplicate(experiment: Experiment) {
   const duplicated = experimentStore.duplicateExperiment(experiment)
-  editingExperiment.value = { ...duplicated, id: '' } as Experiment
+  editingExperiment.value = { ...duplicated, id: '', created_at: '', updated_at: '' } as Experiment
 }
 
 function handleExport(experiment: Experiment) {
@@ -431,5 +450,30 @@ function closeForm() {
 
 function triggerFileInput() {
   fileInput.value?.click()
+}
+
+function handleUseTemplate(template: Experiment) {
+  console.log(template)
+  template.id = ''
+  template.created_at = ''
+  template.updated_at = ''
+  editingExperiment.value = template
+}
+
+function saveAsTemplate(experiment: Experiment) {
+  experiment.id = ''
+  experiment.created_at = ''
+  experiment.updated_at = ''
+  // Save to localStorage using the same logic as ExperimentTemplates component
+  try {
+    const STORAGE_KEY = 'experiment_templates'
+    const saved = localStorage.getItem(STORAGE_KEY)
+    const templates = saved ? JSON.parse(saved) : []
+    templates.unshift(experiment)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
+    toastStore.success('Шаблон сохранен', `Создан шаблон из ${experiment.title}`)
+  } catch (error: any) {
+    toastStore.error('Ошибка', 'Не удалось сохранить шаблон')
+  }
 }
 </script> 

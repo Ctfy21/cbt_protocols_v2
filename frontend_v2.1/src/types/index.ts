@@ -91,7 +91,7 @@ export interface WateringZone {
 
 // Removed Lamp interface as it's now part of InputNumber
 
-export type ExperimentStatus = 'active' | 'inactive' | 'draft' | 'completed' | 'paused'
+export type ExperimentStatus = 'active' | 'draft' | 'completed' | 'paused' | 'archived'
 
 // Experiment types
 export interface Experiment {
@@ -188,6 +188,5 @@ export interface ExperimentFormData {
   status: ExperimentStatus;
   chamber_id: string;
   phases: Phase[];
-  start_date: string;
   schedule?: ScheduleItem[];
 }

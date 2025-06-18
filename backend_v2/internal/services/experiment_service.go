@@ -31,6 +31,48 @@ func (s *ExperimentService) CreateExperiment(req *CreateExperimentRequest) (*mod
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Validate required fields
+	if len(req.Phases) == 0 {
+		return nil, fmt.Errorf("phases are required")
+	}
+	if len(req.Schedule) == 0 {
+		return nil, fmt.Errorf("schedule is required")
+	}
+
+	// Validate each phase has required fields
+	for i, phase := range req.Phases {
+		if phase.Title == "" {
+			return nil, fmt.Errorf("phase %d: title is required", i+1)
+		}
+		if phase.DurationDays <= 0 {
+			return nil, fmt.Errorf("phase %d: duration_days must be greater than 0", i+1)
+		}
+		if len(phase.WorkDaySchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: work_day_schedule configuration is required", i+1)
+		}
+		if len(phase.TemperatureDaySchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: temperature_day_schedule configuration is required", i+1)
+		}
+		if len(phase.StartDay) == 0 {
+			return nil, fmt.Errorf("phase %d: start_day configuration is required", i+1)
+		}
+		if len(phase.TemperatureNightSchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: temperature_night_schedule configuration is required", i+1)
+		}
+		if len(phase.HumidityDaySchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: humidity_day_schedule configuration is required", i+1)
+		}
+		if len(phase.HumidityNightSchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: humidity_night_schedule configuration is required", i+1)
+		}
+		if len(phase.CO2DaySchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: co2_day_schedule configuration is required", i+1)
+		}
+		if len(phase.CO2NightSchedule) == 0 {
+			return nil, fmt.Errorf("phase %d: co2_night_schedule configuration is required", i+1)
+		}
+	}
+
 	// Validate chamber exists
 	chamberID, err := primitive.ObjectIDFromHex(req.ChamberID)
 	if err != nil {
@@ -192,6 +234,57 @@ func (s *ExperimentService) DeleteExperiment(experimentID string) error {
 	}
 
 	return nil
+}
+
+// UpdateExperimentStatus updates only the status of an experiment
+func (s *ExperimentService) UpdateExperimentStatus(experimentID string, status models.ExperimentStatus) (*models.Experiment, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(experimentID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid experiment ID: %v", err)
+	}
+
+	// Validate status
+	validStatuses := []models.ExperimentStatus{
+		models.ExperimentStatusActive,
+		models.ExperimentStatusDraft,
+		models.ExperimentStatusCompleted,
+		models.ExperimentStatusPaused,
+		models.ExperimentStatusArchived,
+	}
+
+	isValidStatus := false
+	for _, validStatus := range validStatuses {
+		if status == validStatus {
+			isValidStatus = true
+			break
+		}
+	}
+
+	if !isValidStatus {
+		return nil, fmt.Errorf("invalid status: %s", status)
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":     status,
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := s.db.ExperimentsCollection.UpdateByID(ctx, objectID, update)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update experiment status: %v", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return nil, fmt.Errorf("experiment not found")
+	}
+
+	// Get updated experiment
+	return s.GetExperiment(experimentID)
 }
 
 // CreateExperimentRequest represents the request to create an experiment

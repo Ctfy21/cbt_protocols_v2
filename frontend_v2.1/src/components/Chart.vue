@@ -54,8 +54,9 @@
           
           <!-- Tooltip -->
           <div
+            ref="tooltipRef"
             v-show="tooltip.show"
-            class="absolute bg-gray-900 text-white px-3 py-2 rounded text-base pointer-events-none z-20 whitespace-nowrap"
+            class="absolute bg-gray-900 text-white px-3 py-2 rounded text-base pointer-events-none z-20 whitespace-nowrap transition-opacity duration-200 shadow-lg"
             :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
           >
             Day {{ tooltip.day }}: {{ tooltip.temp }} {{ unit }}
@@ -79,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 
 interface Props {
   modelValue?: Record<number, number>
@@ -105,13 +106,15 @@ const emit = defineEmits<{
 }>()
 
 const chartContainer = ref<HTMLElement>()
+const tooltipRef = ref<HTMLElement>()
 const selectedPoints = ref<Record<number, number>>({})
 const tooltip = ref({
   show: false,
   x: 0,
   y: 0,
   day: 0,
-  temp: 0
+  temp: 0,
+  arrowPosition: 'bottom' // 'top', 'bottom', 'left', 'right'
 })
 
 // Chart configuration
@@ -270,13 +273,60 @@ function showTooltip(event: MouseEvent, point: { day: number; temp: number }) {
   const rect = chartContainer.value?.getBoundingClientRect()
   if (!rect) return
   
+  // Временно показываем tooltip для получения его размеров
   tooltip.value = {
     show: true,
-    x: event.clientX - rect.left + 10,
-    y: event.clientY - rect.top - 30,
+    x: 0,
+    y: 0,
     day: point.day,
-    temp: point.temp
+    temp: point.temp,
+    arrowPosition: 'bottom'
   }
+  
+  // Ждем следующий тик, чтобы tooltip отрендерился
+  nextTick(() => {
+    const tooltipRect = tooltipRef.value?.getBoundingClientRect()
+    const tooltipWidth = tooltipRect?.width || 120
+    const tooltipHeight = tooltipRect?.height || 40
+    
+    // Базовые позиции tooltip
+    let x = event.clientX - rect.left + 7
+    let y = event.clientY - rect.top - tooltipHeight - 7
+    let arrowPosition = 'bottom'
+    
+    // Проверяем правую границу
+    if (x + tooltipWidth > rect.width) {
+      x = event.clientX - rect.left - tooltipWidth - 7
+      arrowPosition = 'right'
+    }
+    
+    // Проверяем левую границу
+    if (x < 0) {
+      x = event.clientX - rect.left + 7
+      arrowPosition = 'left'
+    }
+    
+    // Проверяем верхнюю границу
+    if (y < 0) {
+      y = event.clientY - rect.top + 7
+      arrowPosition = 'top'
+    }
+    
+    // Проверяем нижнюю границу
+    if (y + tooltipHeight > rect.height) {
+      y = event.clientY - rect.top - tooltipHeight - 7
+      arrowPosition = 'bottom'
+    }
+    
+    tooltip.value = {
+      show: true,
+      x: x,
+      y: y,
+      day: point.day,
+      temp: point.temp,
+      arrowPosition: arrowPosition
+    }
+  })
 }
 
 function hideTooltip() {

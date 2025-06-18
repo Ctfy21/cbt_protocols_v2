@@ -391,7 +391,8 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 
 		roomSuffix := s.extractRoomSuffix(entityID)
 		if roomSuffix == "" {
-			roomSuffix = "default" // For entities without room suffix
+			log.Printf("Skipping entity without room suffix: %s (%s)", entityID, friendlyName)
+			continue // Skip entities without room suffix
 		}
 
 		// Create or get room

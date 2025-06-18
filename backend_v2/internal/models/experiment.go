@@ -11,9 +11,10 @@ type ExperimentStatus string
 
 const (
 	ExperimentStatusActive    ExperimentStatus = "active"
-	ExperimentStatusInactive  ExperimentStatus = "inactive"
 	ExperimentStatusDraft     ExperimentStatus = "draft"
 	ExperimentStatusCompleted ExperimentStatus = "completed"
+	ExperimentStatusPaused    ExperimentStatus = "paused"
+	ExperimentStatusArchived  ExperimentStatus = "archived"
 )
 
 // Experiment represents an experiment

@@ -95,3 +95,25 @@ func (h *ExperimentHandler) DeleteExperiment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.MessageResponse("Experiment deleted successfully"))
 }
+
+// UpdateExperimentStatus handles PATCH /experiments/:id/status
+func (h *ExperimentHandler) UpdateExperimentStatus(c *gin.Context) {
+	experimentID := c.Param("id")
+
+	var req struct {
+		Status models.ExperimentStatus `json:"status" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	experiment, err := h.experimentService.UpdateExperimentStatus(experimentID, req.Status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse(experiment))
+}

@@ -101,6 +101,11 @@ class ApiService {
     return response.data
   }
 
+  async updateExperimentStatus(id: string, status: string): Promise<ApiResponse<Experiment>> {
+    const response = await this.api.patch(`/experiments/${id}/status`, { status })
+    return response.data
+  }
+
   async deleteExperiment(id: string): Promise<ApiResponse<void>> {
     const response = await this.api.delete(`/experiments/${id}`)
     return response.data

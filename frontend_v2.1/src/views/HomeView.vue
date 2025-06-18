@@ -333,13 +333,13 @@
               </div>
             </div>
 
-            <!-- Recent Experiments -->
+            <!-- Active Experiments Progress -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Недавние эксперименты</h3>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Активные эксперименты</h3>
               
-              <div v-if="recentExperiments.length === 0" class="text-center py-8">
+              <div v-if="experimentStore.activeExperiments.length === 0" class="text-center py-8">
                 <BeakerIcon class="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p class="text-gray-500 mb-4">У вас пока нет экспериментов</p>
+                <p class="text-gray-500 mb-4">У вас нет активных экспериментов</p>
                 <router-link
                   v-if="chamberStore.selectedChamber"
                   to="/experiments"
@@ -350,31 +350,21 @@
                 </router-link>
               </div>
 
-              <div v-else class="space-y-3 max-h-64 overflow-y-auto">
-                <div
-                  v-for="experiment in recentExperiments"
+              <div v-else class="space-y-4 max-h-80 overflow-y-auto">
+                <ExperimentProgress
+                  v-for="experiment in experimentStore.activeExperiments.slice(0, 3)"
                   :key="experiment.id"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  :experiment="experiment"
+                  class="cursor-pointer"
                   @click="$router.push(`/experiments/${experiment.id}`)"
-                >
-                  <div>
-                    <p class="font-medium text-gray-900">{{ experiment.title }}</p>
-                    <p class="text-sm text-gray-500">
-                      {{ experiment.phases?.length || 0 }} фаз • 
-                      {{ experiment.phases?.reduce((sum, p) => sum + (p.duration_days || 0), 0) || 0 }} дней
-                    </p>
-                  </div>
-                  <div class="text-right">
-                    <div :class="[
-                      'px-2 py-1 text-xs font-medium rounded-full',
-                      experiment.status === 'active' ? 'bg-green-100 text-green-800' :
-                      experiment.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                      experiment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    ]">
-                      {{ experiment.status }}
-                    </div>
-                  </div>
+                />
+                <div v-if="experimentStore.activeExperiments.length > 3" class="text-center pt-2">
+                  <router-link
+                    to="/experiments"
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Посмотреть все активные эксперименты ({{ experimentStore.activeExperiments.length }})
+                  </router-link>
                 </div>
               </div>
             </div>
@@ -447,6 +437,7 @@ import { useExperimentStore } from '@/stores/experiment'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import AppHeader from '@/components/AppHeader.vue'
+import ExperimentProgress from '@/components/ExperimentProgress.vue'
 import type { Chamber } from '@/types'
 
 const chamberStore = useChamberStore()

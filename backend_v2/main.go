@@ -181,6 +181,7 @@ func setupAPIRoutes(
 		api.GET("/experiments", experimentHandler.GetExperiments)
 		api.POST("/experiments", experimentHandler.CreateExperiment)
 		api.PUT("/experiments/:id", experimentHandler.UpdateExperiment)
+		api.PATCH("/experiments/:id/status", experimentHandler.UpdateExperimentStatus)
 		api.DELETE("/experiments/:id", experimentHandler.DeleteExperiment)
 
 		// User Chamber Access routes (Admin only)

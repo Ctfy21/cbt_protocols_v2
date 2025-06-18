@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import type { User, LoginCredentials, RegisterData } from '@/types/auth'
+import experimentTracker from '@/services/experimentTracker'
 
 const TOKEN_KEY = 'auth_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
@@ -30,6 +31,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.login(credentials)
       if (response.success && response.data) {
         setAuthData(response.data)
+        // Запускаем отслеживание экспериментов после успешного логина
+        experimentTracker.startTracking()
         return response.data
       }
     } catch (err: any) {
@@ -66,6 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Logout error:', err)
     } finally {
       clearAuthData()
+      // Останавливаем отслеживание при выходе
+      experimentTracker.stopTracking()
       const router = useRouter()
       router.push('/login')
     }
@@ -221,10 +226,12 @@ export const useAuthStore = defineStore('auth', () => {
       // Set the token in axios headers
       api.setAuthToken(token.value)
       
-      // Verify token is still valid
-      try {
-        await fetchCurrentUser()
-      } catch (err) {
+              // Verify token is still valid
+        try {
+          await fetchCurrentUser()
+          // Если токен валиден, запускаем отслеживание
+          experimentTracker.startTracking()
+        } catch (err) {
         console.log('Token validation failed, attempting refresh...')
         // Token might be expired, try to refresh
         if (refreshToken.value) {
@@ -232,6 +239,8 @@ export const useAuthStore = defineStore('auth', () => {
             await refreshAccessToken()
             // After successful refresh, try fetching user again
             await fetchCurrentUser()
+            // Запускаем отслеживание после успешного обновления токена
+            experimentTracker.startTracking()
           } catch (refreshErr) {
             console.error('Token refresh failed:', refreshErr)
             // Both failed, clear auth data
