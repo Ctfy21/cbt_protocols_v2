@@ -416,7 +416,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import {
