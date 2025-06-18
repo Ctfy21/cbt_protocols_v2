@@ -93,8 +93,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  min: 10,
-  max: 30,
+  min: 0,
+  max: 50,
   step: 1,
   unit: '',
   title: '',

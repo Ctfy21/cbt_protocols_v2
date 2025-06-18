@@ -205,10 +205,18 @@ func getInputNumberType(entityID, friendlyName string) string {
 
 // isLampEntity checks if the entity is a lamp control
 func isLampEntity(entityID, friendlyName string) bool {
-	lampKeywords := []string{"lamp", "light", "led", "лампа", "свет", "света", "лампы", "ppfd"}
+	lampKeywords := []string{"lamp", "light", "led", "лампа", "свет", "света", "лампы", "ppfd", "lamps", "lights"}
+
+	lampIgnoreList := []string{"day", "night", "work", "sun_rise", "sun_set", "ras_zak", "ras", "rise_sun", "zak_ras"}
 
 	lowerID := strings.ToLower(entityID)
 	lowerName := strings.ToLower(friendlyName)
+
+	for _, ignore := range lampIgnoreList {
+		if strings.Contains(lowerID, ignore) || strings.Contains(lowerName, ignore) {
+			return false
+		}
+	}
 
 	for _, keyword := range lampKeywords {
 		if strings.Contains(lowerID, keyword) || strings.Contains(lowerName, keyword) {

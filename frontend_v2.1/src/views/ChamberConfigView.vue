@@ -767,7 +767,7 @@
   import AppHeader from '@/components/AppHeader.vue'
   import api from '@/services/api'
   import EntitySelector from '@/components/EntitySelector.vue'
-  import { InputNumber, WateringZone } from '@/types'
+  import { InputNumber, WateringZone, ChamberConfig } from '@/types'
   
   const route = useRoute()
   const chamberStore = useChamberStore()
@@ -1005,48 +1005,23 @@
     
     try {
       // Prepare config for saving - restore original values for assigned entities
-      const configToSave = {
-        lamps: Object.keys(configState.lamps).length > 0 ? Object.values(configState.lamps) : [], // Convert back to array
+      const configToSave: ChamberConfig = {
+        lamps: configState.lamps,
         watering_zones: configState.watering_zones,
         unrecognised_entities: configState.unrecognised_entities,
-        day_duration: Object.keys(configState.day_duration).reduce((acc, key) => {
-          // Keep original value if it exists, otherwise use a default
-          acc[key] = config.value?.day_duration?.[key] || 12
-          return acc
-        }, {} as Record<string, number>),
-        day_start: Object.keys(configState.day_start).reduce((acc, key) => {
-          acc[key] = config.value?.day_start?.[key] || 9
-          return acc
-        }, {} as Record<string, number>),
+        day_duration: configState.day_duration,
+        day_start: configState.day_start,
         temperature: {
-          day: Object.keys(configState.temperature.day).reduce((acc, key) => {
-            acc[key] = config.value?.temperature?.day?.[key] || 25
-            return acc
-          }, {} as Record<string, number>),
-          night: Object.keys(configState.temperature.night).reduce((acc, key) => {
-            acc[key] = config.value?.temperature?.night?.[key] || 20
-            return acc
-          }, {} as Record<string, number>)
+          day: configState.temperature.day,
+          night: configState.temperature.night
         },
         humidity: {
-          day: Object.keys(configState.humidity.day).reduce((acc, key) => {
-            acc[key] = config.value?.humidity?.day?.[key] || 60
-            return acc
-          }, {} as Record<string, number>),
-          night: Object.keys(configState.humidity.night).reduce((acc, key) => {
-            acc[key] = config.value?.humidity?.night?.[key] || 70
-            return acc
-          }, {} as Record<string, number>)
+          day: configState.humidity.day,
+          night: configState.humidity.night
         },
         co2: {
-          day: Object.keys(configState.co2.day).reduce((acc, key) => {
-            acc[key] = config.value?.co2?.day?.[key] || 800
-            return acc
-          }, {} as Record<string, number>),
-          night: Object.keys(configState.co2.night).reduce((acc, key) => {
-            acc[key] = config.value?.co2?.night?.[key] || 400
-            return acc
-          }, {} as Record<string, number>)
+          day: configState.co2.day,
+          night: configState.co2.night
         }
       }
       

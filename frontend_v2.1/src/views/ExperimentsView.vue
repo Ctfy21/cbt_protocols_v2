@@ -273,7 +273,9 @@ import CalendarView from '@/components/CalendarView.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ExperimentTemplates from '@/components/ExperimentTemplates.vue'
 import type { Experiment, ExperimentStatus } from '@/types'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const chamberStore = useChamberStore()
 const experimentStore = useExperimentStore()
 const toastStore = useToastStore()
@@ -472,6 +474,7 @@ function saveAsTemplate(experiment: Experiment) {
     templates.unshift(experiment)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
     toastStore.success('Шаблон сохранен', `Создан шаблон из ${experiment.title}`)
+    router.go(0)
   } catch (error: any) {
     toastStore.error('Ошибка', 'Не удалось сохранить шаблон')
   }

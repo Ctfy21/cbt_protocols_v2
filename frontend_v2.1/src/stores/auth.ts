@@ -177,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    
   }
 
   function saveToStorage() {
@@ -220,7 +221,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (initialized.value) return
 
     initialized.value = true
-    
     // Try to load from storage
     if (loadFromStorage()) {
       // Set the token in axios headers

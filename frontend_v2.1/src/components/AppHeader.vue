@@ -47,7 +47,7 @@
             </div>
           </div>
           <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-            v0.2 пре-альфа
+            v0.9 альфа
           </span>
         </div>
         

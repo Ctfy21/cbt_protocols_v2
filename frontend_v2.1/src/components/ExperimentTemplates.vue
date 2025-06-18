@@ -1,6 +1,6 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+  <div v-if="isOpen" class="fixed inset-0 bg-white/70 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white border border-gray-200 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
         <h2 class="text-xl font-semibold text-gray-900">Сохраненные шаблоны</h2>
@@ -48,7 +48,6 @@
               <div class="flex items-center gap-4">
                 <span>{{ template.phases.length }} фаз</span>
                 <span>{{ getTotalDays(template) }} дней</span>
-                <span>{{ formatDate(template.schedule?.[0]?.start_timestamp.toString() || '') }}</span>
               </div>
             </div>
 
@@ -111,6 +110,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useToastStore } from '@/stores/toast'
 import type {Phase, ExperimentStatus, Experiment } from '@/types'
+import { useChamberStore } from '@/stores/chamber'
 
 interface Props {
   isOpen: boolean
@@ -122,6 +122,7 @@ const emit = defineEmits<{
   useTemplate: [template: Experiment]
 }>()
 
+const chamberStore = useChamberStore()
 const toastStore = useToastStore()
 const templates = ref<Experiment[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -136,7 +137,8 @@ function loadTemplates() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
-      templates.value = JSON.parse(saved)
+      const all_templates = JSON.parse(saved)
+      templates.value = all_templates.filter((t: Experiment) => t.chamber_id == chamberStore.selectedChamber?.id)
     }
   } catch (error) {
     console.error('Error loading templates:', error)
@@ -223,18 +225,6 @@ async function handleImportTemplate(event: Event) {
 
 function getTotalDays(template: Experiment): number {
   return template.phases.reduce((sum: number, phase: Phase) => sum + (phase.duration_days || 0), 0)
-}
-
-function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) {
-      return 'Неверная дата'
-    }
-    return date.toLocaleDateString('ru-RU')
-  } catch (error) {
-    return 'Неверная дата'
-  }
 }
 
 function triggerFileInput() {

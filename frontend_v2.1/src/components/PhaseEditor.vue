@@ -557,7 +557,7 @@
               :duration="localPhase.duration_days"
               :min="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.min"
               :max="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.max"
-              :step="10"
+              :step="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.step"
               :unit="' sec'"
               @update:model-value="(schedule) => updateWateringZoneSchedule(`zone_${index}`, 'duration', schedule)"
               :title="`${zone.name} - Продолжительность полива`"
@@ -570,9 +570,9 @@
               <input
                 v-model.number="formValues.wateringZones[`zone_${index}`].duration"
                 type="number"
-                min="0"
-                max="300"
-                step="10"
+                :min="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.min"
+                :max="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.max"
+                :step="chamber.config?.watering_zones?.[index]?.duration_entity_id?.[Object.keys(chamber.config?.watering_zones?.[index]?.duration_entity_id)[0]]?.step"
                 class="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 @input="updateFormValue('wateringZone', formValues.wateringZones[`zone_${index}`].duration, undefined, `zone_${index}`, 'duration')"
               />
@@ -807,6 +807,11 @@ function initializeValues() {
   }
 
   // Update all schedules to ensure they are saved in phase
+
+  if(dayStartEntity) {
+    updateStartDayTime()
+  }
+
   if (dayDurationEntity) {
     updateDayDurationSchedule(dayDurationSchedule.value)
   }
@@ -851,18 +856,26 @@ function initializeValues() {
   }
 }
 
-function findInputNumberByType(type: string): string | null {
+function findInputNumberByTypeArray(type: string): string[] | null {
   const config = props.chamber.config
   if (!config) return null
-
-  // Search in direct properties
-  if (config.day_duration && Object.keys(config.day_duration).length > 0 && type === 'day_duration') {
-    return Object.keys(config.day_duration)[0]
+  
+ 
+    // Search in direct properties
+    if (config.day_duration && Object.keys(config.day_duration).length > 0 && type === 'day_duration') {
+    return Object.keys(config.day_duration)
   }
   
   if (config.day_start && Object.keys(config.day_start).length > 0 && type === 'day_start') {
-    return Object.keys(config.day_start)[0]
+    return Object.keys(config.day_start)
   }
+
+  return null
+}
+
+function findInputNumberByType(type: string): string | null {
+  const config = props.chamber.config
+  if (!config) return null
 
   // Search in nested temperature objects
   if (type === 'temperature_day' && config.temperature?.day && Object.keys(config.temperature.day).length > 0) {
@@ -992,12 +1005,14 @@ function updateLampIntensitySchedule(entity_id: string, schedule: Record<number,
 
 function updateDayDurationSchedule(schedule: Record<number, number>) {
   dayDurationSchedule.value = schedule
-  const dayDurationEntity = findInputNumberByType('day_duration')
-  if (dayDurationEntity) {
-    if (!localPhase.work_day_schedule) {
-      localPhase.work_day_schedule = {}
+  const dayDurationEntities = findInputNumberByTypeArray('day_duration')
+  if (dayDurationEntities) {
+    for (const dayDurationEntity of dayDurationEntities) {
+      if (!localPhase.work_day_schedule) {
+        localPhase.work_day_schedule = {}
+      }
+      localPhase.work_day_schedule[dayDurationEntity] = { entity_id: dayDurationEntity, schedule }
     }
-    localPhase.work_day_schedule[dayDurationEntity] = { entity_id: dayDurationEntity, schedule }
   }
   updatePhase()
 }
@@ -1006,12 +1021,14 @@ function updateStartDayTime() {
   const timeValue = startDayTime.value
   if (timeValue) {
     const [hours, _] = timeValue.split(':').map(Number)
-    const dayStartEntity = findInputNumberByType('day_start')
-    if (dayStartEntity) {
-      if (!localPhase.start_day) {
-        localPhase.start_day = {}
+    const dayStartEntities = findInputNumberByTypeArray('day_start')
+    if (dayStartEntities) {
+      for (const dayStartEntity of dayStartEntities) {
+        if (!localPhase.start_day) {
+          localPhase.start_day = {}
+        }
+        localPhase.start_day[dayStartEntity] = { entity_id: dayStartEntity, value: hours }
       }
-      localPhase.start_day[dayStartEntity] = { entity_id: dayStartEntity, value: hours }
       updatePhase()
     }
   }

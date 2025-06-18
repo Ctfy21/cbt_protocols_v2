@@ -47,8 +47,8 @@ export interface Chamber {
 }
 
 export interface ChamberConfig {
-  id: string;
-  chamber_id: string;
+  id?: string;
+  chamber_id?: string;
   lamps: Record<string, InputNumber>; // Changed from array to map
   watering_zones: WateringZone[];
   unrecognised_entities: Record<string, InputNumber>; // Changed from array to map
@@ -66,7 +66,7 @@ export interface ChamberConfig {
     day: Record<string, InputNumber>;
     night: Record<string, InputNumber>;
   };
-  updated_at: string;
+  updated_at?: string;
   synced_at?: string;
 }
 

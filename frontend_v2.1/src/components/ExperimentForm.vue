@@ -181,7 +181,7 @@ watch(() => props.experiment, (experiment) => {
     form.status = experiment.status as ExperimentStatus
     form.chamber_id = experiment.chamber_id
     form.start_date = new Date(experiment.schedule?.[0]?.start_timestamp * 1000).toISOString().split('T')[0]
-    form.phases = experiment.phases.map((p: Phase) => ({ ...p })) || []
+    form.phases = experiment.phases || []
     form.schedule = experiment.schedule || []
   }
 }, { immediate: true })
