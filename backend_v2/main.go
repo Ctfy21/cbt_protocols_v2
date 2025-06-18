@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +22,8 @@ import (
 	"backend_v2/internal/services"
 )
 
-// var frontendFS embed.FS
+//go:embed frontend/dist
+var frontendFS embed.FS
 
 func main() {
 	// Load configuration
@@ -80,7 +83,7 @@ func main() {
 	setupAPIRoutes(router, chamberHandler, experimentHandler, authHandler, apiTokenHandler, userChamberAccessHandler, userHandler, apiTokenService, authService)
 
 	// Setup frontend routes
-	// setupFrontendRoutes(router)
+	setupFrontendRoutes(router)
 
 	// Start background services
 	ctx, cancel := context.WithCancel(context.Background())
@@ -248,68 +251,94 @@ func setupAPIRoutes(
 	}
 }
 
-// func setupFrontendRoutes(router *gin.Engine) {
-// 	// Get the frontend dist subdirectory from embedded FS
-// 	frontendDistFS, err := fs.Sub(frontendFS, "frontend/dist")
-// 	if err != nil {
-// 		log.Printf("Warning: Could not load embedded frontend files: %v", err)
-// 		log.Println("Frontend will not be served. Make sure to build frontend and place dist files in backend/frontend/dist/")
-// 		return
-// 	}
+func setupFrontendRoutes(router *gin.Engine) {
+	// Get the frontend dist subdirectory from embedded FS
+	frontendDistFS, err := fs.Sub(frontendFS, "frontend/dist")
+	if err != nil {
+		log.Printf("Warning: Could not load embedded frontend files: %v", err)
+		log.Println("Frontend will not be served. Make sure to build frontend and place dist files in backend/frontend/dist/")
+		return
+	}
 
-// 	// Serve static files
-// 	router.StaticFS("/assets", http.FS(frontendDistFS))
+	// Get the assets subdirectory from the dist directory
+	assetsFS, err := fs.Sub(frontendDistFS, "assets")
+	if err != nil {
+		log.Printf("Warning: Could not load frontend assets: %v", err)
+		// Fallback to serving the entire dist directory
+		router.StaticFS("/assets", http.FS(frontendDistFS))
+	} else {
+		// Serve static files from the assets subdirectory
+		router.StaticFS("/assets", http.FS(assetsFS))
+	}
 
-// 	// Serve favicon and other root files
-// 	router.GET("/favicon.ico", func(c *gin.Context) {
-// 		content, err := frontendDistFS.Open("favicon.ico")
-// 		if err != nil {
-// 			c.Status(404)
-// 			return
-// 		}
-// 		defer content.Close()
+	// Serve favicon and other root files
+	router.GET("/favicon.ico", func(c *gin.Context) {
+		content, err := frontendDistFS.Open("favicon.ico")
+		if err != nil {
+			c.Status(404)
+			return
+		}
+		defer content.Close()
 
-// 		stat, err := content.Stat()
-// 		if err != nil {
-// 			c.Status(404)
-// 			return
-// 		}
+		stat, err := content.Stat()
+		if err != nil {
+			c.Status(404)
+			return
+		}
 
-// 		c.DataFromReader(200, stat.Size(), "image/x-icon", content, nil)
-// 	})
+		c.DataFromReader(200, stat.Size(), "image/x-icon", content, nil)
+	})
 
-// 	// Serve index.html for all non-API routes (SPA routing)
-// 	router.NoRoute(func(c *gin.Context) {
-// 		// Skip API routes
-// 		if gin.IsDebugging() {
-// 			log.Printf("Serving frontend for route: %s", c.Request.URL.Path)
-// 		}
+	// Serve vite.svg
+	router.GET("/vite.svg", func(c *gin.Context) {
+		content, err := frontendDistFS.Open("vite.svg")
+		if err != nil {
+			c.Status(404)
+			return
+		}
+		defer content.Close()
 
-// 		if c.Request.URL.Path != "/" &&
-// 			!gin.IsDebugging() &&
-// 			c.GetHeader("Accept") != "" &&
-// 			c.GetHeader("Accept") != "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" {
-// 			// If it's an API request that doesn't exist, return 404
-// 			c.JSON(404, gin.H{"error": "Not found"})
-// 			return
-// 		}
+		stat, err := content.Stat()
+		if err != nil {
+			c.Status(404)
+			return
+		}
 
-// 		indexHTML, err := frontendDistFS.Open("index.html")
-// 		if err != nil {
-// 			log.Printf("Error serving index.html: %v", err)
-// 			c.String(500, "Frontend not available")
-// 			return
-// 		}
-// 		defer indexHTML.Close()
+		c.DataFromReader(200, stat.Size(), "image/svg+xml", content, nil)
+	})
 
-// 		stat, err := indexHTML.Stat()
-// 		if err != nil {
-// 			c.String(500, "Error reading index.html")
-// 			return
-// 		}
+	// Serve index.html for all non-API routes (SPA routing)
+	router.NoRoute(func(c *gin.Context) {
+		// Skip API routes
+		if gin.IsDebugging() {
+			log.Printf("Serving frontend for route: %s", c.Request.URL.Path)
+		}
 
-// 		c.DataFromReader(200, stat.Size(), "text/html; charset=utf-8", indexHTML, nil)
-// 	})
+		if c.Request.URL.Path != "/" &&
+			!gin.IsDebugging() &&
+			c.GetHeader("Accept") != "" &&
+			c.GetHeader("Accept") != "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" {
+			// If it's an API request that doesn't exist, return 404
+			c.JSON(404, gin.H{"error": "Not found"})
+			return
+		}
 
-// 	log.Println("✅ Frontend routes configured")
-// }
+		indexHTML, err := frontendDistFS.Open("index.html")
+		if err != nil {
+			log.Printf("Error serving index.html: %v", err)
+			c.String(500, "Frontend not available")
+			return
+		}
+		defer indexHTML.Close()
+
+		stat, err := indexHTML.Stat()
+		if err != nil {
+			c.String(500, "Error reading index.html")
+			return
+		}
+
+		c.DataFromReader(200, stat.Size(), "text/html; charset=utf-8", indexHTML, nil)
+	})
+
+	log.Println("✅ Frontend routes configured")
+}
