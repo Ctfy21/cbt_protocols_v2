@@ -267,8 +267,8 @@ function calculateEndDate(): string | null {
 }
 
 function getLampName(entityId: string): string {
-  const lamp = chamberStore.selectedChamber?.config?.lamps?.find(l => l.entity_id === entityId)
-  return lamp?.friendly_name || entityId
+  const lamp = chamberStore.selectedChamber?.config?.lamps[entityId]
+  return lamp?.name || entityId
 }
 
 function getFirstScheduleValue(schedule?: Record<number, number>): number | null {

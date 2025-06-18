@@ -34,11 +34,13 @@ export interface AuthResponse {
 export interface Chamber {
   id: string;
   name: string;
+  suffix: string; // Added suffix field
   location: string;
   ha_url: string;
   local_ip: string;
   status: 'online' | 'offline';
   last_heartbeat: string;
+  discovery_completed: boolean;
   config?: ChamberConfig;
   created_at: string;
   updated_at: string;
@@ -47,6 +49,9 @@ export interface Chamber {
 export interface ChamberConfig {
   id: string;
   chamber_id: string;
+  lamps: Record<string, InputNumber>; // Changed from array to map
+  watering_zones: WateringZone[];
+  unrecognised_entities: Record<string, InputNumber>; // Changed from array to map
   day_duration: Record<string, InputNumber>;
   day_start: Record<string, InputNumber>;
   temperature: {
@@ -61,9 +66,6 @@ export interface ChamberConfig {
     day: Record<string, InputNumber>;
     night: Record<string, InputNumber>;
   };
-  watering_zones: WateringZone[];
-  unrecognised_entities: InputNumber[];
-  lamps: Lamp[];
   updated_at: string;
   synced_at?: string;
 }
@@ -71,7 +73,6 @@ export interface ChamberConfig {
 export interface InputNumber {
   entity_id: string;
   name: string;
-  friendly_name: string;
   type: string;
   min: number;
   max: number;
@@ -80,22 +81,15 @@ export interface InputNumber {
   unit: string;
 }
 
-export interface Lamp {
-  name: string;
-  entity_id: string;
-  friendly_name: string;
-  intensity_min: number;
-  intensity_max: number;
-  current_value: number;
-}
-
 export interface WateringZone {
   name: string;
-  start_time_entity_id: string;
-  period_entity_id: string;
-  pause_between_entity_id: string;
-  duration_entity_id: string;
+  start_time_entity_id: Record<string, InputNumber>;
+  period_entity_id: Record<string, InputNumber>;
+  pause_between_entity_id: Record<string, InputNumber>;
+  duration_entity_id: Record<string, InputNumber>;
 }
+
+// Removed Lamp interface as it's now part of InputNumber
 
 export type ExperimentStatus = 'active' | 'inactive' | 'draft' | 'completed' | 'paused'
 
@@ -185,4 +179,15 @@ export interface CreateAPITokenRequest {
 export interface UserChamberAccess {
   user: User;
   chambers: Chamber[];
+}
+
+// Form Data types
+export interface ExperimentFormData {
+  title: string;
+  description: string;
+  status: ExperimentStatus;
+  chamber_id: string;
+  phases: Phase[];
+  start_date: string;
+  schedule?: ScheduleItem[];
 }

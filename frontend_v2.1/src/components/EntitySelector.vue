@@ -5,21 +5,11 @@
 </template>
 
 <script setup lang="ts">
-// Entity interfaces
-interface Entity {
-  entity_id: string
-  friendly_name: string
-  name: string
-  min: number
-  max: number
-  step: number
-  value: number
-  unit: string
-}
+import type { InputNumber } from '@/types/index'
 
 defineProps<{
   modelValue: string
-  availableEntities: Entity[]
+  availableEntities: InputNumber[]
 }>()
 
 defineEmits<{

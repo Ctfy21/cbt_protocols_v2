@@ -84,7 +84,7 @@
                   <div v-for="entity in assignedEntitiesList" :key="entity.id" 
                        class="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ entity.friendly_name }}</p>
+                      <p class="text-sm font-medium text-gray-900">{{ entity.name }}</p>
                       <p class="text-xs text-gray-500">{{ entity.entity_id }}</p>
                     </div>
                     <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
@@ -101,7 +101,7 @@
                   <div v-for="entity in unassignedEntitiesList" :key="entity.entity_id" 
                        class="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded-md">
                     <div>
-                      <p class="text-sm font-medium text-gray-900">{{ entity.friendly_name }}</p>
+                      <p class="text-sm font-medium text-gray-900">{{ entity.name }}</p>
                       <p class="text-xs text-gray-500">{{ entity.entity_id }}</p>
                     </div>
                     <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
@@ -478,8 +478,8 @@
                   </div>
                   
                   <div class="text-xs text-gray-500">
-                    <p>Мин: {{ lamp.intensity_min || 0 }}%</p>
-                    <p>Макс: {{ lamp.intensity_max || 100 }}%</p>
+                    <p>Мин: {{ lamp.min || 0 }}%</p>
+                    <p>Макс: {{ lamp.max || 100 }}%</p>
                   </div>
                 </div>
               </div>
@@ -532,8 +532,8 @@
                       Entity время начала
                     </label>
                     <EntitySelector
-                      :model-value="zone.start_time_entity_id"
-                      :available-entities="availableEntitiesForWateringZone('start_time', zone.start_time_entity_id)"
+                      :model-value="String(Object.keys(zone.start_time_entity_id)[0])"
+                      :available-entities="availableEntitiesForWateringZone('start_time', String(Object.keys(zone.start_time_entity_id)[0]))"
                       @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'start_time_entity_id', newId)"
                     />
                   </div>
@@ -543,8 +543,8 @@
                       Entity период
                     </label>
                     <EntitySelector
-                      :model-value="zone.period_entity_id"
-                      :available-entities="availableEntitiesForWateringZone('period', zone.period_entity_id)"
+                      :model-value="String(Object.keys(zone.period_entity_id)[0])"
+                      :available-entities="availableEntitiesForWateringZone('period', String(Object.keys(zone.period_entity_id)[0]))"
                       @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'period_entity_id', newId)"
                     />
                   </div>
@@ -554,8 +554,8 @@
                       Entity пауза между циклами
                     </label>
                     <EntitySelector
-                      :model-value="zone.pause_between_entity_id"
-                      :available-entities="availableEntitiesForWateringZone('pause_between', zone.pause_between_entity_id)"
+                      :model-value="String(Object.keys(zone.pause_between_entity_id)[0])"
+                      :available-entities="availableEntitiesForWateringZone('pause_between', String(Object.keys(zone.pause_between_entity_id)[0]))"
                       @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'pause_between_entity_id', newId)"
                     />
                   </div>
@@ -565,8 +565,8 @@
                       Entity продолжительность
                     </label>
                     <EntitySelector
-                      :model-value="zone.duration_entity_id"
-                      :available-entities="availableEntitiesForWateringZone('duration', zone.duration_entity_id)"
+                      :model-value="String(Object.keys(zone.duration_entity_id)[0])"
+                      :available-entities="availableEntitiesForWateringZone('duration', String(Object.keys(zone.duration_entity_id)[0]))"
                       @update:model-value="(newId: string) => updateWateringZoneEntity(index, 'duration_entity_id', newId)"
                     />
                   </div>
@@ -617,7 +617,7 @@
                 @click="selectEntityForAssignment(entity)"
                 class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
               >
-                <p class="font-medium text-gray-900">{{ entity.friendly_name }}</p>
+                <p class="font-medium text-gray-900">{{ entity.name }}</p>
                 <p class="text-sm text-gray-500">{{ entity.entity_id }}</p>
                 <div class="flex items-center mt-1 text-xs text-gray-400">
                   <span>Мин: {{ entity.min }}</span>
@@ -668,7 +668,7 @@
   import AppHeader from '@/components/AppHeader.vue'
   import api from '@/services/api'
   import EntitySelector from '@/components/EntitySelector.vue'
-  import { InputNumber, Lamp, WateringZone } from '@/types'
+  import { InputNumber, WateringZone } from '@/types'
   // Entity interfaces
   interface Entity {
     entity_id: string
@@ -696,9 +696,9 @@
   
   // Use reactive state for better reactivity tracking
   const configState = reactive({
-    lamps: [] as Lamp[],
+    lamps: {} as Record<string, InputNumber>,
     watering_zones: [] as WateringZone[],
-    unrecognised_entities: [] as InputNumber[],
+    unrecognised_entities: {} as Record<string, InputNumber>,
     day_duration: {} as Record<string, InputNumber>,
     day_start: {} as Record<string, InputNumber>,
     temperature: { day: {} as Record<string, InputNumber>, night: {} as Record<string, InputNumber> },
@@ -731,7 +731,12 @@
     if (compareEntityKeys(config.value.co2?.night, configState.co2.night)) return true
     
     // Check if lamps have changed
-    const originalLampIds = (config.value.lamps || []).map((l: any) => l.entity_id).sort()
+    let originalLampIds: string[] = []
+    if (Array.isArray(config.value.lamps)) {
+      originalLampIds = config.value.lamps.map((l: any) => l.entity_id).sort()
+    } else if (config.value.lamps && typeof config.value.lamps === 'object') {
+      originalLampIds = Object.keys(config.value.lamps).sort()
+    }
     const currentLampIds = Object.keys(configState.lamps).sort()
     if (JSON.stringify(originalLampIds) !== JSON.stringify(currentLampIds)) return true
     
@@ -743,16 +748,16 @@
   
   // Get assigned entities with their types
   const assignedEntitiesList = computed(() => {
-    const assigned: Array<{id: string, entity_id: string, friendly_name: string, assigned_to: string}> = []
+    const assigned: Array<{id: string, entity_id: string, name: string, assigned_to: string}> = []
     
     // Helper function to add assigned entity
     const addAssigned = (entityId: string, assignedTo: string) => {
-      const entity = configState.unrecognised_entities.find((e: Entity) => e.entity_id === entityId)
+      const entity = configState.unrecognised_entities[entityId]
       if (entity) {
         assigned.push({
           id: `${entityId}_${assignedTo}`,
           entity_id: entityId,
-          friendly_name: entity.friendly_name,
+          name: entity.name,
           assigned_to: assignedTo
         })
       }
@@ -802,10 +807,10 @@
     
     // Watering zones entities
     configState.watering_zones.forEach(zone => {
-      if (zone.start_time_entity_id) addAssigned(zone.start_time_entity_id, `Полив: ${zone.name} - Время начала`)
-      if (zone.period_entity_id) addAssigned(zone.period_entity_id, `Полив: ${zone.name} - Период`)
-      if (zone.pause_between_entity_id) addAssigned(zone.pause_between_entity_id, `Полив: ${zone.name} - Пауза`)
-      if (zone.duration_entity_id) addAssigned(zone.duration_entity_id, `Полив: ${zone.name} - Продолжительность`)
+      if (zone.start_time_entity_id) addAssigned(String(Object.keys(zone.start_time_entity_id)[0]), `Полив: ${zone.name} - Время начала`)
+      if (zone.period_entity_id) addAssigned(String(Object.keys(zone.period_entity_id)[0]), `Полив: ${zone.name} - Период`)
+      if (zone.pause_between_entity_id) addAssigned(String(Object.keys(zone.pause_between_entity_id)[0]), `Полив: ${zone.name} - Пауза`)
+      if (zone.duration_entity_id) addAssigned(String(Object.keys(zone.duration_entity_id)[0]), `Полив: ${zone.name} - Продолжительность`)
     })
     
     return assigned
@@ -814,17 +819,17 @@
   // Get unassigned entities
   const unassignedEntitiesList = computed(() => {
     const assignedEntityIds = new Set(assignedEntitiesList.value.map(a => a.entity_id))
-    return configState.unrecognised_entities.filter((entity: Entity) => 
+    return Object.values(configState.unrecognised_entities).filter((entity: InputNumber) => 
       !assignedEntityIds.has(entity.entity_id)
     )
   })
   
   // Get available entities for a specific type (including current assignment)
-  function availableEntitiesForType(type: string, currentEntityId: string): Entity[] {
+  function availableEntitiesForType(type: string, currentEntityId: string): InputNumber[] {
     const available = [...unassignedEntitiesList.value]
     
     // Add current entity if it exists
-    const currentEntity = configState.unrecognised_entities.find((e: Entity) => e.entity_id === currentEntityId)
+    const currentEntity = configState.unrecognised_entities[currentEntityId]
     if (currentEntity) {
       available.unshift(currentEntity)
     }
@@ -846,15 +851,18 @@
         config.value = response.data
         
         // Reset config state and populate with data
-        configState.unrecognised_entities = [...(response.data.unrecognised_entities || [])]
+        configState.unrecognised_entities = { ...(response.data.unrecognised_entities || {}) }
         configState.watering_zones = [...(response.data.watering_zones || [])]
         
         // Convert lamps array to object
-        configState.lamps = []
+        configState.lamps = {}
         if (response.data.lamps && Array.isArray(response.data.lamps)) {
           response.data.lamps.forEach((lamp: any) => {
-            configState.lamps.push(lamp)
+            configState.lamps[lamp.entity_id] = lamp
           })
+        } else if (response.data.lamps && typeof response.data.lamps === 'object') {
+          // Handle case where lamps is already an object
+          configState.lamps = { ...response.data.lamps }
         }
         
         // Convert number values to empty objects for UI
@@ -912,7 +920,7 @@
     try {
       // Prepare config for saving - restore original values for assigned entities
       const configToSave = {
-        lamps: Object.values(configState.lamps), // Convert back to array
+        lamps: Object.keys(configState.lamps).length > 0 ? Object.values(configState.lamps) : [], // Convert back to array
         watering_zones: configState.watering_zones,
         unrecognised_entities: configState.unrecognised_entities,
         day_duration: Object.keys(configState.day_duration).reduce((acc, key) => {
@@ -983,14 +991,14 @@
   }
   
   function getEntityName(entityId: string): string {
-    const entity = configState.unrecognised_entities.find((e: Entity) => e.entity_id === entityId)
+    const entity = configState.unrecognised_entities[entityId]
     if (entity) {
-      return entity.friendly_name || entity.name || entityId
+      return entity.name || entityId
     }
     
-    const lamp = configState.lamps.find((l: any) => l.entity_id === entityId)
+    const lamp = configState.lamps[entityId]
     if (lamp) {
-      return lamp.friendly_name || lamp.name || entityId
+      return lamp.name || entityId
     }
     
     return entityId
@@ -1016,15 +1024,14 @@
     showEntityModal.value = true
   }
   
-  function selectEntityForAssignment(entity: Entity): void {
+  function selectEntityForAssignment(entity: InputNumber): void {
     const type = pendingAssignment.value.type
     
     // Add to appropriate config section (value will be null or empty object)
     if (type === 'day_duration') {
       configState.day_duration[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'day_duration',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1035,8 +1042,7 @@
     } else if (type === 'day_start') {
       configState.day_start[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'day_start',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1047,8 +1053,7 @@
     } else if (type === 'temperature_day') {
       configState.temperature.day[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'temperature_day',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1059,8 +1064,7 @@
     } else if (type === 'temperature_night') {
       configState.temperature.night[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'temperature_night',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1071,8 +1075,7 @@
     } else if (type === 'humidity_day') {
       configState.humidity.day[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'humidity_day',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1083,8 +1086,7 @@
     } else if (type === 'humidity_night') {
       configState.humidity.night[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
+        name: entity.name,
         type: 'humidity_night',
         min: entity.min || 0,
         max: entity.max || 100,
@@ -1094,14 +1096,16 @@
       }
     } else if (type === 'lamp') {
       // Create lamp configuration
-      configState.lamps.push({
+      configState.lamps[entity.entity_id] = {
         entity_id: entity.entity_id,
-        name: entity.friendly_name || entity.name,
-        friendly_name: entity.friendly_name,
-        intensity_min: entity.min || 0,
-        intensity_max: entity.max || 100,
-        current_value: 0
-      })
+        name: entity.name,
+        type: 'lamp',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     }
     
     closeEntityModal()
@@ -1113,11 +1117,8 @@
   }
   
   function deleteUnrecognisedEntity(entityId: string): void {
-    const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === entityId)
-    if (index !== -1) {
-      configState.unrecognised_entities.splice(index, 1)
+    delete configState.unrecognised_entities[entityId]
     }
-  }
 
   function updateEntityMapping(type: string, oldEntityId: string, newEntityId: string): void {
     if (oldEntityId === newEntityId) return
@@ -1156,30 +1157,27 @@
       deleteUnrecognisedEntity(oldEntityId)
       configState.co2.night[newEntityId] = configState.co2.night[oldEntityId]
     } else if (type === 'lamp') {
-      const lampData = configState.lamps.find((l: any) => l.entity_id === oldEntityId)
-      const index = configState.lamps.findIndex((l: any) => l.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.lamps.splice(index, 1)
-      }
+      const lampData = configState.lamps[oldEntityId]
       deleteUnrecognisedEntity(oldEntityId)
       if (lampData) {
-        configState.lamps.push({
+        configState.lamps[newEntityId] = {
           ...lampData,
           entity_id: newEntityId,
           name: lampData.name,
-          friendly_name: lampData.friendly_name,
-          intensity_min: lampData.intensity_min,
-          intensity_max: lampData.intensity_max,
-          current_value: lampData.current_value
-        })
+          type: 'lamp',
+          min: lampData.min,
+          max: lampData.max,
+          step: lampData.step,
+          value: lampData.value,
+          unit: lampData.unit
+        }
       }
     }
   }
   
-  function addUnrecognisedEntity(entity: Entity): void {
-    configState.unrecognised_entities.push({
+  function addUnrecognisedEntity(entity: InputNumber): void {
+    configState.unrecognised_entities[entity.entity_id] = {
       entity_id: entity.entity_id,
-      friendly_name: entity.friendly_name,
       name: entity.name,
       min: entity.min,
       max: entity.max,
@@ -1187,7 +1185,7 @@
       value: entity.value,
       unit: entity.unit,
       type: entity.type
-    })
+    }
   }
 
   function removeEntityMapping(type: string, entityId: string): void {
@@ -1217,21 +1215,10 @@
       addUnrecognisedEntity(configState.co2.night[entityId])
       delete configState.co2.night[entityId]
     } else if (type === 'lamp') {
-        const lampData = configState.lamps.find((l: any) => l.entity_id === entityId)
+        const lampData = configState.lamps[entityId]
         if (lampData) {
-        addUnrecognisedEntity({
-            entity_id: lampData.entity_id,
-            name: lampData.name,
-            friendly_name: lampData.friendly_name,
-            type: 'unrecognised',
-            min: lampData.intensity_min,
-            max: lampData.intensity_max,
-            step: 1,
-            value: lampData.current_value,
-            unit: '%'
-        })
-        const index = configState.lamps.findIndex((l: any) => l.entity_id === entityId)
-        configState.lamps.splice(index, 1)
+        addUnrecognisedEntity(lampData)
+        delete configState.lamps[entityId]
         }
     }
   }
@@ -1240,10 +1227,10 @@
   function addWateringZone(): void {
     configState.watering_zones.push({
       name: `Зона ${configState.watering_zones.length + 1}`,
-      start_time_entity_id: '',
-      period_entity_id: '',
-      pause_between_entity_id: '',
-      duration_entity_id: ''
+      start_time_entity_id: {} as Record<string, InputNumber>,
+      period_entity_id: {} as Record<string, InputNumber>,
+      pause_between_entity_id: {} as Record<string, InputNumber>,
+      duration_entity_id: {} as Record<string, InputNumber>
     })
   }
   
@@ -1252,19 +1239,30 @@
   }
   
   function updateWateringZoneEntity(zoneIndex: number, field: string, newEntityId: string): void {
-    type WateringZoneField = 'name' | 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
+    type WateringZoneField = 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
 
-    if (configState.watering_zones[zoneIndex] && (['name', 'start_time_entity_id', 'period_entity_id', 'pause_between_entity_id', 'duration_entity_id'] as string[]).includes(field)) {
-      configState.watering_zones[zoneIndex][field as WateringZoneField] = newEntityId
+    if (configState.watering_zones[zoneIndex] && (['start_time_entity_id', 'period_entity_id', 'pause_between_entity_id', 'duration_entity_id'] as string[]).includes(field)) {
+      configState.watering_zones[zoneIndex][field as WateringZoneField] = {
+        [newEntityId]: {
+          entity_id: newEntityId,
+          name: 'Не выбрано',
+          type: 'watering_zone',
+          min: 0,
+          max: 0,
+          step: 0,
+          value: 0,
+          unit: ''
+        }
+      }
     }
   }
   
-  function availableEntitiesForWateringZone(type: string, currentEntityId: string): Entity[] {
+  function availableEntitiesForWateringZone(type: string, currentEntityId: string): InputNumber[] {
     const available = [...unassignedEntitiesList.value]
     
     // Add current entity if it exists and not empty
     if (currentEntityId) {
-      const currentEntity = configState.unrecognised_entities.find((e: Entity) => e.entity_id === currentEntityId)
+      const currentEntity = configState.unrecognised_entities[currentEntityId]
       if (currentEntity) {
         available.unshift(currentEntity)
       }
@@ -1273,8 +1271,7 @@
     // Add empty option at the beginning
     available.unshift({
     entity_id: '',
-    friendly_name: 'Не выбрано',
-    name: '',
+    name: 'Не выбрано',
     type: 'unrecognised',
     min: 0,
     max: 0,

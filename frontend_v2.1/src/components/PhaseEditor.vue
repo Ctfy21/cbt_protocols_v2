@@ -360,12 +360,12 @@
       </div>
 
       <!-- Lamp Intensity Charts -->
-      <div v-if="chamber.config?.lamps && chamber.config?.lamps.length > 0" class="space-y-4">
+      <div v-if="chamber.config?.lamps && Object.keys(chamber.config?.lamps).length > 0" class="space-y-4">
         <div class="flex items-center gap-2 text-lg font-medium text-gray-700 mt-20">
           <LightBulbIcon class="w-6 h-6 text-yellow-400" />
           <span>График интенсивности ламп</span>
         </div>
-        <div v-for="lamp in chamber.config?.lamps" :key="lamp.entity_id" class="space-y-2">
+        <div v-for="lamp in Object.values(chamber.config?.lamps)" :key="lamp.entity_id" class="space-y-2">
           <div class="flex items-center justify-between">
             <h4 class="text-md font-medium text-gray-700">{{ lamp.name }} График интенсивности</h4>
             <button
@@ -380,8 +380,8 @@
             v-if="(scheduleMode.lampIntensity[lamp.entity_id] || 'chart') === 'chart'"
             v-model="lampIntensitySchedules[lamp.entity_id]" 
             :duration="localPhase.duration_days"
-            :min="lamp.intensity_min"
-            :max="lamp.intensity_max"
+            :min="lamp.min"
+            :max="lamp.max"
             :step="5"
             :unit="'%'"
             @update:model-value="(schedule) => updateLampIntensitySchedule(lamp.entity_id, schedule)"
@@ -395,8 +395,8 @@
             <input
               v-model.number="formValues.lampIntensity[lamp.entity_id]"
               type="number"
-              :min="lamp.intensity_min"
-              :max="lamp.intensity_max"
+              :min="lamp.min"
+              :max="lamp.max"
               step="5"
               class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               @input="updateFormValue('lampIntensity', formValues.lampIntensity[lamp.entity_id], lamp.entity_id)"
@@ -754,8 +754,8 @@ function initializeValues() {
   }
 
   // Initialize lamp intensity schedules
-  if(props.chamber.config?.lamps && props.chamber.config?.lamps.length > 0) {
-    props.chamber.config?.lamps.forEach((lamp) => {
+  if(props.chamber.config?.lamps && Object.keys(props.chamber.config?.lamps).length > 0) {
+    Object.values(props.chamber.config?.lamps).forEach((lamp) => {
       lampIntensitySchedules[lamp.entity_id] = props.phase.light_intensity_schedule?.[lamp.entity_id]?.schedule || defaultLampIntensitySchedule
       // Initialize form values and modes
       formValues.lampIntensity[lamp.entity_id] = 80
@@ -833,8 +833,8 @@ function initializeValues() {
   }
 
   // Update lamp intensity schedules
-  if(props.chamber.config?.lamps && props.chamber.config?.lamps.length > 0) {
-    props.chamber.config?.lamps.forEach((lamp) => {
+  if(props.chamber.config?.lamps && Object.keys(props.chamber.config?.lamps).length > 0) {
+    Object.values(props.chamber.config?.lamps).forEach((lamp) => {
       updateLampIntensitySchedule(lamp.entity_id, lampIntensitySchedules[lamp.entity_id])
     })
   }
@@ -852,7 +852,7 @@ function initializeValues() {
 }
 
 function findInputNumberByType(type: string): string | null {
-  const inputNumber = props.chamber.config?.unrecognised_entities.find((inputNum) => inputNum.type === type)
+  const inputNumber = Object.values(props.chamber.config?.unrecognised_entities || {}).find((inputNum) => inputNum.type === type)
   return inputNumber?.entity_id || null
 }
 
@@ -987,10 +987,10 @@ function updateWateringZoneSchedule(zoneKey: string, scheduleType: 'start_time' 
   if (!localPhase.watering_zones[zoneKey]) {
     localPhase.watering_zones[zoneKey] = {
       name: zone.name,
-      start_time_entity_id: zone.start_time_entity_id,
-      period_entity_id: zone.period_entity_id,
-      pause_between_entity_id: zone.pause_between_entity_id,
-      duration_entity_id: zone.duration_entity_id,
+      start_time_entity_id: Object.keys(zone.start_time_entity_id)[0],
+      period_entity_id: Object.keys(zone.period_entity_id)[0],
+      pause_between_entity_id: Object.keys(zone.pause_between_entity_id)[0],
+      duration_entity_id: Object.keys(zone.duration_entity_id)[0],
       start_time_schedule: {},
       period_schedule: {},
       pause_between_schedule: {},
