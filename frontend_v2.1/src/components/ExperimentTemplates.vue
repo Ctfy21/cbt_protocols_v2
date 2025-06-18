@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { 
   XMarkIcon, 
   DocumentIcon, 
@@ -112,15 +112,19 @@ import { useToastStore } from '@/stores/toast'
 import type {Phase, ExperimentStatus, Experiment } from '@/types'
 import { useChamberStore } from '@/stores/chamber'
 
+
+const props = defineProps<Props>()
 interface Props {
   isOpen: boolean
 }
 
-const props = defineProps<Props>()
+
 const emit = defineEmits<{
   close: []
   useTemplate: [template: Experiment]
 }>()
+
+const isOpen = computed(() => props.isOpen)
 
 const chamberStore = useChamberStore()
 const toastStore = useToastStore()

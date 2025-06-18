@@ -143,7 +143,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.day_duration" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.day_duration" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -151,7 +151,7 @@
                           :available-entities="availableEntitiesForType('day_duration', String(entityId))"
                           @update:model-value="(newEntityId: string) => updateEntityMapping('day_duration', String(entityId), newEntityId)"
                         />
-                      </div>
+                      </div>  
                       <button
                         @click="removeEntityMapping('day_duration', String(entityId))"
                         class="p-1 text-red-600 hover:text-red-800"
@@ -180,7 +180,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.day_start" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.day_start" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -217,7 +217,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.temperature.day" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.temperature.day" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -254,7 +254,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.humidity.day" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.humidity.day" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -291,7 +291,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.co2.day" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.co2.day" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -338,7 +338,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.temperature.night" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.temperature.night" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -375,7 +375,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.humidity.night" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.humidity.night" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -412,7 +412,7 @@
                   </div>
                   
                   <div v-else class="space-y-3">
-                    <div v-for="(value, entityId) in configState.co2.night" :key="entityId" 
+                    <div v-for="(_, entityId) in configState.co2.night" :key="entityId" 
                          class="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                       <div class="flex-1">
                         <EntitySelector
@@ -543,7 +543,7 @@
                       Нет назначенных сущностей
                     </div>
                     <div v-else class="space-y-2">
-                      <div v-for="(value, entityId) in zone.start_time_entity_id" :key="entityId" 
+                      <div v-for="(_, entityId) in zone.start_time_entity_id" :key="entityId" 
                            class="flex items-center gap-2">
                         <div class="flex-1">
                           <EntitySelector
@@ -579,7 +579,7 @@
                       Нет назначенных сущностей
                     </div>
                     <div v-else class="space-y-2">
-                      <div v-for="(value, entityId) in zone.period_entity_id" :key="entityId" 
+                      <div v-for="(_, entityId) in zone.period_entity_id" :key="entityId" 
                            class="flex items-center gap-2">
                         <div class="flex-1">
                           <EntitySelector
@@ -615,7 +615,7 @@
                       Нет назначенных сущностей
                     </div>
                     <div v-else class="space-y-2">
-                      <div v-for="(value, entityId) in zone.pause_between_entity_id" :key="entityId" 
+                      <div v-for="(_, entityId) in zone.pause_between_entity_id" :key="entityId" 
                            class="flex items-center gap-2">
                         <div class="flex-1">
                           <EntitySelector
@@ -651,7 +651,7 @@
                       Нет назначенных сущностей
                     </div>
                     <div v-else class="space-y-2">
-                      <div v-for="(value, entityId) in zone.duration_entity_id" :key="entityId" 
+                      <div v-for="(_, entityId) in zone.duration_entity_id" :key="entityId" 
                            class="flex items-center gap-2">
                         <div class="flex-1">
                           <EntitySelector
@@ -912,6 +912,7 @@
   
   // Get available entities for a specific type (including current assignment)
   function availableEntitiesForType(type: string, currentEntityId: string): InputNumber[] {
+    console.log(type)
     const available = [...unassignedEntitiesList.value]
     
     // Add current entity if it exists
@@ -1364,6 +1365,7 @@
   }
   
   function availableEntitiesForWateringZone(type: string, currentEntityId: string): InputNumber[] {
+    console.log(type)
     const available = [...unassignedEntitiesList.value]
     
     // Add current entity if it exists and not empty

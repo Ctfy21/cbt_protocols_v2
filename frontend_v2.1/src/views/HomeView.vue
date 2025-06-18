@@ -452,12 +452,12 @@ const userStats = ref({ total: 0, active: 0 })
 // Time updates
 let timeInterval: NodeJS.Timeout
 
-const recentExperiments = computed(() => {
-  return experimentStore.experiments
-    .slice()
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    .slice(0, 5)
-})
+// const recentExperiments = computed(() => {
+//   return experimentStore.experiments
+//     .slice()
+//     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+//     .slice(0, 5)
+// })
 
 function updateTime() {
   const now = new Date()
