@@ -48,15 +48,14 @@ type ChamberConfig struct {
 
 // InputNumber represents a Home Assistant input_number entity
 type InputNumber struct {
-	EntityID     string  `bson:"entity_id" json:"entity_id"`
-	Name         string  `bson:"name" json:"name"`
-	FriendlyName string  `bson:"friendly_name" json:"friendly_name"`
-	Type         string  `bson:"type" json:"type"` // day_start, day_duration, temp_day, temp_night, etc.
-	Min          float64 `bson:"min" json:"min"`
-	Max          float64 `bson:"max" json:"max"`
-	Step         float64 `bson:"step" json:"step"`
-	Value        float64 `bson:"value" json:"value"`
-	Unit         string  `bson:"unit" json:"unit"`
+	EntityID string  `bson:"entity_id" json:"entity_id"`
+	Name     string  `bson:"name" json:"name"`
+	Type     string  `bson:"type" json:"type"` // day_start, day_duration, temp_day, temp_night, etc.
+	Min      float64 `bson:"min" json:"min"`
+	Max      float64 `bson:"max" json:"max"`
+	Step     float64 `bson:"step" json:"step"`
+	Value    float64 `bson:"value" json:"value"`
+	Unit     string  `bson:"unit" json:"unit"`
 }
 
 // WateringZone represents a watering zone with its control parameters

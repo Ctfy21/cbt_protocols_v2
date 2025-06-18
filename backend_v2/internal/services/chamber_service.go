@@ -155,11 +155,22 @@ func (s *ChamberService) logChamberEntities(chamber *models.Chamber) {
 	if len(chamber.Config.WateringZones) > 0 {
 		log.Println("  Watering zones:")
 		for _, zone := range chamber.Config.WateringZones {
-			log.Printf("    - %s:", zone.Name)
-			log.Printf("      Start Time: %s", zone.StartTimeEntityID)
-			log.Printf("      Period: %s", zone.PeriodEntityID)
-			log.Printf("      Pause: %s", zone.PauseBetweenEntityID)
-			log.Printf("      Duration: %s", zone.DurationEntityID)
+			for _, entity := range zone.StartTimeEntityID {
+				log.Printf("    - %s:", zone.Name)
+				log.Printf("      Start Time: %s", entity.EntityID)
+				log.Printf("      Period: %s", entity.Name)
+				log.Printf("      Pause: %s", entity.Name)
+				log.Printf("      Duration: %s", entity.Name)
+			}
+			for _, entity := range zone.PeriodEntityID {
+				log.Printf("      Period: %s", entity.EntityID)
+			}
+			for _, entity := range zone.PauseBetweenEntityID {
+				log.Printf("      Pause: %s", entity.EntityID)
+			}
+			for _, entity := range zone.DurationEntityID {
+				log.Printf("      Duration: %s", entity.EntityID)
+			}
 		}
 	}
 
@@ -167,7 +178,7 @@ func (s *ChamberService) logChamberEntities(chamber *models.Chamber) {
 	if len(chamber.Config.UnrecognisedEntities) > 0 {
 		log.Printf("  Unrecognised entities:")
 		for _, entity := range chamber.Config.UnrecognisedEntities {
-			log.Printf("    - %s (%s)", entity.EntityID, entity.FriendlyName)
+			log.Printf("    - %s (%s)", entity.EntityID, entity.Name)
 		}
 	}
 }

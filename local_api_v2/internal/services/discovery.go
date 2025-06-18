@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"local_api_v2/internal/models"
@@ -263,7 +264,7 @@ func getWateringType(entityID, friendlyName string) (string, string) {
 			for _, substr := range substrings {
 				if strings.Contains(lowerID, substr) || strings.Contains(lowerName, substr) {
 					// Extract zone name
-					zoneName := extractZoneName(entityID, friendlyName)
+					zoneName := extractWateringNumber(entityID)
 					return wateringType, zoneName
 				}
 			}
@@ -274,35 +275,15 @@ func getWateringType(entityID, friendlyName string) (string, string) {
 }
 
 // extractZoneName extracts the watering zone name
-func extractZoneName(entityID, friendlyName string) string {
-	// Common zone indicators
-	zoneKeywords := []string{"zone", "зона", "area", "участок"}
-
-	// Try to extract from friendly name
-	if friendlyName != "" {
-		for _, keyword := range zoneKeywords {
-			if idx := strings.Index(strings.ToLower(friendlyName), keyword); idx != -1 {
-				// Extract zone identifier after the keyword
-				parts := strings.Fields(friendlyName[idx:])
-				if len(parts) > 1 {
-					return fmt.Sprintf("Zone %s", parts[1])
-				}
-			}
-		}
-	}
+func extractWateringNumber(entityID string) string {
 
 	// Try to extract from entity ID
 	parts := strings.Split(entityID, "_")
-	for i, part := range parts {
-		for _, keyword := range zoneKeywords {
-			if strings.Contains(strings.ToLower(part), keyword) && i+1 < len(parts) {
-				return fmt.Sprintf("Zone %s", parts[i+1])
-			}
-		}
+	number, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return "Zone 1"
 	}
-
-	// Default zone name
-	return "Zone 1"
+	return fmt.Sprintf("Zone %d", number)
 }
 
 // extractRoomSuffix extracts room suffix from entity ID with support for custom chamber suffixes
@@ -440,7 +421,11 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 			room.Config.Lamps[entityID] = models.InputNumber{
 				EntityID: entityID,
 				Name:     friendlyName,
+				Min:      entity.Min,
+				Max:      entity.Max,
+				Step:     entity.Step,
 				Value:    entity.Value,
+				Unit:     entity.Unit,
 			}
 			entityProcessed = true
 		}
@@ -460,7 +445,13 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 
 				if targetZone == nil {
 					// Create new zone
-					newZone := models.WateringZone{Name: zoneName}
+					newZone := models.WateringZone{
+						Name:                 zoneName,
+						StartTimeEntityID:    make(map[string]models.InputNumber),
+						PeriodEntityID:       make(map[string]models.InputNumber),
+						PauseBetweenEntityID: make(map[string]models.InputNumber),
+						DurationEntityID:     make(map[string]models.InputNumber),
+					}
 					room.Config.WateringZones = append(room.Config.WateringZones, newZone)
 					targetZone = &room.Config.WateringZones[len(room.Config.WateringZones)-1]
 				}
@@ -470,26 +461,42 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 				case models.InputNumberWateringStart:
 					targetZone.StartTimeEntityID[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberWateringPeriod:
 					targetZone.PeriodEntityID[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberWateringPause:
 					targetZone.PauseBetweenEntityID[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberWateringDuration:
 					targetZone.DurationEntityID[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				}
 
@@ -505,50 +512,81 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 				case models.InputNumberDayStart:
 					room.Config.DayStart[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberDayDuration:
 					room.Config.DayDuration[entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberTempDay:
 					room.Config.Temperature["day"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberTempNight:
 					room.Config.Temperature["night"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberHumidityDay:
 					room.Config.Humidity["day"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberHumidityNight:
 					room.Config.Humidity["night"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
 					}
 				case models.InputNumberCO2Day:
 					room.Config.CO2["day"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				case models.InputNumberCO2Night:
 					room.Config.CO2["night"][entityID] = models.InputNumber{
 						EntityID: entityID,
+						Min:      entity.Min,
+						Max:      entity.Max,
+						Step:     entity.Step,
 						Name:     friendlyName,
 						Value:    entity.Value,
+						Unit:     entity.Unit,
 					}
 				}
 				entityProcessed = true

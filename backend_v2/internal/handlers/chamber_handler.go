@@ -65,15 +65,7 @@ func (h *ChamberHandler) GetChamberWateringZones(c *gin.Context) {
 	for _, zone := range chamber.Config.WateringZones {
 		zoneSettings := make(map[string]float64)
 
-		// Get settings for this zone from WateringSettings map
-		// if settings, exists := chamber.Config.WateringSettings[zone.Name]; exists {
-		// 	zoneSettings = settings
-		// }
-
-		response = append(response, WateringZoneResponse{
-			Zone:     zone,
-			Settings: zoneSettings,
-		})
+		response = append(response, WateringZoneResponse{Zone: zone, Settings: zoneSettings})
 	}
 
 	c.JSON(http.StatusOK, models.SuccessResponse(response))
