@@ -33,18 +33,18 @@ type Chamber struct {
 
 // ChamberConfig represents chamber configuration parameters
 type ChamberConfig struct {
-	ID                   primitive.ObjectID            `bson:"_id,omitempty" json:"id"`
-	ChamberID            primitive.ObjectID            `bson:"chamber_id" json:"chamber_id"`
-	Lamps                []Lamp                        `bson:"lamps" json:"lamps"`
-	WateringZones        []WateringZone                `bson:"watering_zones" json:"watering_zones"`
-	UnrecognisedEntities []InputNumber                 `bson:"unrecognised_entities" json:"unrecognised_entities"`
-	DayDuration          map[string]float64            `bson:"day_duration" json:"day_duration"`
-	DayStart             map[string]float64            `bson:"day_start" json:"day_start"`
-	Temperature          map[string]map[string]float64 `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
-	Humidity             map[string]map[string]float64 `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
-	CO2                  map[string]map[string]float64 `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
-	UpdatedAt            time.Time                     `bson:"updated_at" json:"updated_at"`
-	SyncedAt             *time.Time                    `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
+	ID                   primitive.ObjectID                `bson:"_id,omitempty" json:"id"`
+	ChamberID            primitive.ObjectID                `bson:"chamber_id" json:"chamber_id"`
+	Lamps                map[string]InputNumber            `bson:"lamps" json:"lamps"`
+	WateringZones        []WateringZone                    `bson:"watering_zones" json:"watering_zones"`
+	UnrecognisedEntities map[string]InputNumber            `bson:"unrecognised_entities" json:"unrecognised_entities"`
+	DayDuration          map[string]InputNumber            `bson:"day_duration" json:"day_duration"`
+	DayStart             map[string]InputNumber            `bson:"day_start" json:"day_start"`
+	Temperature          map[string]map[string]InputNumber `bson:"temperature" json:"temperature"` // day/night -> entity_id -> value
+	Humidity             map[string]map[string]InputNumber `bson:"humidity" json:"humidity"`       // day/night -> entity_id -> value
+	CO2                  map[string]map[string]InputNumber `bson:"co2" json:"co2"`                 // day/night -> entity_id -> value
+	UpdatedAt            time.Time                         `bson:"updated_at" json:"updated_at"`
+	SyncedAt             *time.Time                        `bson:"synced_at,omitempty" json:"synced_at,omitempty"`
 }
 
 // InputNumber represents a Home Assistant input_number entity
@@ -57,27 +57,16 @@ type InputNumber struct {
 	Max          float64 `bson:"max" json:"max"`
 	Step         float64 `bson:"step" json:"step"`
 	Value        float64 `bson:"value" json:"value"`
-	CurrentValue float64 `bson:"current_value" json:"current_value"`
 	Unit         string  `bson:"unit" json:"unit"`
-}
-
-// Lamp represents a lamp entity
-type Lamp struct {
-	Name         string  `bson:"name" json:"name"`
-	EntityID     string  `bson:"entity_id" json:"entity_id"`
-	FriendlyName string  `bson:"friendly_name" json:"friendly_name"`
-	IntensityMin float64 `bson:"intensity_min" json:"intensity_min"`
-	IntensityMax float64 `bson:"intensity_max" json:"intensity_max"`
-	CurrentValue float64 `bson:"current_value" json:"current_value"`
 }
 
 // WateringZone represents a watering zone configuration
 type WateringZone struct {
-	Name                 string `bson:"name" json:"name"`
-	StartTimeEntityID    string `bson:"start_time_entity_id" json:"start_time_entity_id"`
-	PeriodEntityID       string `bson:"period_entity_id" json:"period_entity_id"`
-	PauseBetweenEntityID string `bson:"pause_between_entity_id" json:"pause_between_entity_id"`
-	DurationEntityID     string `bson:"duration_entity_id" json:"duration_entity_id"`
+	Name                 string                 `bson:"name" json:"name"`
+	StartTimeEntityID    map[string]InputNumber `bson:"start_time_entity_id" json:"start_time_entity_id"`
+	PeriodEntityID       map[string]InputNumber `bson:"period_entity_id" json:"period_entity_id"`
+	PauseBetweenEntityID map[string]InputNumber `bson:"pause_between_entity_id" json:"pause_between_entity_id"`
+	DurationEntityID     map[string]InputNumber `bson:"duration_entity_id" json:"duration_entity_id"`
 }
 
 // InputNumberType constants - these match what local_api_v2 uses
@@ -120,23 +109,23 @@ func (c *Chamber) InitializeConfig() {
 		c.Config = &ChamberConfig{
 			ID:                   primitive.NewObjectID(),
 			ChamberID:            c.ID,
-			Lamps:                []Lamp{},
+			Lamps:                make(map[string]InputNumber),
 			WateringZones:        []WateringZone{},
-			UnrecognisedEntities: []InputNumber{},
-			DayDuration:          make(map[string]float64),
-			DayStart:             make(map[string]float64),
-			Temperature:          make(map[string]map[string]float64),
-			Humidity:             make(map[string]map[string]float64),
-			CO2:                  make(map[string]map[string]float64),
+			UnrecognisedEntities: make(map[string]InputNumber),
+			DayDuration:          make(map[string]InputNumber),
+			DayStart:             make(map[string]InputNumber),
+			Temperature:          make(map[string]map[string]InputNumber),
+			Humidity:             make(map[string]map[string]InputNumber),
+			CO2:                  make(map[string]map[string]InputNumber),
 			UpdatedAt:            time.Now(),
 		}
 
 		// Initialize sub-maps
-		c.Config.Temperature["day"] = make(map[string]float64)
-		c.Config.Temperature["night"] = make(map[string]float64)
-		c.Config.Humidity["day"] = make(map[string]float64)
-		c.Config.Humidity["night"] = make(map[string]float64)
-		c.Config.CO2["day"] = make(map[string]float64)
-		c.Config.CO2["night"] = make(map[string]float64)
+		c.Config.Temperature["day"] = make(map[string]InputNumber)
+		c.Config.Temperature["night"] = make(map[string]InputNumber)
+		c.Config.Humidity["day"] = make(map[string]InputNumber)
+		c.Config.Humidity["night"] = make(map[string]InputNumber)
+		c.Config.CO2["day"] = make(map[string]InputNumber)
+		c.Config.CO2["night"] = make(map[string]InputNumber)
 	}
 }

@@ -47,19 +47,19 @@ export interface Chamber {
 export interface ChamberConfig {
   id: string;
   chamber_id: string;
-  day_duration: Record<string, number>;
-  day_start: Record<string, number>;
+  day_duration: Record<string, InputNumber>;
+  day_start: Record<string, InputNumber>;
   temperature: {
-    day: Record<string, number>;
-    night: Record<string, number>;
+    day: Record<string, InputNumber>;
+    night: Record<string, InputNumber>;
   };
   humidity: {
-    day: Record<string, number>;
-    night: Record<string, number>;
+    day: Record<string, InputNumber>;
+    night: Record<string, InputNumber>;
   };
   co2: {
-    day: Record<string, number>;
-    night: Record<string, number>;
+    day: Record<string, InputNumber>;
+    night: Record<string, InputNumber>;
   };
   watering_zones: WateringZone[];
   unrecognised_entities: InputNumber[];

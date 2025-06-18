@@ -96,8 +96,6 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 				Temperature:          entities.Config.Temperature,
 				Humidity:             entities.Config.Humidity,
 				CO2:                  entities.Config.CO2,
-				LightIntensity:       entities.Config.LightIntensity,
-				WateringSettings:     entities.Config.WateringSettings,
 				UpdatedAt:            now,
 			},
 			DiscoveryCompleted: true,
@@ -133,8 +131,6 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 					"temperature":           entities.Config.Temperature,
 					"humidity":              entities.Config.Humidity,
 					"co2":                   entities.Config.CO2,
-					"light_intensity":       entities.Config.LightIntensity,
-					"watering_settings":     entities.Config.WateringSettings,
 					"updated_at":            now,
 				},
 				"updated_at": now,
@@ -161,8 +157,6 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 			Temperature:          entities.Config.Temperature,
 			Humidity:             entities.Config.Humidity,
 			CO2:                  entities.Config.CO2,
-			LightIntensity:       entities.Config.LightIntensity,
-			WateringSettings:     entities.Config.WateringSettings,
 			UpdatedAt:            now,
 		}
 		chamber.DiscoveryCompleted = true
@@ -190,17 +184,6 @@ func (cm *ChamberManager) logChamberSummary(chamber *models.Chamber) {
 	log.Printf("  - CO2: %d day, %d night",
 		len(chamber.Config.CO2["day"]), len(chamber.Config.CO2["night"]))
 
-	// Log some examples of unrecognised entities if any
-	if len(chamber.Config.UnrecognisedEntities) > 0 {
-		log.Printf("  Examples of unrecognised entities:")
-		for i, entity := range chamber.Config.UnrecognisedEntities {
-			if i >= 3 { // Only show first 3 examples
-				log.Printf("    ... and %d more", len(chamber.Config.UnrecognisedEntities)-3)
-				break
-			}
-			log.Printf("    - %s (%s)", entity.EntityID, entity.Name)
-		}
-	}
 }
 
 // generateChamberName generates a descriptive name for the chamber

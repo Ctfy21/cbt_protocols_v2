@@ -458,9 +458,9 @@
               <div v-for="(lamp, entityId) in configState.lamps" :key="entityId" 
                    class="border border-gray-200 rounded-lg p-4">
                 <div class="flex items-start justify-between mb-3">
-                  <h4 class="font-medium text-gray-900">{{ lamp.name || getEntityName(entityId) }}</h4>
+                  <h4 class="font-medium text-gray-900">{{ lamp.name || getEntityName(entityId.toString()) }}</h4>
                   <button
-                    @click="removeEntityMapping('lamp', entityId)"
+                    @click="removeEntityMapping('lamp', entityId.toString())"
                     class="p-1 text-red-600 hover:text-red-800"
                   >
                     <TrashIcon class="w-4 h-4" />
@@ -471,9 +471,9 @@
                   <div>
                     <label class="block text-sm text-gray-600 mb-1">Entity для управления</label>
                     <EntitySelector
-                      :model-value="entityId"
-                      :available-entities="availableEntitiesForType('lamp', entityId)"
-                      @update:model-value="(newEntityId: string) => updateEntityMapping('lamp', entityId, newEntityId)"
+                      :model-value="entityId.toString()"
+                      :available-entities="availableEntitiesForType('lamp', entityId.toString())"
+                      @update:model-value="(newEntityId: string) => updateEntityMapping('lamp', entityId.toString(), newEntityId)"
                     />
                   </div>
                   
@@ -667,7 +667,8 @@
   import { useToastStore } from '@/stores/toast'
   import AppHeader from '@/components/AppHeader.vue'
   import api from '@/services/api'
-  
+  import EntitySelector from '@/components/EntitySelector.vue'
+  import { InputNumber, Lamp, WateringZone } from '@/types'
   // Entity interfaces
   interface Entity {
     entity_id: string
@@ -678,27 +679,9 @@
     step: number
     value: number
     unit: string
+    type: string
   }
   
-  // EntitySelector Component
-  const EntitySelector = {
-    props: {
-      modelValue: String,
-      availableEntities: Array as () => Entity[]
-    },
-    emits: ['update:modelValue'],
-    template: `
-      <select 
-        :value="modelValue"
-        @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option v-for="entity in availableEntities" :key="entity.entity_id" :value="entity.entity_id">
-          {{ entity.friendly_name }} ({{ entity.entity_id }})
-        </option>
-      </select>
-    `
-  }
   
   const route = useRoute()
   const chamberStore = useChamberStore()
@@ -713,14 +696,14 @@
   
   // Use reactive state for better reactivity tracking
   const configState = reactive({
-    lamps: {} as Record<string, any>,
-    watering_zones: [] as any[],
-    unrecognised_entities: [] as Entity[],
-    day_duration: {} as Record<string, any>,
-    day_start: {} as Record<string, any>,
-    temperature: { day: {} as Record<string, any>, night: {} as Record<string, any> },
-    humidity: { day: {} as Record<string, any>, night: {} as Record<string, any> },
-    co2: { day: {} as Record<string, any>, night: {} as Record<string, any> }
+    lamps: [] as Lamp[],
+    watering_zones: [] as WateringZone[],
+    unrecognised_entities: [] as InputNumber[],
+    day_duration: {} as Record<string, InputNumber>,
+    day_start: {} as Record<string, InputNumber>,
+    temperature: { day: {} as Record<string, InputNumber>, night: {} as Record<string, InputNumber> },
+    humidity: { day: {} as Record<string, InputNumber>, night: {} as Record<string, InputNumber> },
+    co2: { day: {} as Record<string, InputNumber>, night: {} as Record<string, InputNumber> }
   })
   
   // Entity assignment modal
@@ -867,10 +850,10 @@
         configState.watering_zones = [...(response.data.watering_zones || [])]
         
         // Convert lamps array to object
-        configState.lamps = {}
+        configState.lamps = []
         if (response.data.lamps && Array.isArray(response.data.lamps)) {
           response.data.lamps.forEach((lamp: any) => {
-            configState.lamps[lamp.entity_id] = lamp
+            configState.lamps.push(lamp)
           })
         }
         
@@ -1038,31 +1021,87 @@
     
     // Add to appropriate config section (value will be null or empty object)
     if (type === 'day_duration') {
-      configState.day_duration[entity.entity_id] = {}
+      configState.day_duration[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'day_duration',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'day_start') {
-      configState.day_start[entity.entity_id] = {}
+      configState.day_start[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'day_start',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'temperature_day') {
-      configState.temperature.day[entity.entity_id] = {}
+      configState.temperature.day[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'temperature_day',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'temperature_night') {
-      configState.temperature.night[entity.entity_id] = {}
+      configState.temperature.night[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'temperature_night',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'humidity_day') {
-      configState.humidity.day[entity.entity_id] = {}
+      configState.humidity.day[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'humidity_day',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'humidity_night') {
-      configState.humidity.night[entity.entity_id] = {}
-    } else if (type === 'co2_day') {
-      configState.co2.day[entity.entity_id] = {}
-    } else if (type === 'co2_night') {
-      configState.co2.night[entity.entity_id] = {}
+      configState.humidity.night[entity.entity_id] = {
+        entity_id: entity.entity_id,
+        name: entity.friendly_name || entity.name,
+        friendly_name: entity.friendly_name,
+        type: 'humidity_night',
+        min: entity.min || 0,
+        max: entity.max || 100,
+        step: entity.step || 1,
+        value: entity.value || 0,
+        unit: entity.unit || ''
+      }
     } else if (type === 'lamp') {
       // Create lamp configuration
-      configState.lamps[entity.entity_id] = {
+      configState.lamps.push({
         entity_id: entity.entity_id,
         name: entity.friendly_name || entity.name,
         friendly_name: entity.friendly_name,
         intensity_min: entity.min || 0,
         intensity_max: entity.max || 100,
         current_value: 0
-      }
+      })
     }
     
     closeEntityModal()
@@ -1073,200 +1112,127 @@
     pendingAssignment.value = { type: '', entityId: '' }
   }
   
+  function deleteUnrecognisedEntity(entityId: string): void {
+    const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === entityId)
+    if (index !== -1) {
+      configState.unrecognised_entities.splice(index, 1)
+    }
+  }
+
   function updateEntityMapping(type: string, oldEntityId: string, newEntityId: string): void {
     if (oldEntityId === newEntityId) return
     
     // Update the mapping by removing old and adding new
     if (type === 'day_duration') {
       delete configState.day_duration[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.day_duration[newEntityId] = configState.day_duration[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.day_duration[newEntityId] = configState.day_duration[oldEntityId]
     } else if (type === 'day_start') {
       delete configState.day_start[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.day_start[newEntityId] = configState.day_start[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.day_start[newEntityId] = configState.day_start[oldEntityId]
     } else if (type === 'temperature_day') {
       delete configState.temperature.day[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.temperature.day[newEntityId] = configState.temperature.day[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.temperature.day[newEntityId] = configState.temperature.day[oldEntityId]
     } else if (type === 'temperature_night') {
       delete configState.temperature.night[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.temperature.night[newEntityId] = configState.temperature.night[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.temperature.night[newEntityId] = configState.temperature.night[oldEntityId]
     } else if (type === 'humidity_day') {
       delete configState.humidity.day[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.humidity.day[newEntityId] = configState.humidity.day[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.humidity.day[newEntityId] = configState.humidity.day[oldEntityId]
     } else if (type === 'humidity_night') {
       delete configState.humidity.night[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.humidity.night[newEntityId] = configState.humidity.night[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.humidity.night[newEntityId] = configState.humidity.night[oldEntityId]
     } else if (type === 'co2_day') {
       delete configState.co2.day[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.co2.day[newEntityId] = configState.co2.day[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.co2.day[newEntityId] = configState.co2.day[oldEntityId]
     } else if (type === 'co2_night') {
       delete configState.co2.night[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
-      if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
-      }
-      configState.co2.night[newEntityId] = configState.co2.night[oldEntityId].value
+      deleteUnrecognisedEntity(oldEntityId)
+      configState.co2.night[newEntityId] = configState.co2.night[oldEntityId]
     } else if (type === 'lamp') {
-      const lampData = configState.lamps[oldEntityId]
-      delete configState.lamps[oldEntityId]
-      const index = configState.unrecognised_entities.findIndex((e: Entity) => e.entity_id === oldEntityId)
+      const lampData = configState.lamps.find((l: any) => l.entity_id === oldEntityId)
+      const index = configState.lamps.findIndex((l: any) => l.entity_id === oldEntityId)
       if (index !== -1) {
-        configState.unrecognised_entities.splice(index, 1)
+        configState.lamps.splice(index, 1)
       }
-      configState.lamps[newEntityId] = configState.lamps[oldEntityId].value
-      
-      // Find new entity info
-      const newEntity = configState.unrecognised_entities.find((e: Entity) => e.entity_id === newEntityId)
-      if (newEntity) {
-        configState.lamps[newEntityId] = {
+      deleteUnrecognisedEntity(oldEntityId)
+      if (lampData) {
+        configState.lamps.push({
           ...lampData,
           entity_id: newEntityId,
-          name: newEntity.friendly_name || newEntity.name,
-          friendly_name: newEntity.friendly_name,
-          intensity_min: newEntity.min || 0,
-          intensity_max: newEntity.max || 100
-        }
+          name: lampData.name,
+          friendly_name: lampData.friendly_name,
+          intensity_min: lampData.intensity_min,
+          intensity_max: lampData.intensity_max,
+          current_value: lampData.current_value
+        })
       }
     }
   }
   
+  function addUnrecognisedEntity(entity: Entity): void {
+    configState.unrecognised_entities.push({
+      entity_id: entity.entity_id,
+      friendly_name: entity.friendly_name,
+      name: entity.name,
+      min: entity.min,
+      max: entity.max,
+      step: entity.step,
+      value: entity.value,
+      unit: entity.unit,
+      type: entity.type
+    })
+  }
+
   function removeEntityMapping(type: string, entityId: string): void {
     // Simply remove from the appropriate mapping
     if (type === 'day_duration') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.day_duration[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.day_duration[entityId])
       delete configState.day_duration[entityId]
     } else if (type === 'day_start') {
-        configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.day_start[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.day_start[entityId])
       delete configState.day_start[entityId]
     } else if (type === 'temperature_day') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.temperature.day[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.temperature.day[entityId])
       delete configState.temperature.day[entityId]
     } else if (type === 'temperature_night') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.temperature.night[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.temperature.night[entityId])
       delete configState.temperature.night[entityId]
     } else if (type === 'humidity_day') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.humidity.day[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.humidity.day[entityId])
       delete configState.humidity.day[entityId]
     } else if (type === 'humidity_night') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.humidity.night[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.humidity.night[entityId])
       delete configState.humidity.night[entityId]
     } else if (type === 'co2_day') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.co2.day[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.co2.day[entityId])
       delete configState.co2.day[entityId]
     } else if (type === 'co2_night') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.co2.night[entityId],
-        unit: ''
-      })
+      addUnrecognisedEntity(configState.co2.night[entityId])
       delete configState.co2.night[entityId]
     } else if (type === 'lamp') {
-      configState.unrecognised_entities.push({
-        entity_id: entityId,
-        friendly_name: '',
-        name: '',
-        min: 0,
-        max: 0,
-        step: 0,
-        value: configState.lamps[entityId],
-        unit: ''
-      })
-      delete configState.lamps[entityId]
+        const lampData = configState.lamps.find((l: any) => l.entity_id === entityId)
+        if (lampData) {
+        addUnrecognisedEntity({
+            entity_id: lampData.entity_id,
+            name: lampData.name,
+            friendly_name: lampData.friendly_name,
+            type: 'unrecognised',
+            min: lampData.intensity_min,
+            max: lampData.intensity_max,
+            step: 1,
+            value: lampData.current_value,
+            unit: '%'
+        })
+        const index = configState.lamps.findIndex((l: any) => l.entity_id === entityId)
+        configState.lamps.splice(index, 1)
+        }
     }
   }
   
@@ -1286,8 +1252,10 @@
   }
   
   function updateWateringZoneEntity(zoneIndex: number, field: string, newEntityId: string): void {
-    if (configState.watering_zones[zoneIndex]) {
-      configState.watering_zones[zoneIndex][field] = newEntityId
+    type WateringZoneField = 'name' | 'start_time_entity_id' | 'period_entity_id' | 'pause_between_entity_id' | 'duration_entity_id';
+
+    if (configState.watering_zones[zoneIndex] && (['name', 'start_time_entity_id', 'period_entity_id', 'pause_between_entity_id', 'duration_entity_id'] as string[]).includes(field)) {
+      configState.watering_zones[zoneIndex][field as WateringZoneField] = newEntityId
     }
   }
   
@@ -1304,14 +1272,15 @@
     
     // Add empty option at the beginning
     available.unshift({
-      entity_id: '',
-      friendly_name: 'Не выбрано',
-      name: '',
-      min: 0,
-      max: 0,
-      step: 0,
-      value: 0,
-      unit: ''
+    entity_id: '',
+    friendly_name: 'Не выбрано',
+    name: '',
+    type: 'unrecognised',
+    min: 0,
+    max: 0,
+    step: 0,
+    value: 0,
+    unit: ''
     })
     
     return available

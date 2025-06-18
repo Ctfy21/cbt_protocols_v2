@@ -36,18 +36,18 @@ type ChamberEntities struct {
 }
 
 // DiscoverInputNumbers discovers and categorizes input_number entities
-func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []models.Lamp, []models.WateringZone, error) {
+func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []models.WateringZone, error) {
 	// Get all input numbers from Home Assistant
 	haEntities, err := s.haClient.GetInputNumbers()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get input numbers: %v", err)
+		return nil, nil, fmt.Errorf("failed to get input numbers: %v", err)
 	}
 
 	var (
 		inputNumbers  []models.InputNumber
-		lamps         []models.Lamp
+		lamps         []models.InputNumber
 		wateringZones []models.WateringZone
-		lampMap       = make(map[string]*models.Lamp)
+		lampMap       = make(map[string]*models.InputNumber)
 		wateringMap   = make(map[string]*models.WateringZone)
 	)
 
@@ -69,17 +69,17 @@ func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []model
 			if lamp, exists := lampMap[lampName]; exists {
 				// Update existing lamp
 				lamp.EntityID = entityID
-				lamp.IntensityMin = entity.Min
-				lamp.IntensityMax = entity.Max
-				lamp.CurrentValue = entity.Value
+				lamp.Min = entity.Min
+				lamp.Max = entity.Max
+				lamp.Value = entity.Value
 			} else {
 				// Create new lamp
-				lampMap[lampName] = &models.Lamp{
-					Name:         lampName,
-					EntityID:     entityID,
-					IntensityMin: entity.Min,
-					IntensityMax: entity.Max,
-					CurrentValue: entity.Value,
+				lampMap[lampName] = &models.InputNumber{
+					Name:     lampName,
+					EntityID: entityID,
+					Min:      entity.Min,
+					Max:      entity.Max,
+					Value:    entity.Value,
 				}
 			}
 			continue
@@ -92,26 +92,58 @@ func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []model
 				// Update existing zone
 				switch wateringType {
 				case models.InputNumberWateringStart:
-					zone.StartTimeEntityID = entityID
+					zone.StartTimeEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPeriod:
-					zone.PeriodEntityID = entityID
+					zone.PeriodEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPause:
-					zone.PauseBetweenEntityID = entityID
+					zone.PauseBetweenEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringDuration:
-					zone.DurationEntityID = entityID
+					zone.DurationEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				}
 			} else {
 				// Create new zone
 				zone := &models.WateringZone{Name: zoneName}
 				switch wateringType {
 				case models.InputNumberWateringStart:
-					zone.StartTimeEntityID = entityID
+					zone.StartTimeEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPeriod:
-					zone.PeriodEntityID = entityID
+					zone.PeriodEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPause:
-					zone.PauseBetweenEntityID = entityID
+					zone.PauseBetweenEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringDuration:
-					zone.DurationEntityID = entityID
+					zone.DurationEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				}
 				wateringMap[zoneName] = zone
 			}
@@ -122,14 +154,14 @@ func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []model
 		inputType := getInputNumberType(lowerEntityID, friendlyName)
 		if inputType != "" {
 			inputNumber := models.InputNumber{
-				EntityID:     entityID,
-				Name:         friendlyName,
-				Type:         inputType,
-				Min:          entity.Min,
-				Max:          entity.Max,
-				Step:         entity.Step,
-				CurrentValue: entity.Value,
-				Unit:         entity.Unit,
+				EntityID: entityID,
+				Name:     friendlyName,
+				Type:     inputType,
+				Min:      entity.Min,
+				Max:      entity.Max,
+				Step:     entity.Step,
+				Value:    entity.Value,
+				Unit:     entity.Unit,
 			}
 			inputNumbers = append(inputNumbers, inputNumber)
 		}
@@ -146,7 +178,7 @@ func (s *DiscoveryService) DiscoverInputNumbers() ([]models.InputNumber, []model
 	log.Printf("Discovered: %d input numbers, %d lamps, %d watering zones",
 		len(inputNumbers), len(lamps), len(wateringZones))
 
-	return inputNumbers, lamps, wateringZones, nil
+	return inputNumbers, wateringZones, nil
 }
 
 // getInputNumberType determines the type of input number based on entity ID and friendly name
@@ -386,16 +418,14 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 			roomMap[roomSuffix] = &ChamberEntities{
 				RoomSuffix: roomSuffix,
 				Config: models.ChamberConfig{
-					Lamps:                []models.Lamp{},
+					Lamps:                make(map[string]models.InputNumber),
 					WateringZones:        []models.WateringZone{},
-					UnrecognisedEntities: []models.InputNumber{},
-					DayDuration:          make(map[string]float64),
-					DayStart:             make(map[string]float64),
-					Temperature:          map[string]map[string]float64{"day": {}, "night": {}},
-					Humidity:             map[string]map[string]float64{"day": {}, "night": {}},
-					CO2:                  map[string]map[string]float64{"day": {}, "night": {}},
-					LightIntensity:       make(map[string]float64),
-					WateringSettings:     make(map[string]map[string]float64),
+					UnrecognisedEntities: make(map[string]models.InputNumber),
+					DayDuration:          make(map[string]models.InputNumber),
+					DayStart:             make(map[string]models.InputNumber),
+					Temperature:          map[string]map[string]models.InputNumber{"day": {}, "night": {}},
+					Humidity:             map[string]map[string]models.InputNumber{"day": {}, "night": {}},
+					CO2:                  map[string]map[string]models.InputNumber{"day": {}, "night": {}},
 				},
 			}
 		}
@@ -407,16 +437,11 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 
 		// Process lamps
 		if isLampEntity(lowerEntityID, friendlyName) {
-			lampName := extractLampName(entityID, friendlyName)
-			lamp := models.Lamp{
-				Name:         lampName,
-				EntityID:     entityID,
-				IntensityMin: entity.Min,
-				IntensityMax: entity.Max,
-				CurrentValue: entity.Value,
+			room.Config.Lamps[entityID] = models.InputNumber{
+				EntityID: entityID,
+				Name:     friendlyName,
+				Value:    entity.Value,
 			}
-			room.Config.Lamps = append(room.Config.Lamps, lamp)
-			room.Config.LightIntensity[entityID] = entity.Value
 			entityProcessed = true
 		}
 
@@ -443,29 +468,29 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 				// Set corresponding entity ID
 				switch wateringType {
 				case models.InputNumberWateringStart:
-					targetZone.StartTimeEntityID = entityID
+					targetZone.StartTimeEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPeriod:
-					targetZone.PeriodEntityID = entityID
+					targetZone.PeriodEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringPause:
-					targetZone.PauseBetweenEntityID = entityID
+					targetZone.PauseBetweenEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberWateringDuration:
-					targetZone.DurationEntityID = entityID
-				}
-
-				// Add to watering settings
-				if room.Config.WateringSettings[zoneName] == nil {
-					room.Config.WateringSettings[zoneName] = make(map[string]float64)
-				}
-
-				switch wateringType {
-				case models.InputNumberWateringStart:
-					room.Config.WateringSettings[zoneName]["start_time"] = entity.Value
-				case models.InputNumberWateringPeriod:
-					room.Config.WateringSettings[zoneName]["period"] = entity.Value
-				case models.InputNumberWateringPause:
-					room.Config.WateringSettings[zoneName]["pause"] = entity.Value
-				case models.InputNumberWateringDuration:
-					room.Config.WateringSettings[zoneName]["duration"] = entity.Value
+					targetZone.DurationEntityID[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				}
 
 				entityProcessed = true
@@ -478,21 +503,53 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 			if inputType != "" {
 				switch inputType {
 				case models.InputNumberDayStart:
-					room.Config.DayStart[entityID] = entity.Value
+					room.Config.DayStart[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberDayDuration:
-					room.Config.DayDuration[entityID] = entity.Value
+					room.Config.DayDuration[entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberTempDay:
-					room.Config.Temperature["day"][entityID] = entity.Value
+					room.Config.Temperature["day"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberTempNight:
-					room.Config.Temperature["night"][entityID] = entity.Value
+					room.Config.Temperature["night"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberHumidityDay:
-					room.Config.Humidity["day"][entityID] = entity.Value
+					room.Config.Humidity["day"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberHumidityNight:
-					room.Config.Humidity["night"][entityID] = entity.Value
+					room.Config.Humidity["night"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberCO2Day:
-					room.Config.CO2["day"][entityID] = entity.Value
+					room.Config.CO2["day"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				case models.InputNumberCO2Night:
-					room.Config.CO2["night"][entityID] = entity.Value
+					room.Config.CO2["night"][entityID] = models.InputNumber{
+						EntityID: entityID,
+						Name:     friendlyName,
+						Value:    entity.Value,
+					}
 				}
 				entityProcessed = true
 			}
@@ -501,16 +558,16 @@ func (s *DiscoveryService) AutomaticalyDiscoverChamberEntities(haEntities []home
 		// If entity was not processed, add it as unrecognised
 		if !entityProcessed {
 			inputNumber := models.InputNumber{
-				EntityID:     entityID,
-				Name:         friendlyName,
-				Type:         models.InputNumberUnrecognised,
-				Min:          entity.Min,
-				Max:          entity.Max,
-				Step:         entity.Step,
-				CurrentValue: entity.Value,
-				Unit:         entity.Unit,
+				EntityID: entityID,
+				Name:     friendlyName,
+				Type:     models.InputNumberUnrecognised,
+				Min:      entity.Min,
+				Max:      entity.Max,
+				Step:     entity.Step,
+				Value:    entity.Value,
+				Unit:     entity.Unit,
 			}
-			room.Config.UnrecognisedEntities = append(room.Config.UnrecognisedEntities, inputNumber)
+			room.Config.UnrecognisedEntities[inputNumber.EntityID] = inputNumber
 			log.Printf("Unrecognized entity added to room '%s': %s (%s)", roomSuffix, entityID, friendlyName)
 		}
 	}

@@ -299,32 +299,32 @@ func (s *ChamberService) StartStatusMonitor(ctx context.Context) {
 
 // RegisterChamberRequest represents the request to register a chamber
 type RegisterChamberRequest struct {
-	Name                 string                        `json:"name" binding:"required"`
-	Suffix               string                        `json:"suffix"`
-	Location             string                        `json:"location"`
-	HAUrl                string                        `json:"ha_url" binding:"required"`
-	AccessToken          string                        `json:"access_token" binding:"required"`
-	LocalIP              string                        `json:"local_ip" binding:"required"`
-	Lamps                []models.Lamp                 `json:"lamps"`
-	WateringZones        []models.WateringZone         `json:"watering_zones"`
-	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
-	DayDuration          map[string]float64            `json:"day_duration"`
-	DayStart             map[string]float64            `json:"day_start"`
-	Temperature          map[string]map[string]float64 `json:"temperature"`
-	Humidity             map[string]map[string]float64 `json:"humidity"`
-	CO2                  map[string]map[string]float64 `json:"co2"`
+	Name                 string                                   `json:"name" binding:"required"`
+	Suffix               string                                   `json:"suffix"`
+	Location             string                                   `json:"location"`
+	HAUrl                string                                   `json:"ha_url" binding:"required"`
+	AccessToken          string                                   `json:"access_token" binding:"required"`
+	LocalIP              string                                   `json:"local_ip" binding:"required"`
+	Lamps                map[string]models.InputNumber            `json:"lamps"`
+	WateringZones        []models.WateringZone                    `json:"watering_zones"`
+	UnrecognisedEntities map[string]models.InputNumber            `json:"unrecognised_entities"`
+	DayDuration          map[string]models.InputNumber            `json:"day_duration"`
+	DayStart             map[string]models.InputNumber            `json:"day_start"`
+	Temperature          map[string]map[string]models.InputNumber `json:"temperature"`
+	Humidity             map[string]map[string]models.InputNumber `json:"humidity"`
+	CO2                  map[string]map[string]models.InputNumber `json:"co2"`
 }
 
 // UpdateChamberConfigRequest represents the request to update chamber configuration
 type UpdateChamberConfigRequest struct {
-	Lamps                []models.Lamp                 `json:"lamps"`
-	WateringZones        []models.WateringZone         `json:"watering_zones"`
-	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
-	DayDuration          map[string]float64            `json:"day_duration"`
-	DayStart             map[string]float64            `json:"day_start"`
-	Temperature          map[string]map[string]float64 `json:"temperature"`
-	Humidity             map[string]map[string]float64 `json:"humidity"`
-	CO2                  map[string]map[string]float64 `json:"co2"`
+	Lamps                map[string]models.InputNumber            `json:"lamps"`
+	WateringZones        []models.WateringZone                    `json:"watering_zones"`
+	UnrecognisedEntities map[string]models.InputNumber            `json:"unrecognised_entities"`
+	DayDuration          map[string]models.InputNumber            `json:"day_duration"`
+	DayStart             map[string]models.InputNumber            `json:"day_start"`
+	Temperature          map[string]map[string]models.InputNumber `json:"temperature"`
+	Humidity             map[string]map[string]models.InputNumber `json:"humidity"`
+	CO2                  map[string]map[string]models.InputNumber `json:"co2"`
 }
 
 func (s *ChamberService) UpdateChamberConfig(chamberID string, req *UpdateChamberConfigRequest) (*models.ChamberConfig, error) {

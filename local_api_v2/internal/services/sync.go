@@ -216,20 +216,18 @@ func (s *SyncService) fetchChamberConfig(backendID primitive.ObjectID) (*models.
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID                   primitive.ObjectID            `json:"id"`
-			ChamberID            primitive.ObjectID            `json:"chamber_id"`
-			Lamps                []models.Lamp                 `json:"lamps"`
-			WateringZones        []models.WateringZone         `json:"watering_zones"`
-			UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
-			DayDuration          map[string]float64            `json:"day_duration"`
-			DayStart             map[string]float64            `json:"day_start"`
-			Temperature          map[string]map[string]float64 `json:"temperature"`
-			Humidity             map[string]map[string]float64 `json:"humidity"`
-			CO2                  map[string]map[string]float64 `json:"co2"`
-			LightIntensity       map[string]float64            `json:"light_intensity"`
-			WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
-			UpdatedAt            time.Time                     `json:"updated_at"`
-			SyncedAt             *time.Time                    `json:"synced_at,omitempty"`
+			ID                   primitive.ObjectID                       `json:"id"`
+			ChamberID            primitive.ObjectID                       `json:"chamber_id"`
+			Lamps                map[string]models.InputNumber            `json:"lamps"`
+			WateringZones        []models.WateringZone                    `json:"watering_zones"`
+			UnrecognisedEntities map[string]models.InputNumber            `json:"unrecognised_entities"`
+			DayDuration          map[string]models.InputNumber            `json:"day_duration"`
+			DayStart             map[string]models.InputNumber            `json:"day_start"`
+			Temperature          map[string]map[string]models.InputNumber `json:"temperature"`
+			Humidity             map[string]map[string]models.InputNumber `json:"humidity"`
+			CO2                  map[string]map[string]models.InputNumber `json:"co2"`
+			UpdatedAt            time.Time                                `json:"updated_at"`
+			SyncedAt             *time.Time                               `json:"synced_at,omitempty"`
 		} `json:"data"`
 		Error string `json:"error"`
 	}
@@ -251,8 +249,6 @@ func (s *SyncService) fetchChamberConfig(backendID primitive.ObjectID) (*models.
 		Temperature:          response.Data.Temperature,
 		Humidity:             response.Data.Humidity,
 		CO2:                  response.Data.CO2,
-		LightIntensity:       response.Data.LightIntensity,
-		WateringSettings:     response.Data.WateringSettings,
 		UpdatedAt:            response.Data.UpdatedAt,
 		SyncedAt:             response.Data.SyncedAt,
 	}, nil

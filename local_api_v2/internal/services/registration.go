@@ -43,22 +43,20 @@ func NewRegistrationService(cfg *config.Config, db *database.MongoDB, ntpService
 
 // Updated RegistrationRequest in registration.go
 type RegistrationRequest struct {
-	Name                 string                        `json:"name"`
-	Suffix               string                        `json:"suffix"`
-	Location             string                        `json:"location"`
-	HAUrl                string                        `json:"ha_url"`
-	AccessToken          string                        `json:"access_token"`
-	LocalIP              string                        `json:"local_ip"`
-	Lamps                []models.Lamp                 `json:"lamps"`
-	WateringZones        []models.WateringZone         `json:"watering_zones"`
-	UnrecognisedEntities []models.InputNumber          `json:"unrecognised_entities"`
-	DayDuration          map[string]float64            `json:"day_duration"`
-	DayStart             map[string]float64            `json:"day_start"`
-	Temperature          map[string]map[string]float64 `json:"temperature"`
-	Humidity             map[string]map[string]float64 `json:"humidity"`
-	CO2                  map[string]map[string]float64 `json:"co2"`
-	LightIntensity       map[string]float64            `json:"light_intensity"`
-	WateringSettings     map[string]map[string]float64 `json:"watering_settings"`
+	Name                 string                                   `json:"name"`
+	Suffix               string                                   `json:"suffix"`
+	Location             string                                   `json:"location"`
+	HAUrl                string                                   `json:"ha_url"`
+	AccessToken          string                                   `json:"access_token"`
+	LocalIP              string                                   `json:"local_ip"`
+	Lamps                map[string]models.InputNumber            `json:"lamps"`
+	WateringZones        []models.WateringZone                    `json:"watering_zones"`
+	UnrecognisedEntities map[string]models.InputNumber            `json:"unrecognised_entities"`
+	DayDuration          map[string]models.InputNumber            `json:"day_duration"`
+	DayStart             map[string]models.InputNumber            `json:"day_start"`
+	Temperature          map[string]map[string]models.InputNumber `json:"temperature"`
+	Humidity             map[string]map[string]models.InputNumber `json:"humidity"`
+	CO2                  map[string]map[string]models.InputNumber `json:"co2"`
 }
 
 // Updated RegisterChamberWithBackend method
@@ -86,8 +84,6 @@ func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber
 		Temperature:          chamber.Config.Temperature,
 		Humidity:             chamber.Config.Humidity,
 		CO2:                  chamber.Config.CO2,
-		LightIntensity:       chamber.Config.LightIntensity,
-		WateringSettings:     chamber.Config.WateringSettings,
 	}
 
 	jsonData, err := json.Marshal(req)
