@@ -339,6 +339,5 @@ func setupFrontendRoutes(router *gin.Engine) {
 
 		c.DataFromReader(200, stat.Size(), "text/html; charset=utf-8", indexHTML, nil)
 	})
-
 	log.Println("✅ Frontend routes configured")
 }
