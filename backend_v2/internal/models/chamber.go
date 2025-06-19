@@ -19,9 +19,9 @@ type Chamber struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name               string             `bson:"name" json:"name"`
 	Suffix             string             `bson:"suffix" json:"suffix"` // e.g., "galo", "sb4", "room1", "default"
-	Location           string             `bson:"location" json:"location"`
 	HAUrl              string             `bson:"ha_url" json:"ha_url"`
 	LocalAPIversion    int                `bson:"local_api_version" json:"local_api_version"`
+	TimeOffset         int                `bson:"time_offset" json:"time_offset"`
 	AccessToken        string             `bson:"access_token" json:"-"`
 	LocalIP            string             `bson:"local_ip" json:"local_ip"`
 	Status             ChamberStatus      `bson:"status" json:"status"`

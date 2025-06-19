@@ -49,7 +49,7 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 			ID:                 primitive.NewObjectID(),
 			Name:               req.Name,
 			Suffix:             req.Suffix,
-			Location:           req.Location,
+			TimeOffset:         req.TimeOffset,
 			HAUrl:              req.HAUrl,
 			AccessToken:        req.AccessToken,
 			LocalIP:            req.LocalIP,
@@ -106,7 +106,7 @@ func (s *ChamberService) RegisterChamber(req *RegisterChamberRequest) (*models.C
 	update := bson.M{
 		"$set": bson.M{
 			"suffix":              req.Suffix,
-			"location":            req.Location,
+			"time_offset":         req.TimeOffset,
 			"ha_url":              req.HAUrl,
 			"access_token":        req.AccessToken,
 			"status":              models.StatusOnline,
@@ -312,7 +312,7 @@ func (s *ChamberService) StartStatusMonitor(ctx context.Context) {
 type RegisterChamberRequest struct {
 	Name                 string                                   `json:"name" binding:"required"`
 	Suffix               string                                   `json:"suffix"`
-	Location             string                                   `json:"location"`
+	TimeOffset           int                                      `json:"time_offset"`
 	HAUrl                string                                   `json:"ha_url" binding:"required"`
 	AccessToken          string                                   `json:"access_token" binding:"required"`
 	LocalIP              string                                   `json:"local_ip" binding:"required"`

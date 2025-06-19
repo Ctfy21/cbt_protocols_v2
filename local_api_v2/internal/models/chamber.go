@@ -20,6 +20,7 @@ type Chamber struct {
 	Name               string             `bson:"name" json:"name"`
 	Suffix             string             `bson:"suffix" json:"suffix"` // e.g., "galo", "sb4", "default"
 	LocalAPIversion    int                `bson:"local_api_version" json:"local_api_version"`
+	TimeOffset         int                `bson:"time_offset" json:"time_offset"`
 	BackendID          primitive.ObjectID `bson:"backend_id,omitempty" json:"backend_id,omitempty"`
 	LocalIP            string             `bson:"local_ip" json:"local_ip"`
 	HomeAssistantURL   string             `bson:"ha_url" json:"ha_url"`

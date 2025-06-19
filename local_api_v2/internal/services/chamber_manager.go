@@ -84,6 +84,8 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 			Name:             chamberName,
 			Suffix:           suffix,
 			LocalIP:          cm.config.LocalIP,
+			LocalAPIversion:  cm.config.LocalAPIversion,
+			TimeOffset:       cm.ntpService.TimeOffset(),
 			HomeAssistantURL: cm.config.HomeAssistantURL,
 			Status:           "online",
 			LastHeartbeat:    now,

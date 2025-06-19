@@ -158,22 +158,26 @@ func (ts *TimeService) Now() time.Time {
 	return ts.syncedTime.Add(elapsed)
 }
 
-// NowInMoscow returns current time in Moscow timezone
-func (ts *TimeService) NowInLocation() time.Time {
+// TimeOffset returns the time offset in hours
+func (ts *TimeService) TimeOffset() int {
 	currentTime := ts.Now()
 	location, err := time.LoadLocation(ts.location)
 	if err != nil {
 		log.Printf("Warning: Could not load %s timezone: %v", ts.location, err)
-		return currentTime
+		return 0
 	}
-	log.Printf("Current time in %s timezone: %v", ts.location, currentTime.In(location))
 	locationTime := currentTime.In(location)
 	_, locationOffset := locationTime.Zone()
 	_, currentOffset := currentTime.Zone()
 	diffSeconds := locationOffset - currentOffset
-	diffHours := diffSeconds / 3600
+	return diffSeconds / 3600
+}
 
-	return currentTime.Add(time.Duration(diffHours) * time.Hour)
+// NowInMoscow returns current time in Moscow timezone
+func (ts *TimeService) NowInLocation() time.Time {
+	currentTime := ts.Now()
+	offset := ts.TimeOffset()
+	return currentTime.Add(time.Duration(offset) * time.Hour)
 }
 
 // Unix returns Unix timestamp using NTP time
