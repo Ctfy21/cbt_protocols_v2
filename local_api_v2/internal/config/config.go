@@ -40,6 +40,7 @@ type Config struct {
 	LocalAPIversion int
 
 	// NTP configuration
+	NTPLocation     string
 	NTPEnabled      bool
 	NTPServers      []string
 	NTPSyncInterval time.Duration
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 		NTPServers:      parseNTPServers(getEnv("NTP_SERVERS", "ru.pool.ntp.org,europe.pool.ntp.org,0.ru.pool.ntp.org,1.ru.pool.ntp.org,pool.ntp.org")),
 		NTPSyncInterval: getEnvAsDuration("NTP_SYNC_INTERVAL", "5m"),
 		NTPTimeout:      getEnvAsDuration("NTP_TIMEOUT", "5s"),
+		NTPLocation:     getEnv("NTP_LOCATION", "Europe/Moscow"),
 
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 	}

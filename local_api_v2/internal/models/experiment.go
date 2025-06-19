@@ -121,7 +121,7 @@ func (e *Experiment) GetCurrentPhase(ntpService *ntp.TimeService) (*Phase, int, 
 		return nil, -1, nil
 	}
 
-	now := ntpService.NowInMoscow()
+	now := ntpService.Now()
 
 	for _, scheduleItem := range e.Schedule {
 		// Use timestamps for comparison

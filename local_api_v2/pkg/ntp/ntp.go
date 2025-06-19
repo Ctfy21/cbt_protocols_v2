@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	_ "time/tzdata"
+
 	"github.com/beevik/ntp"
 )
 
@@ -17,12 +19,12 @@ type TimeService struct {
 	syncedTime  time.Time
 	localTime   time.Time
 	offset      time.Duration
+	location    string
 	lastSync    time.Time
 	mu          sync.RWMutex
 	isConnected bool
 	enabled     bool
 	stopChan    chan struct{}
-	moscowTZ    *time.Location
 }
 
 // Config holds NTP service configuration
@@ -31,6 +33,7 @@ type Config struct {
 	Servers      []string
 	Timeout      time.Duration
 	SyncInterval time.Duration
+	NTPLocation  string
 }
 
 // NewTimeService creates a new NTP time service with configuration
@@ -51,19 +54,12 @@ func NewTimeService(config Config) *TimeService {
 		timeout = 5 * time.Second
 	}
 
-	// Load Moscow timezone
-	moscowTZ, err := time.LoadLocation("Europe/Moscow")
-	if err != nil {
-		log.Printf("Warning: Could not load Moscow timezone: %v", err)
-		moscowTZ = time.UTC
-	}
-
 	return &TimeService{
 		servers:  servers,
 		timeout:  timeout,
 		enabled:  config.Enabled,
 		stopChan: make(chan struct{}),
-		moscowTZ: moscowTZ,
+		location: config.NTPLocation,
 	}
 }
 
@@ -163,10 +159,21 @@ func (ts *TimeService) Now() time.Time {
 }
 
 // NowInMoscow returns current time in Moscow timezone
-func (ts *TimeService) NowInMoscow() time.Time {
+func (ts *TimeService) NowInLocation() time.Time {
 	currentTime := ts.Now()
+	location, err := time.LoadLocation(ts.location)
+	if err != nil {
+		log.Printf("Warning: Could not load %s timezone: %v", ts.location, err)
+		return currentTime
+	}
+	log.Printf("Current time in %s timezone: %v", ts.location, currentTime.In(location))
+	locationTime := currentTime.In(location)
+	_, locationOffset := locationTime.Zone()
+	_, currentOffset := currentTime.Zone()
+	diffSeconds := locationOffset - currentOffset
+	diffHours := diffSeconds / 3600
 
-	return currentTime.In(ts.moscowTZ).Add(3 * time.Hour)
+	return currentTime.Add(time.Duration(diffHours) * time.Hour)
 }
 
 // Unix returns Unix timestamp using NTP time

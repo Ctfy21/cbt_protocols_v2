@@ -264,7 +264,7 @@ func (s *SyncService) syncExperimentsForChamber(chamber *models.Chamber) error {
 	}
 
 	// Add NTP timing information to request headers
-	req.Header.Set("X-Local-Time", s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"))
+	req.Header.Set("X-Local-Time", s.ntpService.NowInLocation().Format("2006-01-02T15:04:05Z07:00"))
 	req.Header.Set("X-NTP-Enabled", fmt.Sprintf("%t", s.ntpService.IsEnabled()))
 	req.Header.Set("X-NTP-Connected", fmt.Sprintf("%t", s.ntpService.IsConnected()))
 
@@ -303,7 +303,7 @@ func (s *SyncService) syncExperimentsForChamber(chamber *models.Chamber) error {
 	defer cancel()
 
 	syncedCount := 0
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 
 	for _, experiment := range response.Data {
 		// Store backend ID and chamber info
@@ -387,7 +387,7 @@ func (s *SyncService) GetActiveExperiments() ([]models.Experiment, error) {
 func (s *SyncService) GetSyncStatus() map[string]interface{} {
 	activeExperiments, _ := s.GetActiveExperiments()
 	registeredChambers := s.chamberManager.GetRegisteredChambers()
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 
 	return map[string]interface{}{
 		"registered_chambers": len(registeredChambers),

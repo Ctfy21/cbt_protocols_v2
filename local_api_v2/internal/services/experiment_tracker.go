@@ -90,7 +90,7 @@ func (et *ExperimentTracker) checkAndUpdateExperiments() error {
 	log.Printf("🔍 Checking %d active experiments...", len(experiments))
 
 	completedCount := 0
-	now := et.ntpService.NowInMoscow()
+	now := et.ntpService.Now()
 
 	for _, experiment := range experiments {
 		isCompleted := et.isExperimentCompleted(experiment, now)
@@ -145,7 +145,7 @@ func (et *ExperimentTracker) isExperimentCompleted(experiment models.Experiment,
 func (et *ExperimentTracker) completeExperiment(ctx context.Context, experiment *models.Experiment) error {
 	// Update local status
 	experiment.Status = models.StatusCompleted
-	experiment.UpdatedAt = et.ntpService.NowInMoscow()
+	experiment.UpdatedAt = et.ntpService.Now()
 
 	// Sync status with backend
 	if err := et.syncExperimentStatusToBackend(experiment); err != nil {
@@ -201,7 +201,7 @@ func (et *ExperimentTracker) syncExperimentStatusToBackend(experiment *models.Ex
 	}
 
 	// Add local chamber information
-	req.Header.Set("X-Local-Time", et.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"))
+	req.Header.Set("X-Local-Time", et.ntpService.NowInLocation().Format("2006-01-02T15:04:05Z07:00"))
 	req.Header.Set("X-Chamber-Name", experiment.ChamberName)
 
 	resp, err := et.httpClient.Do(req)
@@ -220,7 +220,7 @@ func (et *ExperimentTracker) syncExperimentStatusToBackend(experiment *models.Ex
 
 // GetExperimentProgress returns progress information for an experiment
 func (et *ExperimentTracker) GetExperimentProgress(experiment models.Experiment) ExperimentProgress {
-	now := et.ntpService.NowInMoscow()
+	now := et.ntpService.Now()
 
 	if len(experiment.Schedule) == 0 {
 		return ExperimentProgress{
@@ -349,7 +349,7 @@ func (et *ExperimentTracker) GetTrackingStatus() map[string]interface{} {
 	return map[string]interface{}{
 		"active_experiments":   len(activeExperiments),
 		"completing_soon_24h":  completingSoon,
-		"last_check_time":      et.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
+		"last_check_time":      et.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
 		"tracking_enabled":     true,
 		"backend_sync_enabled": et.config.BackendURL != "",
 	}

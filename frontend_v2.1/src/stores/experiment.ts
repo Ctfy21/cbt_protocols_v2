@@ -48,6 +48,7 @@ export const useExperimentStore = defineStore('experiment', () => {
   async function fetchExperiments(chamberId?: string) {
     loading.value = true
     error.value = null
+    experiments.value = []
     try {
       const response = await api.getExperiments(chamberId ? { chamber_id: chamberId } : undefined)
       if (response.success && response.data) {

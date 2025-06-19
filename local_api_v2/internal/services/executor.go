@@ -219,7 +219,7 @@ func (s *ExecutorService) processExperiment(ctx context.Context, exp *models.Exp
 
 // getCurrentPhaseWithDay determines which phase should be active based on the schedule using NTP time
 func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*models.Phase, int, int) {
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.NowInLocation()
 
 	for _, scheduleItem := range exp.Schedule {
 		// Parse schedule timestamps
@@ -227,6 +227,7 @@ func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*model
 		endTime := time.Unix(scheduleItem.EndTimestamp, 0)
 		currentDay := 0
 
+		log.Printf("Start time: %v, end time: %v", startTime, endTime)
 		if now.After(startTime) && now.Before(endTime) {
 			// Find the corresponding phase
 			if scheduleItem.PhaseIndex < len(exp.Phases) {
@@ -236,6 +237,8 @@ func (s *ExecutorService) getCurrentPhaseWithDay(exp *models.Experiment) (*model
 						currentDay = intervalDays[i+1].Day
 					}
 				}
+				log.Printf("Current day: %d, phase index: %d", currentDay, scheduleItem.PhaseIndex)
+				log.Print(intervalDays)
 				return &exp.Phases[scheduleItem.PhaseIndex], scheduleItem.PhaseIndex, currentDay
 			}
 		}
@@ -274,7 +277,7 @@ func (s *ExecutorService) applyPhaseSettings(phase *models.Phase, currentDay int
 	}
 
 	// Update last executed time using NTP time
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 	phase.LastExecuted = &now
 
 	if len(errors) > 0 {
@@ -434,7 +437,7 @@ func (s *ExecutorService) applyWateringControls(phase *models.Phase, currentDay 
 
 // updateExperimentActivePhase updates the active phase index in the database using NTP time
 func (s *ExecutorService) updateExperimentActivePhase(ctx context.Context, exp *models.Experiment) error {
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 	update := bson.M{
 		"$set": bson.M{
 			"active_phase_index": exp.ActivePhaseIndex,
@@ -477,7 +480,7 @@ func (s *ExecutorService) GetStatus() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 	return map[string]interface{}{
 		"running":       s.isRunning,
 		"chamber_id":    s.chamberID.Hex(),

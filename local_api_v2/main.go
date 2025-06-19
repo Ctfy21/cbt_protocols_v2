@@ -42,6 +42,7 @@ func main() {
 		Servers:      cfg.NTPServers,
 		Timeout:      cfg.NTPTimeout,
 		SyncInterval: cfg.NTPSyncInterval,
+		NTPLocation:  cfg.NTPLocation,
 	})
 
 	// Start NTP service
@@ -331,11 +332,11 @@ func setupRoutes(mux *http.ServeMux, db *database.MongoDB, chamberManager *servi
 		w.WriteHeader(http.StatusOK)
 
 		currentTime := ntpService.Now()
-		moscowTime := ntpService.NowInMoscow()
+		locationTime := ntpService.NowInLocation()
 
-		fmt.Fprintf(w, `{"current_time":"%s","moscow_time":"%s","unix_timestamp":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
+		fmt.Fprintf(w, `{"current_time":"%s","location_time":"%s","unix_timestamp":%d,"ntp_enabled":%t,"ntp_connected":%t}`,
 			currentTime.Format("2006-01-02T15:04:05Z07:00"),
-			moscowTime.Format("2006-01-02T15:04:05Z07:00"),
+			locationTime.Format("2006-01-02T15:04:05Z07:00"),
 			ntpService.Unix(),
 			ntpService.IsEnabled(),
 			ntpService.IsConnected())

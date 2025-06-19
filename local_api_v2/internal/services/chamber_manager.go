@@ -75,7 +75,7 @@ func (cm *ChamberManager) createOrUpdateChamber(ctx context.Context, suffix stri
 		"suffix": suffix,
 	}).Decode(&chamber)
 
-	now := cm.ntpService.NowInMoscow()
+	now := cm.ntpService.Now()
 
 	if err == mongo.ErrNoDocuments {
 		// Create new chamber
@@ -220,7 +220,7 @@ func (cm *ChamberManager) GetChamberByID(id primitive.ObjectID) *models.Chamber 
 
 // UpdateChamberConfig updates chamber configuration
 func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID primitive.ObjectID, config *models.ChamberConfig) error {
-	now := cm.ntpService.NowInMoscow()
+	now := cm.ntpService.Now()
 	config.UpdatedAt = now
 	config.SyncedAt = &now
 
@@ -251,7 +251,7 @@ func (cm *ChamberManager) UpdateChamberConfig(ctx context.Context, chamberID pri
 
 // UpdateHeartbeat updates heartbeat for all chambers
 func (cm *ChamberManager) UpdateHeartbeat(ctx context.Context) error {
-	now := cm.ntpService.NowInMoscow()
+	now := cm.ntpService.Now()
 
 	for suffix, chamber := range cm.chambers {
 		update := bson.M{

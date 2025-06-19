@@ -151,7 +151,7 @@ func (s *RegistrationService) RegisterChamberWithBackend(chamber *models.Chamber
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	now := s.ntpService.NowInMoscow()
+	now := s.ntpService.Now()
 	_, err = s.db.ChambersCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": chamber.ID},
@@ -222,7 +222,7 @@ func (s *RegistrationService) sendHeartbeats(chamberManager *ChamberManager) {
 func (s *RegistrationService) sendHeartbeat(backendID primitive.ObjectID) error {
 	// Prepare heartbeat payload with NTP status
 	heartbeatData := map[string]interface{}{
-		"timestamp":     s.ntpService.NowInMoscow().Format("2006-01-02T15:04:05Z07:00"),
+		"timestamp":     s.ntpService.Now().Format("2006-01-02T15:04:05Z07:00"),
 		"ntp_enabled":   s.ntpService.IsEnabled(),
 		"ntp_connected": s.ntpService.IsConnected(),
 		"ntp_offset":    s.ntpService.GetOffset().String(),
